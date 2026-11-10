@@ -1,8 +1,11 @@
 package top.wkbin.taixu.feature.a2uipoc
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -10,15 +13,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
@@ -29,7 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.material3.Surface
+import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.runtime.saveable.rememberSaveable
 import top.wkbin.taixu.harness.A2uiSurfaceBus
 import top.wkbin.taixu.harness.ToolCall
@@ -39,6 +40,7 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.coroutines.delay
+import top.wkbin.taixu.ui.components.runtimeContentPadding
 
 /** 当前聊天会话。卡片用它给 surfaceId 加前缀，和工具执行时写入总线的会话一致。 */
 val LocalA2uiSessionId = staticCompositionLocalOf { "" }
@@ -107,8 +109,8 @@ fun A2uiSurfaceHost(
         title?.let {
             Text(
                 it,
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.primary,
+                style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = RuntimeTheme.colorScheme.primary,
             )
         }
         val rendered = TaiXuA2uiRenderer.SurfaceView(surfaceId = engineId, modifier = Modifier.fillMaxWidth())
@@ -133,9 +135,9 @@ fun A2uiSurfaceHost(
 private fun A2uiFallbackCard(renderError: String?, messagesJson: String, modifier: Modifier = Modifier) {
     RuntimeCard(
         containerColor = if (renderError != null) {
-            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
+            RuntimeTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
         } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
+            RuntimeTheme.colorScheme.surfaceContainerLow
         },
         modifier = modifier.fillMaxWidth(),
     ) {
@@ -143,14 +145,14 @@ private fun A2uiFallbackCard(renderError: String?, messagesJson: String, modifie
             if (renderError != null) {
                 Text(
                     renderError,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = RuntimeTheme.typography.labelMedium,
+                    color = RuntimeTheme.colorScheme.onErrorContainer,
                 )
             }
             Text(
                 messagesJson.take(1200).ifBlank { "（空载荷）" },
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall.copy(fontSize = 10.sp, fontFamily = FontFamily.Monospace),
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 10,
             )
         }
@@ -163,7 +165,7 @@ fun A2uiPocScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
     var lastInjectedAt by rememberSaveable { mutableStateOf(0L) }
     // 与其他二级页一致：RuntimeTopBar（返回箭头/状态栏间距/单行标题）+ 不透明底色
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = RuntimeTheme.colorScheme.background,
         topBar = {
             RuntimeTopBar(
                 title = stringResource(R.string.fa2ui_poc_title),
@@ -189,26 +191,26 @@ fun A2uiPocScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
                 RuntimeCard(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                     Text(
                         stringResource(R.string.fa2ui_empty_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp),
+                    contentPadding = runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(surfaces, key = { "${it.sessionId}:${it.surfaceId}" }) { payload ->
                         Surface(
-                            shape = MaterialTheme.shapes.medium,
+                            shape = RuntimeTheme.shapes.medium,
                             tonalElevation = 1.dp,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
                                     payload.title,
-                                    style = MaterialTheme.typography.titleSmall,
+                                    style = RuntimeTheme.typography.titleSmall,
                                     fontWeight = FontWeight.SemiBold,
                                 )
                                 A2uiSurfaceHost(

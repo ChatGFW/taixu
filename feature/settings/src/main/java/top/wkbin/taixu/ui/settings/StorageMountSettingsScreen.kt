@@ -1,38 +1,17 @@
 package top.wkbin.taixu.ui.settings
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
-import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import androidx.compose.material3.minimumInteractiveComponentSize
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
+
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import androidx.compose.material3.MaterialTheme
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
-import androidx.compose.material3.SwitchDefaults
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,27 +19,47 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.model.StorageMountBinding
 import top.wkbin.taixu.ui.components.NoticeBanner
+import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconButton
+import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
+import top.wkbin.taixu.ui.miuix.ButtonDefaults
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.wkbin.taixu.ui.miuix.SwitchDefaults
+import top.wkbin.taixu.ui.miuix.TopAppBarDefaults
+import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
+import top.wkbin.taixu.ui.settings.LocalizedText as Text
 
 /**
  * 宿主与沙箱存储挂载管理 (Storage Mounts & Bindings)
  * 基于 PRoot -b 机制，实现 Android 宿主目录与 Linux 容器内的无缝双向访问
  */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun StorageMountSettingsScreen(
     onBack: () -> Unit,
@@ -80,10 +79,10 @@ fun StorageMountSettingsScreen(
     var pendingDeleteBindingId by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) }
     val pendingDeleteBinding = pendingDeleteBindingId?.let { id -> customBindings.firstOrNull { it.id == id } }
 
-    val scrollBehavior = androidx.compose.material3.TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = RuntimeTheme.colorScheme.surface,
         topBar = {
             RuntimeTopBar(
                 title = "存储挂载与共享",
@@ -95,9 +94,9 @@ fun StorageMountSettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)),
-            contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, top.wkbin.taixu.ui.components.runtimeContentPadding(horizontal = 16.dp, top = 16.dp, bottom = 32.dp)),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .then(runtimeScrollViewport(padding)),
+            contentPadding = runtimeScrollContentPadding(padding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
+            verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             item {
                 NoticeBanner(
@@ -118,14 +117,14 @@ fun StorageMountSettingsScreen(
             item {
                 Text(
                     text = "系统预设快捷挂载",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.primary,
+                    style = RuntimeTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                    color = RuntimeTheme.colorScheme.primary,
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
                 )
                 RuntimeCard(
                     modifier = Modifier.fillMaxWidth(),
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    shape = MaterialTheme.shapes.extraLarge,
+                    containerColor = RuntimeTheme.colorScheme.surfaceContainer,
+                    shape = RuntimeTheme.shapes.extraLarge,
                     contentPadding = PaddingValues(0.dp),
                 ) {
                     Column {
@@ -138,7 +137,6 @@ fun StorageMountSettingsScreen(
                             onCheckedChange = { arg0 -> viewModel?.setMountDownloadEnabled(arg0) },
                             enabled = !localMountsOnly,
                         )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                         MountToggleRow(
                             icon = RuntimeIconName.Document,
                             title = "文档目录 (Documents)",
@@ -148,7 +146,6 @@ fun StorageMountSettingsScreen(
                             onCheckedChange = { arg0 -> viewModel?.setMountDocumentsEnabled(arg0) },
                             enabled = !localMountsOnly,
                         )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                         MountToggleRow(
                             icon = RuntimeIconName.SdCard,
                             title = "完整共享存储 (/sdcard)",
@@ -171,19 +168,13 @@ fun StorageMountSettingsScreen(
                 ) {
                     Text(
                         text = "自定义映射绑定",
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.primary,
+                        style = RuntimeTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                        color = RuntimeTheme.colorScheme.primary,
                         modifier = Modifier.padding(start = 4.dp),
                     )
-                    OutlinedButton(
-                        onClick = { showAddDialog = true },
-                        shape = RoundedCornerShape(50),
-                        enabled = !localMountsOnly,
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    ) {
-                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(14.dp))
-                        Spacer(Modifier.size(4.dp))
-                        Text("新增挂载", style = MaterialTheme.typography.labelSmall)
+                    RuntimeIconButton(onClick = { showAddDialog = true }, enabled = !localMountsOnly,
+                        contentDescription = "新增挂载") {
+                        RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp))
                     }
                 }
             }
@@ -192,10 +183,10 @@ fun StorageMountSettingsScreen(
                 item {
                     RuntimeCard(
                         modifier = Modifier.fillMaxWidth(),
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        shape = MaterialTheme.shapes.extraLarge,
-                        borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                        contentPadding = PaddingValues(24.dp),
+                        containerColor = RuntimeTheme.colorScheme.surfaceContainer,
+                        shape = RuntimeTheme.shapes.extraLarge,
+                        borderColor = Color.Transparent,
+                        contentPadding = PaddingValues(16.dp),
                     ) {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
@@ -204,13 +195,13 @@ fun StorageMountSettingsScreen(
                         ) {
                             Text(
                                 "暂无自定义挂载点",
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface,
+                                style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = RuntimeTheme.colorScheme.onSurface,
                             )
                             Text(
                                 "点击上方“新增挂载”将 Android 目录映射进 Linux 沙箱（仅终端 / 智枢 / 构建可见）",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -219,9 +210,9 @@ fun StorageMountSettingsScreen(
                 items(customBindings, key = { it.id }) { binding ->
                     RuntimeCard(
                         modifier = Modifier.fillMaxWidth(),
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        shape = MaterialTheme.shapes.extraLarge,
-                        contentPadding = PaddingValues(20.dp),
+                        containerColor = RuntimeTheme.colorScheme.surfaceContainer,
+                        shape = RuntimeTheme.shapes.extraLarge,
+                        contentPadding = PaddingValues(16.dp),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -231,16 +222,16 @@ fun StorageMountSettingsScreen(
                             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     text = binding.name,
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                    color = RuntimeTheme.colorScheme.onSurface,
                                 )
                                 Text(
                                     text = "${binding.hostPath} ➔ ${binding.guestPath}",
-                                    style = MaterialTheme.typography.labelSmall.copy(
+                                    style = RuntimeTheme.typography.labelSmall.copy(
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 12.sp,
                                     ),
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = RuntimeTheme.colorScheme.primary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -249,8 +240,8 @@ fun StorageMountSettingsScreen(
                                 if (bindingError != null) {
                                     Text(
                                         text = "无效挂载：$bindingError（删除后重新添加）",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.error,
+                                        style = RuntimeTheme.typography.labelSmall,
+                                        color = RuntimeTheme.colorScheme.error,
                                     )
                                 }
                             }
@@ -262,8 +253,8 @@ fun StorageMountSettingsScreen(
                                 },
                                 enabled = !localMountsOnly,
                                 colors = SwitchDefaults.colors(
-                                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                    checkedThumbColor = RuntimeTheme.colorScheme.onPrimary,
+                                    checkedTrackColor = RuntimeTheme.colorScheme.primary,
                                 ),
                             )
 
@@ -278,7 +269,7 @@ fun StorageMountSettingsScreen(
                                 RuntimeIcon(
                                     name = RuntimeIconName.Trash,
                                     modifier = Modifier.size(16.dp),
-                                    tint = MaterialTheme.colorScheme.error,
+                                    tint = RuntimeTheme.colorScheme.error,
                                 )
                             }
                         }
@@ -291,7 +282,7 @@ fun StorageMountSettingsScreen(
     pendingDeleteBinding?.let { binding ->
         RuntimeAlertDialog(
             onDismissRequest = { pendingDeleteBindingId = null },
-            title = { Text("删除挂载点", fontWeight = FontWeight.Bold) },
+            title = { Text("删除挂载点", fontWeight = FontWeight.Medium) },
             text = {
                 Text("确定要删除挂载点「${binding.name}」（${binding.hostPath} ➔ ${binding.guestPath}）吗？删除后新建的终端 / 构建任务将不再映射该目录。")
             },
@@ -301,8 +292,8 @@ fun StorageMountSettingsScreen(
                         viewModel?.removeCustomMountBinding(binding.id)
                         pendingDeleteBindingId = null
                     },
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RuntimeTheme.colorScheme.error,
                     ),
                 ) {
                     Text("确认删除")

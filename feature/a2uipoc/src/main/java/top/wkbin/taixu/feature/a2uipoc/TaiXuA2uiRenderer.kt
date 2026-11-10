@@ -1,5 +1,9 @@
 package top.wkbin.taixu.feature.a2uipoc
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import androidx.a2ui.compose.runtime.A2uiMessageParser
 import androidx.a2ui.compose.ui.A2uiCatalog
 import androidx.a2ui.compose.ui.A2uiMessageProcessor
@@ -8,11 +12,10 @@ import androidx.a2ui.model.protocol.A2uiClientEventMessage
 import androidx.a2ui.model.protocol.A2uiDeleteSurfaceMessage
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.a2ui.A2uiSurface
-import androidx.compose.material3.a2ui.catalog.materialA2uiBasicCatalogV1
+import top.wkbin.taixu.feature.a2uipoc.miuix.A2uiSurface
+import top.wkbin.taixu.feature.a2uipoc.miuix.miuixA2uiBasicCatalogV1
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import java.security.MessageDigest
@@ -33,7 +36,7 @@ import top.wkbin.taixu.harness.A2uiSurfaceBus
 /**
  * 太墟 A2UI 渲染器包装：把 androidx.a2ui 官方渲染器收敛为单例入口。
  *
- * - Catalog 在官方 Material3 Basic Catalog 上加太墟 Table，catalogId 与
+ * - Catalog 在Miuix Basic Catalog 上加太墟 Table，catalogId 与
  *   harness 契约（A2uiSurfaceContract.CATALOG_ID）保持一致：智能体只能使用目录内
  *   声明的组件，与工具白名单同一套安全哲学；
  * - processor 单例持有全部活动 surface：聊天流滚动导致组合销毁重建时，
@@ -42,17 +45,17 @@ import top.wkbin.taixu.harness.A2uiSurfaceBus
  *   A2uiSurfaceBus，由装配层路由回原会话的 agent 循环。
  *
  * 注意：A2UI 库当前为 1.0.0-alpha02，API 可能随版本变动；本文件是唯一的对接点，
- * 升级库版本时只需调整这里（关键符号：materialA2uiBasicCatalogV1 /
+ * 升级库版本时只需调整这里（关键符号：miuixA2uiBasicCatalogV1 /
  * A2uiMessageProcessor / A2uiMessageParser / A2uiSurface / outboundEvents）。
  */
 object TaiXuA2uiRenderer {
 
     /**
      * Basic Catalog 加 Table。image/video/audioPlayer 与 urlOpener/messageFormatter
-     * 由太墟实现（Coil、Media3、http/https 白名单、ICU plural）；其余走官方默认。
+     * 由太墟实现（Coil、Media3、http/https 白名单、ICU plural）；其余由 Miuix 目录适配组件渲染。
      */
     private val catalog: A2uiCatalog = TaiXuA2uiCatalog.extend(
-        materialA2uiBasicCatalogV1(
+        miuixA2uiBasicCatalogV1(
             image = TaiXuImageComponent(),
             video = TaiXuVideoComponent(),
             audioPlayer = TaiXuAudioPlayerComponent(),

@@ -7,8 +7,8 @@ import java.lang.reflect.Proxy
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
 import org.junit.Assert.*
-import org.junit.Test
 import org.junit.Rule
+import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -21,10 +21,12 @@ import top.wkbin.taixu.core.network.FileDownloader
 import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.compaction.CompactionManager
 import top.wkbin.taixu.harness.core.*
-import top.wkbin.taixu.harness.session.SessionTreeStore
 import top.wkbin.taixu.harness.directory.CapabilityToolGateway
-import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.harness.session.SessionTreeStore
 import top.wkbin.taixu.harness.websearch.StubSearchProvider
+import top.wkbin.taixu.harness.websearch.WebSearchProviders
+import top.wkbin.taixu.runtime.LinuxRuntime
+
 
 /** Fake model drives the real turn runner and history backend after recreating the session adapters. */
 @RunWith(RobolectricTestRunner::class)
@@ -136,7 +138,7 @@ class HistoryContextRecoveryTest {
             HostCapabilityToolBackend(secretRedactor = SecretRedactor()),
             LinuxCommandToolBackend(unused<LinuxRuntime>(), paths),
             DownloadToolBackend(unused<FileDownloader>(), files, WorkspaceMutationSnapshots()),
-            SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(StubSearchProvider()))),
+            SearchWebToolBackend(WebSearchProviders(listOf(StubSearchProvider()))),
             backend, AskUserToolBackend(policy, null), PromptAssetToolBackend(), HarnessServiceToolBackend(),
             CapabilityToolGateway(null) { _, _, _, _ -> error("Unexpected capability") })
     }

@@ -1,38 +1,47 @@
 package top.wkbin.taixu.di.feature.settings
 
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 import top.wkbin.taixu.ui.settings.AppManagementViewModel
 import top.wkbin.taixu.ui.settings.CcSwitchViewModel
-import top.wkbin.taixu.ui.settings.FtpSettingsViewModel
-import top.wkbin.taixu.ui.settings.FeatureHubViewModel
+import top.wkbin.taixu.ui.settings.ChatBackgroundSettingsViewModel
+import top.wkbin.taixu.ui.settings.ChatIdentitySettingsViewModel
 import top.wkbin.taixu.ui.settings.FirstResponseTimeoutViewModel
+import top.wkbin.taixu.ui.settings.FtpSettingsViewModel
+import top.wkbin.taixu.ui.settings.LocalBackupViewModel
 import top.wkbin.taixu.ui.settings.LocalLlmViewModel
+import top.wkbin.taixu.ui.settings.McpCatalogViewModel
+import top.wkbin.taixu.ui.settings.McpClientSettingsViewModel
+import top.wkbin.taixu.ui.settings.McpToolPolicyViewModel
+import top.wkbin.taixu.ui.settings.PackagedPluginsViewModel
+import top.wkbin.taixu.ui.settings.PackagedWebPluginSources
 import top.wkbin.taixu.ui.settings.PhoneAgentSettingsViewModel
+import top.wkbin.taixu.ui.settings.RemotePluginsViewModel
+import top.wkbin.taixu.ui.settings.RemoteServerViewModel
 import top.wkbin.taixu.ui.settings.SettingsViewModel
 import top.wkbin.taixu.ui.settings.SponsorListRepository
 import top.wkbin.taixu.ui.settings.SponsorListViewModel
 import top.wkbin.taixu.ui.settings.SshSettingsViewModel
 import top.wkbin.taixu.ui.settings.StorageUsageViewModel
-import top.wkbin.taixu.ui.settings.McpCatalogViewModel
+import top.wkbin.taixu.ui.settings.ThemePaletteViewModel
 import top.wkbin.taixu.ui.settings.ToolCenterViewModel
 import top.wkbin.taixu.ui.settings.ToolDetailViewModel
+import top.wkbin.taixu.ui.settings.WebPluginsViewModel
 import top.wkbin.taixu.ui.settings.stats.StatsRepository
 import top.wkbin.taixu.ui.settings.stats.StatsViewModel
-import org.koin.core.module.dsl.viewModel
-import top.wkbin.taixu.ui.settings.LocalBackupViewModel
 
 /** Dependency registrations owned by the feature:settings module. */
 val featureSettingsModule = module {
-    viewModel { top.wkbin.taixu.ui.settings.RemotePluginsViewModel(get(), get(), get(), get()) }
-    single { top.wkbin.taixu.ui.settings.PackagedWebPluginSources(get(), get(), get(), get()) }
-    viewModel { top.wkbin.taixu.ui.settings.WebPluginsViewModel(repository = get()) }
-    viewModel { top.wkbin.taixu.ui.settings.ThemePaletteViewModel(get()) }
-    viewModel { top.wkbin.taixu.ui.settings.ChatBackgroundSettingsViewModel(get(), get()) }
-    viewModel { top.wkbin.taixu.ui.settings.ChatIdentitySettingsViewModel(get(), get(org.koin.core.qualifier.named("chatIdentityImages"))) }
-    viewModel { top.wkbin.taixu.ui.settings.PackagedPluginsViewModel(get(), get(), get()) }
-    viewModel { top.wkbin.taixu.ui.settings.McpClientSettingsViewModel(get()) }
-    viewModel { top.wkbin.taixu.ui.settings.McpToolPolicyViewModel(get(), get()) }
-    viewModel { top.wkbin.taixu.ui.settings.RemoteServerViewModel(get(), get()) }
+    viewModel { RemotePluginsViewModel(get(), get(), get(), get()) }
+    single { PackagedWebPluginSources(get(), get(), get(), get()) }
+    viewModel { WebPluginsViewModel(repository = get()) }
+    viewModel { ThemePaletteViewModel(get()) }
+    viewModel { ChatBackgroundSettingsViewModel(get(), get()) }
+    viewModel { ChatIdentitySettingsViewModel(get(), get(org.koin.core.qualifier.named("chatIdentityImages"))) }
+    viewModel { PackagedPluginsViewModel(get(), get(), get()) }
+    viewModel { McpClientSettingsViewModel(get()) }
+    viewModel { McpToolPolicyViewModel(get(), get()) }
+    viewModel { RemoteServerViewModel(get(), get()) }
     viewModel { LocalBackupViewModel(context = get(), service = get()) }
     viewModel<AppManagementViewModel> { AppManagementViewModel(repository = get(), appManager = get()) }
     viewModel { PhoneAgentSettingsViewModel(preferences = get(), connectionTester = get()) }
@@ -110,15 +119,6 @@ val featureSettingsModule = module {
             translationManager = get(),
             skillInstallationManager = getOrNull(),
             clawHubClient = getOrNull(),
-        )
-    }
-
-    viewModel<FeatureHubViewModel> {
-        FeatureHubViewModel(
-            webChatBridgeServer = get(),
-            workflowRepository = get(),
-            scheduleRepository = get(),
-            logger = get(),
         )
     }
 

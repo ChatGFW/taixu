@@ -1,11 +1,16 @@
 package top.wkbin.taixu.ui.settings.stats
 
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
 import top.wkbin.taixu.core.database.HarnessSessionRepository
+import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
+import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
+import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.datastore.AppStatsPreferences
 import top.wkbin.taixu.core.model.StatsDateRange
 import top.wkbin.taixu.core.model.StatsHeatmapDay
@@ -16,8 +21,6 @@ import top.wkbin.taixu.core.model.StatsSnapshot
 import top.wkbin.taixu.core.model.StatsSummary
 import top.wkbin.taixu.core.model.StatsTokenBucket
 import top.wkbin.taixu.core.model.StatsTrendDay
-import java.time.LocalDate
-import java.time.ZoneId
 
 class StatsRepository(
     private val runtimeRepository: HarnessRuntimeRepository,
@@ -25,9 +28,9 @@ class StatsRepository(
     private val aiModelRepository: AiModelRepository,
     private val appStatsPreferences: AppStatsPreferences,
     /** Bot 维度报表（DS Bot 用量页）：会话→Bot 映射与 Bot 名册。 */
-    private val botRepository: top.wkbin.taixu.core.database.repository.PersonaBotRepository? = null,
-    private val groupSessions: top.wkbin.taixu.core.database.repository.BotGroupSessionRepository? = null,
-    private val assignments: top.wkbin.taixu.core.database.repository.BotAssignmentRepository? = null,
+    private val botRepository: PersonaBotRepository? = null,
+    private val groupSessions: BotGroupSessionRepository? = null,
+    private val assignments: BotAssignmentRepository? = null,
 ) {
     /** Bot 名下全部会话（私聊 + 群维度 + 独立任务）；无 Bot 数据源时返回空。 */
     private suspend fun sessionIdsOfBot(botId: String): List<String> {

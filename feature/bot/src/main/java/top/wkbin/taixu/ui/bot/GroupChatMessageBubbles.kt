@@ -2,7 +2,6 @@ package top.wkbin.taixu.ui.bot
 
 import android.content.ClipData
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -10,17 +9,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -69,8 +66,8 @@ internal fun TimeSeparator(label: String) {
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.labelSmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -91,13 +88,13 @@ private fun BotMessageBubble(
             BotAvatar(seed = bot?.avatarSeed ?: message.senderName, colorHex = bot?.colorHex ?: "#3D5AFE",
                 size = AvatarSize, active = message.isStreaming,
                 modifier = if (botId != null) Modifier.clickable { onOpenBot(botId) } else Modifier)
-            Text(bot?.name ?: message.senderName, style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Text(bot?.name ?: message.senderName, style = RuntimeTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium, color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false).then(if (botId != null) Modifier.clickable { onOpenBot(botId) } else Modifier))
             if (bot?.isMainBot == true) MainBadge()
-            if (role.isNotBlank()) Text(role, style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1,
+            if (role.isNotBlank()) Text(role, style = RuntimeTheme.typography.labelSmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         }
         Column(verticalArrangement = Arrangement.spacedBy(GroupGap)) {
@@ -116,11 +113,11 @@ private fun BotMessageBubble(
 
 @Composable
 private fun MainBadge() {
-    Surface(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), shape = CircleShape) {
+    Surface(color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f), shape = CircleShape) {
         Text(
             text = stringResource(R.string.fbot_main_bot),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary,
+            style = RuntimeTheme.typography.labelSmall,
+            color = RuntimeTheme.colorScheme.primary,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
         )
     }
@@ -131,7 +128,7 @@ private fun MessageBubble(message: GroupMessage, shape: Shape) {
     val content = message.contentText
     when {
         content.startsWith("❌") -> Surface(
-            color = MaterialTheme.colorScheme.errorContainer,
+            color = RuntimeTheme.colorScheme.errorContainer,
             shape = shape,
             modifier = Modifier.widthIn(max = 600.dp),
         ) {
@@ -141,7 +138,7 @@ private fun MessageBubble(message: GroupMessage, shape: Shape) {
             ) {
                 ExpandableGroupText(
                     messageId = message.id, text = content.toString(), streaming = message.isStreaming, markdown = false,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    color = RuntimeTheme.colorScheme.onErrorContainer,
                 )
             }
         }
@@ -150,11 +147,11 @@ private fun MessageBubble(message: GroupMessage, shape: Shape) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            RuntimeIcon(RuntimeIconName.Sparkles, Modifier.size(14.dp), MaterialTheme.colorScheme.primary)
+            RuntimeIcon(RuntimeIconName.Sparkles, Modifier.size(14.dp), RuntimeTheme.colorScheme.onSurface)
             Text(
                 text = content.toString().removePrefix("⏳").trim(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelMedium,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
         }
         content.startsWith("💭") -> GroupReasoningPanel(
@@ -162,8 +159,8 @@ private fun MessageBubble(message: GroupMessage, shape: Shape) {
         )
         else -> Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ExpandableGroupText(message.id, content, message.isStreaming)
-            AttachmentChips(message.attachments, MaterialTheme.colorScheme.onSurfaceVariant)
-            if (message.isStreaming) TypingDots(MaterialTheme.colorScheme.onSurfaceVariant)
+            AttachmentChips(message.attachments, RuntimeTheme.colorScheme.onSurfaceVariant)
+            if (message.isStreaming) TypingDots(RuntimeTheme.colorScheme.onSurfaceVariant)
             else if (content.hasText) GroupMessageActions(message)
         }
     }
@@ -185,7 +182,7 @@ private fun UserMessageBubble(
     ) {
         BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
             Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
+                color = RuntimeTheme.colorScheme.primaryContainer,
                 shape = userShape(firstInGroup, lastInGroup),
                 modifier = Modifier
                     .widthIn(max = maxWidth * 0.86f)
@@ -209,13 +206,13 @@ private fun UserMessageBubble(
                     if (message.content.isNotBlank()) {
                         Text(
                             text = message.content,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            style = RuntimeTheme.typography.bodyMedium,
+                            color = RuntimeTheme.colorScheme.onPrimaryContainer,
                         )
                     }
                     AttachmentChips(
                         attachments = message.attachments,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        tint = RuntimeTheme.colorScheme.onPrimaryContainer,
                     )
                 }
             }
@@ -228,11 +225,10 @@ private fun SystemNotice(message: GroupMessage) {
     val content = message.content.trim()
     val warning = content.startsWith("⚠️") || content.startsWith("❌")
     val icon = if (warning) RuntimeIconName.Alert else RuntimeIconName.Info
-    val tint = if (warning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+    val tint = if (warning) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.onSurface
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
+        shape = RuntimeTheme.shapes.small,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(

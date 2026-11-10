@@ -6,9 +6,9 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Slider
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -37,7 +37,7 @@ internal fun AvatarCropDialog(bitmap: Bitmap, busy: Boolean, failed: Boolean,
     val currentBusy by rememberUpdatedState(busy)
     fun update(next: AvatarCrop) { x = next.x; y = next.y; zoom = next.zoom }
     val image = remember(bitmap) { bitmap.asImageBitmap() }
-    val outline = MaterialTheme.colorScheme.outline
+    val outline = RuntimeTheme.colorScheme.outline
     val zoomLabel = stringResource(R.string.settings_avatar_crop_zoom)
     RuntimeAlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
@@ -45,7 +45,7 @@ internal fun AvatarCropDialog(bitmap: Bitmap, busy: Boolean, failed: Boolean,
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(stringResource(R.string.settings_avatar_crop_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.settings_avatar_crop_hint), color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 Canvas(Modifier.widthIn(max = 320.dp).fillMaxWidth().aspectRatio(1f)
                     .pointerInput(bitmap) {
                         detectTransformGestures { _, pan, scale, _ ->
@@ -57,12 +57,12 @@ internal fun AvatarCropDialog(bitmap: Bitmap, busy: Boolean, failed: Boolean,
                         dstSize = IntSize(size.width.toInt(), size.height.toInt()))
                     drawRect(outline, style = Stroke(1.dp.toPx()))
                 }
-                Text(zoomLabel, style = MaterialTheme.typography.labelMedium)
+                Text(zoomLabel, style = RuntimeTheme.typography.labelMedium)
                 Slider(value = zoom, onValueChange = { next ->
                     update(crop.transform(bitmap.width, bitmap.height, 1, 0f, 0f, next / zoom))
                 }, valueRange = 1f..4f, enabled = !busy,
                     modifier = Modifier.semantics { contentDescription = zoomLabel })
-                if (failed) Text(stringResource(R.string.settings_chat_identity_error), color = MaterialTheme.colorScheme.error)
+                if (failed) Text(stringResource(R.string.settings_chat_identity_error), color = RuntimeTheme.colorScheme.error)
             }
         },
         confirmButton = {

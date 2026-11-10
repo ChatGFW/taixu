@@ -1,17 +1,19 @@
 package top.wkbin.taixu.runtime.remote
 
 import com.jcraft.jsch.*
+import java.security.MessageDigest
+import java.util.Base64
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runInterruptible
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.model.RemoteServer
 import top.wkbin.taixu.core.model.SshAuthentication
 import top.wkbin.taixu.core.model.SshCredentials
-import java.security.MessageDigest
-import java.util.Base64
+import top.wkbin.taixu.runtime.environment.ExecutionEnvironment
+import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentId
 
 class HostKeyConfirmationRequired(val fingerprint: String) : Exception("请核对服务器主机指纹")
 
@@ -25,7 +27,7 @@ class SshConnector(
     private val lanSockets: LanSocketOpener = LanSocketOpener(),
     private val userEnvironment: suspend () -> Map<String, String> = { emptyMap() },
 ) : SshConnectionTester {
-    suspend fun openEnvironment(server: RemoteServer, credentials: SshCredentials, id: top.wkbin.taixu.runtime.environment.ExecutionEnvironmentId, logicalWorkspace: String = "/workspace"): top.wkbin.taixu.runtime.environment.ExecutionEnvironment {
+    suspend fun openEnvironment(server: RemoteServer, credentials: SshCredentials, id: ExecutionEnvironmentId, logicalWorkspace: String = "/workspace"): ExecutionEnvironment {
         val session = connect(server, credentials)
         try {
             return SshExecutionEnvironment(server, session, id, credentials, logicalWorkspace, reconnect = ::connect, userEnvironment = userEnvironment)

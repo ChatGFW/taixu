@@ -1,13 +1,15 @@
 package top.wkbin.taixu.ui.developer
 
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -42,6 +44,7 @@ import top.wkbin.taixu.ui.developer.LocalizedText as Text
 import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /**
  * 智能体诊断区：本地调试日志 + 消息反馈只读视图。
@@ -65,17 +68,17 @@ internal fun AgentDiagnosticsSection(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             IconTile(RuntimeIconName.Shield)
             Column(Modifier.weight(1f)) {
-                Text("智能体本地调试日志", style = MaterialTheme.typography.titleMedium)
+                Text("智能体本地调试日志", style = RuntimeTheme.typography.titleMedium)
                 Text(
                     if (agentLoggingEnabled) "已启用（文件大小：${agentLogSize.toReadableSize()}）" else "已关闭（不写入本地日志文件）",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 if (agentLogLocation.isNotBlank()) {
                     Text(
                         "日志文件：$agentLogLocation",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -83,15 +86,15 @@ internal fun AgentDiagnosticsSection(
         }
         if (agentLoggingEnabled || agentLogSize > 0L) {
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton(onClick = onViewLogs, modifier = Modifier.weight(1f)) {
+            RuntimeActionRow() {
+                OutlinedButton(onClick = onViewLogs, modifier = Modifier) {
                     Text("查看日志")
                 }
-                OutlinedButton(onClick = onCopyLogs, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = onCopyLogs, modifier = Modifier) {
                     Text("复制全部")
                 }
                 TextButton(onClick = onClearLogs) {
-                    Text("清空", color = MaterialTheme.colorScheme.error)
+                    Text("清空", color = RuntimeTheme.colorScheme.error)
                 }
             }
         }
@@ -114,39 +117,38 @@ private fun UnattendedApprovalDiagnosticsCard(diagnostics: SessionDiagnosticsVie
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             IconTile(RuntimeIconName.Shield)
             Column(Modifier.weight(1f)) {
-                Text("无人盯着 · 审批旁路", style = MaterialTheme.typography.titleMedium)
+                Text("无人盯着 · 审批旁路", style = RuntimeTheme.typography.titleMedium)
                 Text(
                     "排期 / 委派 / 工作流下的放行决策、失败与免审旁路（最多 50 条）",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             StatusBadge("${groups.sumOf { it.entries.size }} 条旁路")
         }
         if (groups.isEmpty()) {
             Spacer(Modifier.height(10.dp))
-            Text("暂无无人值守旁路记录", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("暂无无人值守旁路记录", style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             return@RuntimeCard
         }
         groups.forEach { group ->
             Spacer(Modifier.height(14.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(10.dp))
             Text(
                 group.sessionTitle,
-                style = MaterialTheme.typography.titleSmall,
+                style = RuntimeTheme.typography.titleSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             group.entries.forEach { entry ->
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatusBadge(unattendedInitiatorLabel(entry.initiatorKind), MaterialTheme.colorScheme.tertiary)
+                    StatusBadge(unattendedInitiatorLabel(entry.initiatorKind), RuntimeTheme.colorScheme.tertiary)
                     StatusBadge(unattendedAuditKindLabel(entry.kind))
                     Text(
                         formatter.format(Date(entry.createdAt)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Spacer(Modifier.height(4.dp))
@@ -155,8 +157,8 @@ private fun UnattendedApprovalDiagnosticsCard(diagnostics: SessionDiagnosticsVie
                         append(entry.toolName)
                         entry.initiatorId?.takeIf { it.isNotBlank() }?.let { append(" · ").append(it) }
                     },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -174,30 +176,29 @@ private fun BrowserControlDiagnosticsCard(diagnostics: SessionDiagnosticsViewMod
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             IconTile(RuntimeIconName.Globe)
             Column(Modifier.weight(1f)) {
-                Text("浏览器接管交接", style = MaterialTheme.typography.titleMedium)
+                Text("浏览器接管交接", style = RuntimeTheme.typography.titleMedium)
                 Text(
                     "共浏览关闭/恢复与人接管期间 Bot 求助（control_* · help_requested，最多 50 条）",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             StatusBadge("${entries.size} 条交接")
         }
         if (entries.isEmpty()) {
             Spacer(Modifier.height(10.dp))
-            Text("暂无接管记录", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("暂无接管记录", style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             return@RuntimeCard
         }
         entries.forEach { entry ->
             Spacer(Modifier.height(10.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatusBadge(unattendedAuditKindLabel(entry.kind))
                 Text(
                     formatter.format(Date(entry.createdAt)),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Spacer(Modifier.height(4.dp))
@@ -206,8 +207,8 @@ private fun BrowserControlDiagnosticsCard(diagnostics: SessionDiagnosticsViewMod
                     append(entry.toolName)
                     entry.detail?.takeIf { it.isNotBlank() }?.let { append(" · ").append(it) }
                 },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -224,27 +225,26 @@ private fun MessageFeedbackDiagnosticsCard(diagnostics: SessionDiagnosticsViewMo
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             IconTile(RuntimeIconName.Chat)
             Column(Modifier.weight(1f)) {
-                Text("消息反馈", style = MaterialTheme.typography.titleMedium)
+                Text("消息反馈", style = RuntimeTheme.typography.titleMedium)
                 Text(
                     "用户对助手消息的评价，只读（最多 50 条）",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             StatusBadge("${groups.sumOf { it.entries.size }} 条反馈")
         }
         if (groups.isEmpty()) {
             Spacer(Modifier.height(10.dp))
-            Text("暂无反馈", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("暂无反馈", style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             return@RuntimeCard
         }
         groups.forEach { group ->
             Spacer(Modifier.height(14.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(Modifier.height(10.dp))
             Text(
                 group.sessionTitle,
-                style = MaterialTheme.typography.titleSmall,
+                style = RuntimeTheme.typography.titleSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -254,17 +254,17 @@ private fun MessageFeedbackDiagnosticsCard(diagnostics: SessionDiagnosticsViewMo
                     val positive = entry.rating == AgentMessageFeedbackEntity.RATING_UP
                     StatusBadge(
                         if (positive) "有帮助" else "有问题",
-                        if (positive) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
+                        if (positive) RuntimeTheme.colorScheme.secondary else RuntimeTheme.colorScheme.error,
                     )
                     Text(
                         formatter.format(Date(entry.updatedAt)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 entry.note?.let { note ->
                     Spacer(Modifier.height(4.dp))
-                    Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(note, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

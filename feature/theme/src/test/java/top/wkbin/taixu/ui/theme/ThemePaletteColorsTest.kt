@@ -14,7 +14,7 @@ class ThemePaletteColorsTest {
         ThemePaletteColors.forEach { preset ->
             ThemePaletteStyle.entries.forEach { style ->
                 listOf(false, true).forEach { dark ->
-                    val scheme = generateM3ColorScheme(preset.seed, dark, style)
+                    val scheme = generatePaletteColorScheme(preset.seed, dark, style)
                     listOf(scheme.primary to scheme.onPrimary, scheme.surface to scheme.onSurface,
                         scheme.primaryContainer to scheme.onPrimaryContainer).forEach { (background, foreground) ->
                         assertTrue("${preset.id}, $style, dark=$dark", contrast(background, foreground) >= 4.5)

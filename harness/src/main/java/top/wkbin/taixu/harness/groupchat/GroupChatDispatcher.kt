@@ -3,31 +3,34 @@ package top.wkbin.taixu.harness.groupchat
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.logging.AppLogger
-import top.wkbin.taixu.harness.approval.RunInitiator
-import top.wkbin.taixu.harness.approval.RunInitiatorContext
+import top.wkbin.taixu.core.database.HarnessRuntimeRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.core.database.task.AgentTaskRepository
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotRuntimeMode
 import top.wkbin.taixu.core.model.bot.GroupAttachment
-import top.wkbin.taixu.core.model.bot.GroupDelivery
 import top.wkbin.taixu.core.model.bot.GroupChat
+import top.wkbin.taixu.core.model.bot.GroupDelivery
 import top.wkbin.taixu.core.model.bot.GroupMessage
 import top.wkbin.taixu.core.model.bot.GroupReplyMode
 import top.wkbin.taixu.core.model.bot.GroupSenderType
 import top.wkbin.taixu.harness.MentionExtractor
+import top.wkbin.taixu.harness.approval.RunInitiator
+import top.wkbin.taixu.harness.approval.RunInitiatorContext
 import top.wkbin.taixu.harness.bot.BotOrchestrator
 import top.wkbin.taixu.harness.session.PromptSubmission
 import top.wkbin.taixu.harness.session.SessionControl
@@ -63,8 +66,8 @@ class GroupChatDispatcher(
             },
     ),
     private val freshness: GroupReplyFreshness? = null,
-    taskRepository: top.wkbin.taixu.core.database.task.AgentTaskRepository? = null,
-    runtimeRepository: top.wkbin.taixu.core.database.HarnessRuntimeRepository? = null,
+    taskRepository: AgentTaskRepository? = null,
+    runtimeRepository: HarnessRuntimeRepository? = null,
     private val contextScope: GroupContextScope? = null,
 ) {
     private val replies = GroupReplyQueue(scope)
@@ -105,7 +108,11 @@ class GroupChatDispatcher(
         prepare = { requireNotNull(attachmentPreparer) { "附件读取服务尚未就绪" }.prepare(it) },
         notify = { id, text -> postSystemNotification(id, text) },
     )
-    private val deliveryPump = GroupDeliveryPump(groupRepository, replies, scope, logger, ::deliver)
+    private val deliveryPump = GroupDeliveryPump(
+        groupRepository, replies, scope, logger,
+        isExternalRuntime = { botId -> botRepository.getBot(botId)?.runtimeMode == BotRuntimeMode.EXTERNAL },
+        deliver = ::deliver,
+    )
 
     private val recoveryLock = Mutex()
     private var recovered = false
@@ -136,7 +143,7 @@ class GroupChatDispatcher(
         val members = groupRepository.getMembers(delivery.groupId)
         if (source == null || group == null || bot == null || members.none { it.id == bot.id }) {
             groupRepository.finishDelivery(delivery.id,
-                GroupDelivery.REJECTED, "来源、群聊或成员已不可用，未执行")
+                GroupDelivery.REJECTED, "来源、群聊或成员已不可用，未执行", delivery.claimNonce)
             return GroupTurnOutcome("来源或成员已不可用", true)
         }
         val prepared = if (source.attachments.isEmpty()) PreparedGroupAttachments() else
@@ -148,7 +155,7 @@ class GroupChatDispatcher(
         // Read after acquiring the recipient lock so queued work sees recently committed peer replies.
         val history = formatGroupHistory(group, groupRepository.observeMessages(group.id).first())
         return responder.respond(group, bot, trigger, history, members, prepared.imageUrls, null,
-            deliveryId = delivery.id, workReceiptId = source.delegatedTaskId)
+            deliveryId = delivery.id, claimNonce = delivery.claimNonce, workReceiptId = source.delegatedTaskId)
     }
 
     fun observeMessages(groupId: String): Flow<List<GroupMessage>> =
@@ -182,6 +189,24 @@ class GroupChatDispatcher(
         val group = if (groupId != null) {
             groupRepository.getGroup(groupId) ?: return false
         } else groupRepository.observeGroupsForBot(bot.id).first().firstOrNull()
+        // EXTERNAL 不在手机上跑定时回合；有群则落可 claim 收件，无群则拒绝（外部运行时不接管 DM 会话）。
+        if (bot.runtimeMode == BotRuntimeMode.EXTERNAL) {
+            if (group == null) return false
+            if (groupRepository.getMembers(group.id).none { it.id == bot.id }) return false
+            groupRepository.stageMessage(
+                GroupMessage(
+                    id = UUID.randomUUID().toString(),
+                    groupId = group.id,
+                    senderId = SYSTEM_SENDER_ID,
+                    senderName = "系统通知",
+                    senderType = GroupSenderType.SYSTEM,
+                    content = trigger,
+                    timestamp = System.currentTimeMillis(),
+                ),
+                listOf(bot.id),
+            )
+            return true
+        }
         if (group != null) {
             val history = runCatching { groupRepository.observeMessages(group.id).first() }
                 .getOrDefault(emptyList())

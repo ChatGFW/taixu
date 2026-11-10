@@ -3,7 +3,10 @@ package top.wkbin.taixu.plugin.ui.web
 import kotlinx.coroutines.async
 import org.junit.Assert.*
 import org.junit.Test
+import top.wkbin.taixu.plugin.runtime.PluginCapabilityIdentity
 import top.wkbin.taixu.plugin.runtime.PluginCapabilityResult
+import top.wkbin.taixu.plugin.runtime.PluginCapabilitySession
+import top.wkbin.taixu.plugin.runtime.PluginGrantChoice
 
 class WebPluginMessagesTest {
     @Test fun serviceWritesKeepOpaqueJsonInsideTheBoundedTextField() {
@@ -90,16 +93,16 @@ class WebPluginMessagesTest {
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     @Test fun messageToNativePermissionToStructuredReplyExecutesExactlyOnce() = kotlinx.coroutines.test.runTest {
         val call = WebPluginMessages.decode("""{"id":"a-1","action":"host.app-info","target":"application"}""")
-        val identity = top.wkbin.taixu.plugin.runtime.PluginCapabilityIdentity(
+        val identity = PluginCapabilityIdentity(
             "example.web", "1.0.0", 1, "https://example.plugin.taixu.invalid", "android:local",
         )
         var executions = 0
-        val session = top.wkbin.taixu.plugin.runtime.PluginCapabilitySession(identity, mapOf(call.capability to { executions++; "app-info" }))
+        val session = PluginCapabilitySession(identity, mapOf(call.capability to { executions++; "app-info" }))
         val result = async { session.call(call, identity.origin, true) }
         testScheduler.runCurrent()
         assertEquals(0, executions)
         val prompt = requireNotNull(session.prompt.value)
-        session.decide(prompt.token, top.wkbin.taixu.plugin.runtime.PluginGrantChoice.ONCE)
+        session.decide(prompt.token, PluginGrantChoice.ONCE)
         val reply = WebPluginMessages.encode(result.await())
         assertEquals("""{"id":"a-1","success":true,"text":"app-info"}""", reply)
         assertEquals(1, executions)

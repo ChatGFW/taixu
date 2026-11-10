@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.settings
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,19 +18,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import top.wkbin.taixu.ui.miuix.ButtonDefaults
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,6 +47,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /**
  * 套件子组件装配弹窗。已装配的组件可以卸载，或清掉旧文件后重新安装。
@@ -84,9 +86,9 @@ internal fun BundleComponentSetupDialog(
                 RuntimeIcon(
                     name = bundleIcon(bundle.iconName),
                     modifier = Modifier.size(22.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
-                Text("装配 ${bundle.name}", fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("装配 ${bundle.name}", fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         },
         text = {
@@ -99,19 +101,19 @@ internal fun BundleComponentSetupDialog(
             ) {
                 Text(
                     bundle.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 if (isInstallingComponents) {
                     InstallProgress(componentInstallProgress)
                 }
                 blockedReason?.let { reason ->
-                    Text(reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    Text(reason, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.error)
                 }
                 val uninstalled = bundle.components.filter { it.id !in installedComponentIds }
                 val installed = bundle.components.filter { it.id in installedComponentIds }
                 if (uninstalled.isNotEmpty()) {
-                    SectionLabel("待装配组件 (${uninstalled.size})：", MaterialTheme.colorScheme.primary)
+                    SectionLabel("待装配组件 (${uninstalled.size})：", RuntimeTheme.colorScheme.primary)
                     uninstalled.forEach { component ->
                         UninstalledComponentRow(
                             component = component,
@@ -131,8 +133,8 @@ internal fun BundleComponentSetupDialog(
                     )
                     Text(
                         text = stringResource(R.string.settings_component_installed_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     updateNotice?.let { McpUpdateNoticeBanner(it) }
                     installed.forEach { component ->
@@ -177,7 +179,7 @@ internal fun BundleComponentSetupDialog(
     pendingUninstall?.let { component ->
         RuntimeAlertDialog(
             onDismissRequest = { pendingUninstallId = null },
-            title = { Text(stringResource(R.string.settings_component_uninstall_title, component.name), fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.settings_component_uninstall_title, component.name), fontWeight = FontWeight.Medium) },
             text = { Text(stringResource(R.string.settings_component_uninstall_body)) },
             confirmButton = {
                 Button(
@@ -185,7 +187,7 @@ internal fun BundleComponentSetupDialog(
                         pendingUninstallId = null
                         onUninstall(component)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    colors = ButtonDefaults.buttonColors(containerColor = RuntimeTheme.colorScheme.error),
                 ) {
                     Text(stringResource(R.string.settings_component_confirm_uninstall))
                 }
@@ -201,15 +203,15 @@ internal fun BundleComponentSetupDialog(
 private fun InstallProgress(progress: String?) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        shape = RuntimeTheme.shapes.small,
+        color = RuntimeTheme.colorScheme.surfaceContainerHighest,
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RuntimeCircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                Text(progress ?: "正在执行批量原子装配流水线...", style = MaterialTheme.typography.bodySmall, maxLines = 2)
+                Text(progress ?: "正在执行批量原子装配流水线...", style = RuntimeTheme.typography.bodySmall, maxLines = 2)
             }
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)))
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(4.dp).clip(RuntimeTheme.shapes.hairline))
         }
     }
 }
@@ -218,7 +220,7 @@ private fun InstallProgress(progress: String?) {
 private fun SectionLabel(text: String, color: androidx.compose.ui.graphics.Color) {
     Text(
         text,
-        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+        style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
         color = color,
         modifier = Modifier.padding(top = 4.dp),
     )
@@ -235,14 +237,14 @@ private fun UninstalledComponentRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RuntimeTheme.shapes.small)
             .clickable(enabled = enabled && !locked, onClick = onToggle),
-        shape = RoundedCornerShape(10.dp),
+        shape = RuntimeTheme.shapes.small,
         border = BorderStroke(
             1.dp,
-            if (checked) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            if (checked) RuntimeTheme.colorScheme.primary else Color.Transparent,
         ),
-        color = if (checked) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceContainerLow,
+        color = if (checked) RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.22f) else RuntimeTheme.colorScheme.surfaceContainerLow,
     ) {
         Row(
             modifier = Modifier.padding(10.dp),
@@ -256,12 +258,12 @@ private fun UninstalledComponentRow(
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(component.name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(component.name, style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (locked) {
-                        Badge("必选基座", MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                        Badge("必选基座", RuntimeTheme.colorScheme.primary, RuntimeTheme.colorScheme.primary.copy(alpha = 0.15f))
                     }
                 }
-                Text(component.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(component.description, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -279,9 +281,9 @@ private fun InstalledComponentRow(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
+        shape = RuntimeTheme.shapes.small,
         border = BorderStroke(1.dp, successStatusColor().copy(alpha = 0.25f)),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
+        color = RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.45f),
     ) {
         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -292,19 +294,19 @@ private fun InstalledComponentRow(
                     RuntimeIcon(RuntimeIconName.Check, Modifier.size(12.dp), successStatusColor())
                 }
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(component.name, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(component.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(component.name, style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(component.description, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
             McpComponentUpdateRow(component, updateStatus, upgrading, enabled, onUpgrade)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-                TextButton(onClick = onReinstall, enabled = enabled, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                TextButton(onClick = onReinstall, enabled = enabled) {
                     Text(stringResource(R.string.settings_component_reinstall), maxLines = 1, softWrap = false)
                 }
-                TextButton(onClick = onUninstall, enabled = enabled, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
+                TextButton(onClick = onUninstall, enabled = enabled) {
                     Text(
                         stringResource(R.string.settings_component_uninstall),
-                        color = MaterialTheme.colorScheme.error,
+                        color = RuntimeTheme.colorScheme.error,
                         maxLines = 1,
                         softWrap = false,
                     )
@@ -316,10 +318,10 @@ private fun InstalledComponentRow(
 
 @Composable
 private fun Badge(text: String, contentColor: androidx.compose.ui.graphics.Color, container: androidx.compose.ui.graphics.Color) {
-    Surface(shape = RoundedCornerShape(4.dp), color = container) {
+    Surface(shape = RuntimeTheme.shapes.tiny, color = container) {
         Text(
             text,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+            style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
             color = contentColor,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
             maxLines = 1,

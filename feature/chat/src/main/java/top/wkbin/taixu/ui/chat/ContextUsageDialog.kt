@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -9,7 +13,6 @@ import top.wkbin.taixu.ui.theme.semanticColors
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,16 +20,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,9 +37,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.feature.chat.R
-import top.wkbin.taixu.ui.components.RuntimeCard
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.StatusBadge
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -77,10 +72,10 @@ fun ContextUsageDialog(
                 ) {
                     Text(
                         text = stringResource(R.string.chat_context_full, displayPercent),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
+                        style = RuntimeTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium,
                             fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = RuntimeTheme.colorScheme.onSurface,
                         ),
                     )
                     Text(
@@ -89,10 +84,10 @@ fun ContextUsageDialog(
                             formatDialogTokenCount(usage.usedTokens),
                             formatLimitTokens(usage.limitTokens),
                         ),
-                        style = MaterialTheme.typography.bodyMedium.copy(
+                        style = RuntimeTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Normal,
                             fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         ),
                     )
                 }
@@ -103,8 +98,8 @@ fun ContextUsageDialog(
                             R.string.chat_context_declared_limit,
                             formatLimitTokens(usage.declaredTokens),
                         ),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall.copy(
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         ),
                     )
                 }
@@ -115,8 +110,8 @@ fun ContextUsageDialog(
                             formatLimitTokens(usage.compactionThresholdTokens),
                             usage.foldingRatioPercent,
                         ),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall.copy(
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         ),
                     )
                 }
@@ -175,8 +170,8 @@ fun ContextUsageDialog(
                                     formatDialogTokenCount(usage.cachedTokens.toInt()),
                                     usage.cacheHitRatePercent ?: 0,
                                 ),
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = MaterialTheme.colorScheme.primary,
+                                style = RuntimeTheme.typography.labelSmall.copy(
+                                    color = RuntimeTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Medium,
                                     fontSize = 11.sp,
                                 ),
@@ -185,7 +180,7 @@ fun ContextUsageDialog(
                         if (usage.compacted) {
                             StatusBadge(
                                 text = stringResource(R.string.chat_context_compacted_active),
-                                color = MaterialTheme.colorScheme.secondary,
+                                color = RuntimeTheme.colorScheme.secondary,
                             )
                         }
                     }
@@ -207,26 +202,26 @@ private fun ContextUsageRow(
         Box(
             modifier = Modifier
                 .size(11.dp)
-                .background(spec.color, RoundedCornerShape(2.dp)),
+                .background(spec.color, RuntimeTheme.shapes.hairline),
         )
         Spacer(modifier = Modifier.width(12.dp))
         // Category Label
         Text(
             text = stringResource(spec.titleRes),
-            style = MaterialTheme.typography.bodyMedium.copy(
+            style = RuntimeTheme.typography.bodyMedium.copy(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = RuntimeTheme.colorScheme.onSurface,
             ),
         )
         Spacer(modifier = Modifier.weight(1f))
         // Formatted Token Count
         Text(
             text = formatDialogTokenCount(spec.tokens),
-            style = MaterialTheme.typography.bodyMedium.copy(
+            style = RuntimeTheme.typography.bodyMedium.copy(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Normal,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             ),
         )
     }
@@ -253,6 +248,7 @@ fun ContextUsageSegmentedBar(
 
     val limit = usage.limitTokens.coerceAtLeast(1)
     val totalUsed = usage.usedTokens.coerceAtLeast(0)
+    val trackColor = RuntimeTheme.colorScheme.surfaceContainerHighest
 
     val animatedRatio by animateFloatAsState(
         targetValue = (totalUsed.toFloat() / limit).coerceIn(0f, 1f),
@@ -263,14 +259,14 @@ fun ContextUsageSegmentedBar(
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(4.dp)),
+            .clip(RuntimeTheme.shapes.tiny),
     ) {
         val w = size.width
         val h = size.height
 
         // 1. Draw track (empty budget background)
         drawRect(
-            color = Color(0xFF27272A),
+            color = trackColor,
             topLeft = Offset.Zero,
             size = size,
         )

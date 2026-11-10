@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import android.util.LruCache
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -19,15 +22,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -81,14 +81,14 @@ internal fun TaskPlanCard(steps: List<TaskStepItem>, modifier: Modifier = Modifi
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RuntimeTheme.shapes.small)
             .clickable {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 expanded = !expanded
             },
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-        shape = RoundedCornerShape(12.dp),
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, RuntimeTheme.colorScheme.primary.copy(alpha = 0.35f)),
+        shape = RuntimeTheme.shapes.small,
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -101,39 +101,39 @@ internal fun TaskPlanCard(steps: List<TaskStepItem>, modifier: Modifier = Modifi
                 Box(
                     modifier = Modifier
                         .size(24.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                        .clip(RuntimeTheme.shapes.extraSmall)
+                        .background(RuntimeTheme.colorScheme.primary.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center,
                 ) {
                     RuntimeIcon(
                         RuntimeIconName.Code,
                         modifier = Modifier.size(13.dp),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = RuntimeTheme.colorScheme.onSurface,
                     )
                 }
 
                 Text(
                     text = stringResource(R.string.chat_plan),
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                    color = RuntimeTheme.colorScheme.onSurface,
                 )
 
                 Spacer(Modifier.weight(1f))
 
                 Surface(
-                    color = if (completedCount == steps.size) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                    else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = RoundedCornerShape(6.dp),
+                    color = if (completedCount == steps.size) RuntimeTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    else RuntimeTheme.colorScheme.surfaceContainerHigh,
+                    shape = RuntimeTheme.shapes.extraSmall,
                 ) {
                     Text(
                         text = stringResource(R.string.chat_plan_completed, completedCount, steps.size),
-                        style = MaterialTheme.typography.labelSmall.copy(
+                        style = RuntimeTheme.typography.labelSmall.copy(
                             fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.Medium,
                             fontSize = 11.sp,
                         ),
-                        color = if (completedCount == steps.size) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (completedCount == steps.size) RuntimeTheme.colorScheme.primary
+                        else RuntimeTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     )
                 }
@@ -141,7 +141,7 @@ internal fun TaskPlanCard(steps: List<TaskStepItem>, modifier: Modifier = Modifi
                 RuntimeIcon(
                     if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
                     Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -151,9 +151,9 @@ internal fun TaskPlanCard(steps: List<TaskStepItem>, modifier: Modifier = Modifi
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp)),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    .clip(RuntimeTheme.shapes.hairline),
+                color = RuntimeTheme.colorScheme.primary,
+                trackColor = RuntimeTheme.colorScheme.surfaceContainerHigh,
             )
 
             AnimatedVisibility(
@@ -175,30 +175,30 @@ internal fun TaskPlanCard(steps: List<TaskStepItem>, modifier: Modifier = Modifi
                                     .size(16.dp)
                                     .clip(CircleShape)
                                     .background(
-                                        if (step.isCompleted) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        if (step.isCompleted) RuntimeTheme.colorScheme.primary
+                                        else RuntimeTheme.colorScheme.surfaceContainerHigh,
                                     ),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 if (step.isCompleted) {
                                     Text(
                                         "✓",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
+                                        style = RuntimeTheme.typography.labelSmall.copy(
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
                                         ),
-                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        color = RuntimeTheme.colorScheme.onPrimary,
                                     )
                                 }
                             }
 
                             Text(
                                 text = step.title,
-                                style = MaterialTheme.typography.bodySmall.copy(
+                                style = RuntimeTheme.typography.bodySmall.copy(
                                     fontWeight = if (step.isCompleted) FontWeight.Normal else FontWeight.Medium,
                                 ),
-                                color = if (step.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant
-                                else MaterialTheme.colorScheme.onSurface,
+                                color = if (step.isCompleted) RuntimeTheme.colorScheme.onSurfaceVariant
+                                else RuntimeTheme.colorScheme.onSurface,
                             )
                         }
                     }

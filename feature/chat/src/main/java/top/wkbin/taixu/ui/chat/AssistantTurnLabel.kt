@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +33,7 @@ internal fun AssistantTurnLabel() {
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         RuntimeChatIdentityAvatar(20.dp)
         Text(LocalChatIdentity.current.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface)
+            style = RuntimeTheme.typography.titleSmall,
+            color = RuntimeTheme.colorScheme.onSurface)
     }
 }

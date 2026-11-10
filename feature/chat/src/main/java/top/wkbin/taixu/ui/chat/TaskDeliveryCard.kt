@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -31,14 +31,14 @@ internal fun TaskDeliveryCard(
     var expanded by rememberSaveable(message.id) { mutableStateOf(false) }
     var showAll by rememberSaveable(message.id) { mutableStateOf(false) }
     val report = message.report
-    RuntimeCard(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 12.dp)) {
+    RuntimeCard(containerColor = RuntimeTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 12.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
-                    Text(stringResource(R.string.delivery_title), style = MaterialTheme.typography.labelMedium,
+                    Text(stringResource(R.string.delivery_title), style = RuntimeTheme.typography.labelMedium,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(stringResource(R.string.delivery_counts, report.observations.size, report.artifacts.size),
-                        style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 RuntimeTextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
@@ -46,16 +46,16 @@ internal fun TaskDeliveryCard(
                 }
             }
             if (expanded) {
-                Text(stringResource(R.string.delivery_unverified), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.delivery_unverified), style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 report.gaps.filter { it != DeliveryGap.GOAL_NOT_VERIFIED }.forEach { gap ->
-                    Text(stringResource(gapLabel(gap)), style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(gapLabel(gap)), style = RuntimeTheme.typography.bodySmall)
                 }
                 val observations = if (showAll) report.observations else report.observations.take(8)
                 observations.forEach { observation ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(observation.toolName, modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium,
+                        Text(observation.toolName, modifier = Modifier.weight(1f), style = RuntimeTheme.typography.labelMedium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(stringResource(stateLabel(observation.state)), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                        Text(stringResource(stateLabel(observation.state)), style = RuntimeTheme.typography.labelSmall, maxLines = 1)
                     }
                 }
                 if (report.observations.size > 8 && !showAll) {
@@ -63,15 +63,15 @@ internal fun TaskDeliveryCard(
                 }
                 report.artifacts.forEach { artifact ->
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(stringResource(kindLabel(artifact.kind)), style = MaterialTheme.typography.labelMedium)
-                        artifact.origin?.let { Text(stringResource(originLabel(it)), style = MaterialTheme.typography.bodySmall) }
+                        Text(stringResource(kindLabel(artifact.kind)), style = RuntimeTheme.typography.labelMedium)
+                        artifact.origin?.let { Text(stringResource(originLabel(it)), style = RuntimeTheme.typography.bodySmall) }
                         artifact.observedAt?.let { Text(stringResource(R.string.delivery_observed_at,
-                            DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it))), style = MaterialTheme.typography.labelSmall) }
+                            DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it))), style = RuntimeTheme.typography.labelSmall) }
                         // 路径、哈希与打开/分享/另存入口都在这里：图片给缩略图，日志可回编辑器查看。
                         DeliveryArtifactRow(artifact, workspace, onOpenFile)
                     }
                 }
-                if (report.artifacts.isNotEmpty()) Text(stringResource(R.string.delivery_artifact_version), style = MaterialTheme.typography.bodySmall)
+                if (report.artifacts.isNotEmpty()) Text(stringResource(R.string.delivery_artifact_version), style = RuntimeTheme.typography.bodySmall)
             }
         }
     }

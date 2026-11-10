@@ -1,6 +1,6 @@
 package top.wkbin.taixu.ui.components
 
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.luminance
@@ -13,7 +13,7 @@ import androidx.core.view.WindowCompat
 fun RuntimeDialogSystemBars() {
     val view = LocalView.current
     val window = (view.parent as? DialogWindowProvider)?.window ?: return
-    val light = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 1f).luminance() > 0.5f
+    val light = RuntimeTheme.colorScheme.surfaceContainerLow.copy(alpha = 1f).luminance() > 0.5f
     SideEffect {
         window.isNavigationBarContrastEnforced = false
         WindowCompat.getInsetsController(window, view).apply {

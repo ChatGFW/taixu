@@ -17,9 +17,11 @@ import top.wkbin.taixu.core.network.FileDownloader
 import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.*
 import top.wkbin.taixu.harness.directory.CapabilityToolGateway
-import top.wkbin.taixu.plugin.api.*
-import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.harness.websearch.StubSearchProvider
+import top.wkbin.taixu.harness.websearch.WebSearchProviders
+import top.wkbin.taixu.plugin.api.*
+import top.wkbin.taixu.runtime.LinuxRuntime
+
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class, manifest = Config.NONE)
@@ -41,7 +43,7 @@ class PluginToolPolicyTest {
             val files = WorkspaceFileAccess(context.cacheDir)
             val executor = ToolExecutor(files, resolver, ApprovalPolicyEngine(resolver), SecretRedactor(),
                 HostCapabilityToolBackend(secretRedactor = SecretRedactor()), LinuxCommandToolBackend(unused<LinuxRuntime>(), resolver),
-                DownloadToolBackend(unused<FileDownloader>(), files, WorkspaceMutationSnapshots()), SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(StubSearchProvider()))), ContextMemoryToolBackend(),
+                DownloadToolBackend(unused<FileDownloader>(), files, WorkspaceMutationSnapshots()), SearchWebToolBackend(WebSearchProviders(listOf(StubSearchProvider()))), ContextMemoryToolBackend(),
                 AskUserToolBackend(ApprovalPolicyEngine(resolver), approvals), PromptAssetToolBackend(), HarnessServiceToolBackend(),
                 CapabilityToolGateway(null, plugins = plugins) { _, _, _, _ -> error("Host dispatch") },
                 approvalRepository = approvals, sessionDao = sessions)

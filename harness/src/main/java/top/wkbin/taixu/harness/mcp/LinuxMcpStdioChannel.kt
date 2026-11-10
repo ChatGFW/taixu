@@ -2,22 +2,23 @@ package top.wkbin.taixu.harness.mcp
 
 import java.io.File
 import java.io.FileOutputStream
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.currentCoroutineContext
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.core.ResourceCleanupException
+import top.wkbin.taixu.runtime.environment.ExecutionEnvironment
 import top.wkbin.taixu.runtime.shell.LinuxSession
 
 /**
@@ -36,7 +37,7 @@ class LinuxMcpStdioChannel(
     /** 超长行落盘目录；null 时回退系统临时目录（与 [McpResponseSizeLimiter] 同规则）。 */
     private val spillDirectory: File? = null,
     private val bufferCapacity: Int = McpStdioTransport.MAX_BUFFERED_LINES,
-    private val environment: top.wkbin.taixu.runtime.environment.ExecutionEnvironment? = null,
+    private val environment: ExecutionEnvironment? = null,
     private val secretValues: Collection<String> = emptyList(),
 ) : McpStdioChannel {
     internal var ownership: AutoCloseable? = null

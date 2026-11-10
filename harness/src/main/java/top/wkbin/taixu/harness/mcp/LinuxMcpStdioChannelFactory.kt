@@ -9,6 +9,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.shell.ShellQuote
+import top.wkbin.taixu.core.model.McpCatalog
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironment
@@ -65,7 +66,7 @@ class LinuxMcpStdioChannelFactory(
                             commandLine = commandBuilder.commandLine(prepared, configureTty = false), allowSttyResize = false, usePty = false, pluginIdentity = server.pluginIdentity)
                         requireMcpExecutable(environment, prepared)
                         if (server.requiresInstall) {
-                            val entry = checkNotNull(top.wkbin.taixu.core.model.McpCatalog.find(server.id.mcpServerKey()))
+                            val entry = checkNotNull(McpCatalog.find(server.id.mcpServerKey()))
                             val probe = ShellCommand(entry.probeCommand, timeoutMs = 5_000L)
                             val result = environment?.execute(probe) ?: linuxRuntime.execute(probe)
                             check(result.isSuccess) { "MCP ${server.name} 在当前环境未安装或安装已损坏" }

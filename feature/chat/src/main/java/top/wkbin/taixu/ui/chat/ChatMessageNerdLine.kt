@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -18,14 +21,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,7 +63,7 @@ internal fun AssistantNerdLine(message: AssistantText) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(MaterialTheme.shapes.small)
+                .clip(RuntimeTheme.shapes.small)
                 .clickable { expanded = !expanded }
                 .padding(horizontal = 2.dp, vertical = 1.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -86,8 +86,8 @@ internal fun AssistantNerdLine(message: AssistantText) {
             }
             Text(
                 text = summary,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                style = RuntimeTheme.typography.labelSmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
@@ -95,7 +95,7 @@ internal fun AssistantNerdLine(message: AssistantText) {
             RuntimeIcon(
                 if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
                 Modifier.size(12.dp),
-                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
         }
         AnimatedVisibility(
@@ -127,11 +127,11 @@ internal fun AssistantNerdLine(message: AssistantText) {
 @Composable
 private fun NerdLegend(prompt: Int, completion: Int, cached: Int, limit: Int, nearLimit: Boolean) {
     val segments = listOf(
-        NerdSegment(stringResource(R.string.chat_nerd_cached), cached, MaterialTheme.colorScheme.primary),
-        NerdSegment(stringResource(R.string.chat_nerd_uncached), (prompt - cached).coerceAtLeast(0), MaterialTheme.colorScheme.tertiary),
-        NerdSegment(stringResource(R.string.chat_nerd_output), completion, MaterialTheme.colorScheme.secondary),
+        NerdSegment(stringResource(R.string.chat_nerd_cached), cached, RuntimeTheme.colorScheme.primary),
+        NerdSegment(stringResource(R.string.chat_nerd_uncached), (prompt - cached).coerceAtLeast(0), RuntimeTheme.colorScheme.tertiary),
+        NerdSegment(stringResource(R.string.chat_nerd_output), completion, RuntimeTheme.colorScheme.secondary),
         NerdSegment(stringResource(R.string.chat_nerd_remaining), (limit - prompt - completion).coerceAtLeast(0),
-            if (nearLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.surfaceVariant),
+            if (nearLimit) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.surfaceVariant),
     )
     FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         segments.forEach { segment ->
@@ -139,8 +139,8 @@ private fun NerdLegend(prompt: Int, completion: Int, cached: Int, limit: Int, ne
                 Box(Modifier.size(6.dp).clip(CircleShape).background(segment.color))
                 Text(
                     text = "${segment.label} ${formatTokenCount(segment.value)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -154,18 +154,18 @@ private data class NerdSegment(val label: String, val value: Int, val color: Col
 private fun ContextUsageBar(cached: Int, uncached: Int, output: Int, limit: Int, nearLimit: Boolean) {
     data class Segment(val value: Int, val color: Color)
     val segments = listOf(
-        Segment(cached, MaterialTheme.colorScheme.primary),
-        Segment(uncached, MaterialTheme.colorScheme.tertiary),
-        Segment(output, MaterialTheme.colorScheme.secondary),
+        Segment(cached, RuntimeTheme.colorScheme.primary),
+        Segment(uncached, RuntimeTheme.colorScheme.tertiary),
+        Segment(output, RuntimeTheme.colorScheme.secondary),
         Segment((limit - cached - uncached - output).coerceAtLeast(0),
-            if (nearLimit) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.surfaceVariant),
+            if (nearLimit) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.surfaceVariant),
     )
     val total = limit.coerceAtLeast(cached + uncached + output).coerceAtLeast(1)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(8.dp)
-            .clip(RoundedCornerShape(4.dp)),
+            .clip(RuntimeTheme.shapes.tiny),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {

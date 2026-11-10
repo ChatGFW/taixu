@@ -7,7 +7,7 @@ Usage:
     python tools/vendor-android-skills-plugin.py --force     # re-download everything
     python tools/vendor-android-skills-plugin.py --no-pack   # prepare payload only
 
-Why a script: the payload is ~90 MiB of third-party binaries plus 33 upstream skill
+Why a script: the payload is ~90 MiB of third-party binaries plus the upstream skill
 directories. Manifests, scripts, checksums and download instructions stay versioned;
 the binaries stay out of git (see .gitignore) and are reproduced from pinned URLs.
 
@@ -41,7 +41,7 @@ PLUGIN_DIR = ROOT / "assets" / "plugins" / "android-skills"
 PAYLOAD_DIR = PLUGIN_DIR / "payload"
 DIST_DIR = ROOT / "dist" / "plugins"
 
-ANDROID_SKILLS_COMMIT = "95ea931a1ad8f9b2be132ae0cfb2aad964d71118"
+ANDROID_SKILLS_COMMIT = "bf68e2d66a992a1e6aeb7e9263293cc23fcbf475"
 ANDROID_SKILLS_TARBALL = (
     f"https://codeload.github.com/android/skills/tar.gz/{ANDROID_SKILLS_COMMIT}"
 )
@@ -96,8 +96,13 @@ def vendor_skills(force: bool) -> tuple[str, int]:
     skills_root = PAYLOAD_DIR / "skills"
     licenses_dir = PAYLOAD_DIR / "licenses"
     staging = PAYLOAD_DIR / "skills.staging"
+    for directory in (skills_root, staging):
+        if directory.is_symlink() or directory.resolve().parent != PAYLOAD_DIR.resolve():
+            raise SystemExit(f"unsafe skill directory: {directory}")
 
-    if skills_root.is_dir() and not force:
+    provenance = PLUGIN_DIR / "UPSTREAM.md"
+    pinned_cache = provenance.is_file() and f"`{ANDROID_SKILLS_COMMIT}`" in provenance.read_text(encoding="utf-8")
+    if skills_root.is_dir() and pinned_cache and not force:
         count = len(list(skills_root.glob("*/SKILL.md")))
         if count > 0:
             print(f"  ok (cached) payload/skills ({count} skills)")
@@ -207,7 +212,7 @@ def write_upstream_md(upstream_version: str, skill_count: int) -> None:
 ## 刷新方式
 
 ```powershell
-# 只更新技能（技能目录可读可 diff，随仓库入库）
+# 强制重新下载固定输入（含 CLI 二进制）
 python tools/vendor-android-skills-plugin.py --force
 
 # 只重打包（payload 已就绪时）

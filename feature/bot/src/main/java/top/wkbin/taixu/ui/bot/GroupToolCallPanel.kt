@@ -5,7 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import top.wkbin.taixu.ui.miuix.*
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -32,7 +33,7 @@ internal fun GroupToolCallPanel(messageId: String, steps: List<GroupToolStep>, s
     val failed = steps.count { it.success == false }
     val hidden = steps.take((steps.size - visibleCount).coerceAtLeast(0)).count { it.success == true }
     val action = stringResource(if (expanded) R.string.fbot_steps_collapse else R.string.fbot_steps_expand)
-    val lineColor = MaterialTheme.colorScheme.outlineVariant
+    val lineColor = RuntimeTheme.colorScheme.outlineVariant
     Column(Modifier.fillMaxWidth().testTag("group-tools:$messageId")) {
         Row(Modifier.fillMaxWidth().heightIn(min = 28.dp)
             .semantics { stateDescription = action }
@@ -40,13 +41,13 @@ internal fun GroupToolCallPanel(messageId: String, steps: List<GroupToolStep>, s
             .padding(horizontal = 2.dp, vertical = 4.dp).testTag("group-tools-toggle:$messageId"),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.fbot_tool_calls_title, steps.size), Modifier.weight(1f),
-                style = MaterialTheme.typography.labelMedium, color = runtimeProcessColor(),
+                style = RuntimeTheme.typography.labelMedium, color = runtimeProcessColor(),
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (failed > 0 || (!streaming && pending > 0)) Text(
                 stringResource(if (failed > 0) R.string.fbot_tool_failure_count else R.string.fbot_tool_unknown_count,
                     if (failed > 0) failed else pending),
-                style = MaterialTheme.typography.labelSmall,
-                color = if (failed > 0) MaterialTheme.colorScheme.error else runtimeProcessColor())
+                style = RuntimeTheme.typography.labelSmall,
+                color = if (failed > 0) RuntimeTheme.colorScheme.error else runtimeProcessColor())
             RuntimeIcon(if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
                 Modifier.size(16.dp), runtimeProcessColor())
         }
@@ -82,17 +83,16 @@ private fun GroupToolStepRow(step: GroupToolStep, streaming: Boolean, onClick: (
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         RuntimeProcessIcon(groupToolIcon(step.name), running)
         Text(groupToolTitle(step.name), Modifier.weight(1f).then(runtimeProcessPulse(running)),
-            style = MaterialTheme.typography.bodySmall, color = runtimeProcessColor(),
+            style = RuntimeTheme.typography.bodySmall, color = runtimeProcessColor(),
             maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (step.success == false || (step.success == null && !streaming)) Text(status,
-            style = MaterialTheme.typography.labelSmall,
-            color = if (step.success == false) MaterialTheme.colorScheme.error else runtimeProcessColor())
+            style = RuntimeTheme.typography.labelSmall,
+            color = if (step.success == false) RuntimeTheme.colorScheme.error else runtimeProcessColor())
         RuntimeProcessTimer(step.id, running, durationMs = step.durationMs)
         RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(16.dp), runtimeProcessColor())
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun GroupToolStepDetails(step: GroupToolStep, streaming: Boolean, onDismiss: () -> Unit) {
     RuntimeModalBottomSheet(onDismissRequest = onDismiss,
@@ -101,11 +101,11 @@ private fun GroupToolStepDetails(step: GroupToolStep, streaming: Boolean, onDism
             .navigationBarsPadding().padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RuntimeProcessIcon(groupToolIcon(step.name))
-                Text(groupToolTitle(step.name), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                Text(groupToolTitle(step.name), Modifier.weight(1f), style = RuntimeTheme.typography.titleMedium)
                 RuntimeProcessTimer(step.id, streaming && step.success == null, durationMs = step.durationMs)
             }
             SelectionContainer {
-                Text(listOfNotNull(step.name, step.detail).joinToString("\n\n"), style = MaterialTheme.typography.bodyMedium)
+                Text(listOfNotNull(step.name, step.detail).joinToString("\n\n"), style = RuntimeTheme.typography.bodyMedium)
             }
             RuntimeTextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
                 Text(stringResource(R.string.fbot_close))

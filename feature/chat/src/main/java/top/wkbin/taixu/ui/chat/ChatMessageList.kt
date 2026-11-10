@@ -1,4 +1,5 @@
 package top.wkbin.taixu.ui.chat
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.LinearEasing
@@ -8,8 +9,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,22 +26,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.Saver
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import top.wkbin.taixu.feature.chat.R
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.HarnessMessage
@@ -57,15 +50,12 @@ import top.wkbin.taixu.harness.checkpoint.RewindScope
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.runtime.WorkspaceProject
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import top.wkbin.taixu.ui.components.ScrollFadeOverlay
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.ui.unit.Dp
+import dev.chrisbanes.haze.hazeSource
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.database.AgentPlanEntity
 import top.wkbin.taixu.harness.compaction.CompactionSnapshot
-import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.harness.AskUserQuestions
 import top.wkbin.taixu.harness.session.ConversationBranch
 
@@ -118,6 +108,8 @@ internal fun ChatMessageList(
     hiddenSkillSuggestions: Set<String> = emptySet(),
     onApplySkillSuggestion: (SkillSuggestion, Boolean) -> Unit = { _, _ -> },
     onDismissSkillSuggestion: (String) -> Unit = {},
+    /** 底部输入区叠在列表之上时，末条消息需额外留白。 */
+    bottomContentPadding: Dp = 8.dp,
 ) {
     // 折叠状态用自定义 Saver：Map 不能直接存入 Bundle（会抛 IllegalArgumentException）
     var expandedOverrides by rememberSaveable(stateSaver = ExpandedOverridesSaver) { mutableStateOf(mapOf<String, Boolean>()) }
@@ -145,14 +137,16 @@ internal fun ChatMessageList(
     ) {
         isWaitingForFirstToken(messages, running)
     }
+    val chatHazeState = LocalChatHazeState.current
 
-    // 顶部悬浮栏使用轻量渐变，避免列表滚动期间全量离屏合成。
-    androidx.compose.runtime.CompositionLocalProvider(androidx.compose.material3.LocalMinimumInteractiveComponentSize provides 0.dp) {
-    Box(modifier = modifier) {
+    // 列表作为 haze source；顶/底渐进模糊采样消息（背景图已在 ChatPageSurface 登记）。
     LazyColumn(
         state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = androidx.compose.foundation.layout.WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 64.dp, bottom = 8.dp),
+        modifier = modifier.fillMaxSize().hazeSource(chatHazeState),
+        contentPadding = PaddingValues(
+            top = androidx.compose.foundation.layout.WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 64.dp,
+            bottom = bottomContentPadding,
+        ),
     ) {
         if (initializing) {
             item {
@@ -287,10 +281,6 @@ internal fun ChatMessageList(
             Spacer(Modifier.height(4.dp))
         }
     }
-        ScrollFadeOverlay(top = androidx.compose.foundation.layout.WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 72.dp,
-            bottom = 0.dp, color = top.wkbin.taixu.ui.theme.chatBackdropChrome())
-    }
-}
 }
 
 @Composable
@@ -326,14 +316,14 @@ internal fun ChatMessageSkeleton(modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
                     .height(14.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .clip(RuntimeTheme.shapes.tiny)
                     .background(brush),
             )
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.55f)
                     .height(14.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .clip(RuntimeTheme.shapes.tiny)
                     .background(brush),
             )
             Spacer(Modifier.height(6.dp))
@@ -341,7 +331,7 @@ internal fun ChatMessageSkeleton(modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .fillMaxWidth(0.7f)
                     .height(60.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RuntimeTheme.shapes.chip)
                     .background(brush),
             )
         }
@@ -375,9 +365,9 @@ private fun shimmerBrush(): Brush {
         label = "chatShimmerTranslate",
     )
     val shimmerColors = listOf(
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
-        MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.25f),
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
+        RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
+        RuntimeTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.25f),
+        RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.55f),
     )
     return Brush.linearGradient(
         colors = shimmerColors,

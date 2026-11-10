@@ -6,13 +6,13 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -21,6 +21,7 @@ import top.wkbin.taixu.core.model.McpAuthMode
 import top.wkbin.taixu.core.model.McpCatalog
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpTransportType
+import top.wkbin.taixu.core.model.validateMcpHttpHeaders
 import top.wkbin.taixu.core.security.SecretManager
 
 @Entity(tableName = "mcp_servers")
@@ -141,7 +142,7 @@ class McpServerRepository(
     suspend fun save(server: McpServerConfig) {
         ensureInitialized()
         require(server.headersReadError == null) { server.headersReadError.orEmpty() }
-        top.wkbin.taixu.core.model.validateMcpHttpHeaders(server.headers)
+        validateMcpHttpHeaders(server.headers)
         dao.upsert(server.toEntity(json, secretManager))
     }
 
@@ -194,7 +195,7 @@ internal fun McpServerEntity.toModel(json: Json, decrypt: (String) -> String?): 
     val headersResult = runCatching {
         if (headersCiphertext.isEmpty()) emptyMap() else {
             json.decodeFromString<Map<String, String>>(requireNotNull(decrypt(headersCiphertext)))
-                .also { top.wkbin.taixu.core.model.validateMcpHttpHeaders(it) }
+                .also { validateMcpHttpHeaders(it) }
         }
     }
     return McpServerConfig(

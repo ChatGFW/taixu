@@ -1,27 +1,18 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.OutlinedTextField
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.database.AiModelEntity
+import top.wkbin.taixu.ui.components.RuntimeDropdownField
 
 /**
  * 自动会话标题配置卡片：开关、自定义提示词（空白用内置默认）、指定模型档案
@@ -38,23 +29,13 @@ internal fun AutoTitleSettingsCard(
     models: List<AiModelEntity>,
     modifier: Modifier = Modifier,
 ) {
-    var modelMenuOpen by remember { mutableStateOf(false) }
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("回合结束后自动生成会话标题", style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    "仅对仍是「新会话」等默认标题的会话生效；每个会话只尝试一次",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Switch(checked = enabled, onCheckedChange = onEnabledChange)
-        }
+        top.wkbin.taixu.ui.components.RuntimeSwitchPreference(
+            title = "回合结束后自动生成会话标题",
+            summary = "仅对仍是「新会话」等默认标题的会话生效；每个会话只尝试一次",
+            checked = enabled, onCheckedChange = onEnabledChange,
+            insideMargin = PaddingValues(horizontal = 0.dp, vertical = 16.dp),
+        )
 
         if (enabled) {
             OutlinedTextField(
@@ -66,33 +47,17 @@ internal fun AutoTitleSettingsCard(
                 supportingText = { Text("提示词需自行要求只输出标题文本（生成结果上限 24 字）") },
             )
 
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("标题生成模型", style = MaterialTheme.typography.labelMedium)
-                OutlinedButton(onClick = { modelMenuOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                    val selectedName = when {
-                        modelId.isBlank() -> "跟随会话绑定模型"
-                        else -> models.firstOrNull { it.id == modelId }?.name ?: "未知档案（将回退会话绑定模型）"
-                    }
-                    Text(selectedName, modifier = Modifier.weight(1f))
-                }
-                DropdownMenu(expanded = modelMenuOpen, onDismissRequest = { modelMenuOpen = false }) {
-                    DropdownMenuItem(
-                        text = { Text("跟随会话绑定模型") },
-                        onClick = { modelMenuOpen = false; onModelIdChange("") },
-                    )
-                    models.forEach { candidate ->
-                        DropdownMenuItem(
-                            text = { Text(candidate.name) },
-                            onClick = { modelMenuOpen = false; onModelIdChange(candidate.id) },
-                        )
-                    }
-                }
-                Text(
-                    "无绑定模型的会话用此处指定档案；两者皆空时跳过标题生成",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            val options = remember(models) {
+                listOf("" to "跟随会话绑定模型") + models.map { it.id to it.name }
             }
+            val selectedIndex = options.indexOfFirst { it.first == modelId }.let { if (it < 0) 0 else it }
+            RuntimeDropdownField(
+                title = "标题生成模型",
+                items = options.map { it.second },
+                selectedIndex = selectedIndex,
+                onSelectedIndexChange = { onModelIdChange(options[it].first) },
+                summary = "无绑定模型的会话用此处指定档案；两者皆空时跳过标题生成",
+            )
         }
     }
 }

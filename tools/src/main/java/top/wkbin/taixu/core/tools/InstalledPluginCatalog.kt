@@ -2,6 +2,7 @@ package top.wkbin.taixu.core.tools
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.core.model.ToolState
 import top.wkbin.taixu.runtime.LinuxRuntime
@@ -39,7 +40,7 @@ class InstalledPluginCatalog(
 
     suspend fun <T> use(expected: InstalledPluginBinding, action: suspend () -> T): T {
         requireLocal()
-        check(runtime.state.value is top.wkbin.taixu.core.model.RuntimeState.Ready) { "本地系统尚未就绪" }
+        check(runtime.state.value is RuntimeState.Ready) { "本地系统尚未就绪" }
         check(runtime.activeDistroId.value == expected.distroId) { "插件执行系统已改变" }
         return operations.useInstalled(expected.distroId, expected.manifest) {
             action().also {

@@ -1,17 +1,17 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -60,10 +60,10 @@ private fun BtwCard(query: BtwQuery, streaming: String, onCancel: () -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
             .animateContentSize(),
-        shape = RoundedCornerShape(10.dp),
+        shape = RuntimeTheme.shapes.small,
         color = when (query.status) {
-            BtwStatus.FAILED -> MaterialTheme.colorScheme.errorContainer
-            else -> MaterialTheme.colorScheme.secondaryContainer
+            BtwStatus.FAILED -> RuntimeTheme.colorScheme.errorContainer
+            else -> RuntimeTheme.colorScheme.secondaryContainer
         },
     ) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -77,7 +77,7 @@ private fun BtwCard(query: BtwQuery, streaming: String, onCancel: () -> Unit) {
                 Text(
                     stringResource(R.string.chat_command_btw) + " · $time",
                     color = onContainerColor(query),
-                    style = MaterialTheme.typography.labelMedium,
+                    style = RuntimeTheme.typography.labelMedium,
                 )
                 Spacer(Modifier.weight(1f))
                 when (query.status) {
@@ -85,7 +85,7 @@ private fun BtwCard(query: BtwQuery, streaming: String, onCancel: () -> Unit) {
                         Text(
                             stringResource(R.string.chat_btw_answering),
                             color = onContainerColor(query),
-                            style = MaterialTheme.typography.labelMedium,
+                            style = RuntimeTheme.typography.labelMedium,
                         )
                         RuntimeTextButton(
                             onClick = onCancel,
@@ -97,7 +97,7 @@ private fun BtwCard(query: BtwQuery, streaming: String, onCancel: () -> Unit) {
                     BtwStatus.COMPLETED -> Text(
                         if (expanded) "▾" else "▸",
                         color = onContainerColor(query),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = RuntimeTheme.typography.labelMedium,
                     )
                     else -> Text(
                         if (query.status == BtwStatus.CANCELLED) {
@@ -106,7 +106,7 @@ private fun BtwCard(query: BtwQuery, streaming: String, onCancel: () -> Unit) {
                             query.error
                         },
                         color = onContainerColor(query),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = RuntimeTheme.typography.labelMedium,
                         maxLines = 1,
                     )
                 }
@@ -114,7 +114,7 @@ private fun BtwCard(query: BtwQuery, streaming: String, onCancel: () -> Unit) {
             Text(
                 query.question,
                 color = onContainerColor(query),
-                style = MaterialTheme.typography.titleSmall,
+                style = RuntimeTheme.typography.titleSmall,
                 modifier = Modifier
                     .padding(top = 2.dp)
                     .clickable(enabled = query.status == BtwStatus.COMPLETED) { expanded = !expanded },
@@ -124,7 +124,7 @@ private fun BtwCard(query: BtwQuery, streaming: String, onCancel: () -> Unit) {
                     Text(
                         streaming,
                         color = onContainerColor(query).copy(alpha = 0.9f),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = RuntimeTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 2.dp),
                     )
                 }
@@ -132,13 +132,13 @@ private fun BtwCard(query: BtwQuery, streaming: String, onCancel: () -> Unit) {
                     Text(
                         query.answer,
                         color = onContainerColor(query).copy(alpha = 0.9f),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = RuntimeTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 4.dp),
                     )
                     Text(
                         stringResource(R.string.chat_btw_note),
                         color = onContainerColor(query).copy(alpha = 0.55f),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = RuntimeTheme.typography.labelSmall,
                         fontStyle = FontStyle.Italic,
                         modifier = Modifier.padding(top = 6.dp),
                     )
@@ -151,8 +151,8 @@ private fun BtwCard(query: BtwQuery, streaming: String, onCancel: () -> Unit) {
 
 @Composable
 private fun onContainerColor(query: BtwQuery) = when (query.status) {
-    BtwStatus.FAILED -> MaterialTheme.colorScheme.onErrorContainer
-    else -> MaterialTheme.colorScheme.onSecondaryContainer
+    BtwStatus.FAILED -> RuntimeTheme.colorScheme.onErrorContainer
+    else -> RuntimeTheme.colorScheme.onSecondaryContainer
 }
 
 private const val MAX_CARDS = 3

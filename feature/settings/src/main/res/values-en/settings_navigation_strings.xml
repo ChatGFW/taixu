@@ -15,7 +15,6 @@
     <string name="settings_nav_linux_summary">Distributions, storage mounts, and access</string>
     <string name="settings_nav_appearance_summary">Theme, text, backgrounds, and terminal</string>
     <string name="settings_nav_diagnostics_summary">Background operation and diagnostics</string>
-    <string name="settings_nav_features_summary">AI creation, collaboration, and automation</string>
     <string name="settings_nav_about_summary">App updates and community</string>
     <string name="settings_nav_about_title">About and community</string>
 </resources>

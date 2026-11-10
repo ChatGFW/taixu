@@ -182,7 +182,7 @@ class ToolchainVersionTest {
     @Test
     fun allByBundleComponentIdsExistInBuiltinBundles() {
         // 补齐映射的开发套件组件 id 必须真实存在于 BuiltinPluginBundles，否则安装会空转
-        val validIds = top.wkbin.taixu.core.model.BuiltinPluginBundles.bundles
+        val validIds = BuiltinPluginBundles.bundles
             .flatMap { it.components }
             .map { it.id }
             .toSet()

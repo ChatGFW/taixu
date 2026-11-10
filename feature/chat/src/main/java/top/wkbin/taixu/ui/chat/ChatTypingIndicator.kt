@@ -1,12 +1,15 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -56,7 +59,7 @@ internal fun ChatTypingIndicator(id: String = "first_output", startedAtMs: Long?
             Box(Modifier.graphicsLayer {
                 translationY = bounce * density
                 alpha = 0.45f + (-bounce / 3f) * 0.55f
-            }.size(5.dp).background(MaterialTheme.colorScheme.onSurfaceVariant, CircleShape))
+            }.size(5.dp).background(RuntimeTheme.colorScheme.onSurfaceVariant, CircleShape))
         }
         Spacer(Modifier.width(4.dp))
         ChatProcessTimer(id, running = true, startedAtMs = startedAtMs)

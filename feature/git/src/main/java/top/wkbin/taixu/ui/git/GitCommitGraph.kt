@@ -12,11 +12,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,7 +25,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import top.wkbin.taixu.ui.components.RuntimeCard
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -110,9 +107,9 @@ internal fun CommitGraphRow(row: GitCommitRow) {
             ) {
                 Text(
                     text = row.shortHash,
-                    style = MaterialTheme.typography.labelMedium.copy(
+                    style = RuntimeTheme.typography.labelMedium.copy(
                         fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Medium,
                     ),
                     color = laneColor(row.lane),
                 )
@@ -122,8 +119,8 @@ internal fun CommitGraphRow(row: GitCommitRow) {
                 // 日期单行不换行：之前未限制 maxLines 导致 "09-14" 被挤成 "09/-1/4" 三行
                 Text(
                     text = formatDate(row.commitTime),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Clip,
                     softWrap = false,
@@ -131,15 +128,15 @@ internal fun CommitGraphRow(row: GitCommitRow) {
             }
             Text(
                 text = row.subject.ifBlank { "(no message)" },
-                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                color = MaterialTheme.colorScheme.onSurface,
+                style = RuntimeTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                color = RuntimeTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = row.author,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelSmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -157,12 +154,12 @@ private fun RefBadge(ref: GitRefLabel) {
     }
     Surface(
         color = tint.copy(alpha = 0.12f),
-        shape = RoundedCornerShape(4.dp),
+        shape = RuntimeTheme.shapes.tiny,
         modifier = Modifier.widthIn(max = 80.dp),
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.SemiBold),
+            style = RuntimeTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Medium),
             color = tint,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

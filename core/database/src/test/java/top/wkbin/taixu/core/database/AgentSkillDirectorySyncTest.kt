@@ -49,6 +49,22 @@ class AgentSkillDirectorySyncTest {
     }
 
     @Test
+    fun `android-skills plugin collection stays collapsed to builtin navigator`() = runBlocking {
+        val root = temporaryFolder.newFolder("skills")
+        prompt(root, "android-skills/navigation-3/SKILL.md", "navigation-3")
+        prompt(root, "android-skills/edge-to-edge/SKILL.md", "edge-to-edge")
+        prompt(root, "android-skills/adaptive/SKILL.md", "adaptive")
+        val legacy = prompt(root, "android-skills/camerax/SKILL.md", "camerax").parentFile!!
+        repository.addCustom(skill("legacy-camerax", legacy))
+        repository.addCustom(skill("other", prompt(root, "other/SKILL.md", "other").parentFile!!))
+
+        val roots = listOf(SkillScanRoot(root, "/attachments/skills"))
+        assertTrue(repository.syncFromDirectories(roots).isEmpty())
+        assertEquals(listOf("other"), customSkills().map { it.id })
+        assertTrue(File(root, "android-skills/navigation-3/SKILL.md").isFile)
+    }
+
+    @Test
     fun `rescan removes legacy child rows and preserves parent settings and all files`() = runBlocking {
         val root = temporaryFolder.newFolder("skills")
         val parent = prompt(root, "navigator/SKILL.md", "navigator").parentFile!!

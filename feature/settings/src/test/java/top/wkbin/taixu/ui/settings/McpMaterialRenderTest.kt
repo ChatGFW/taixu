@@ -26,7 +26,7 @@ class AgentEcoMaterialRenderTest : ModelEditorRenderSupport() {
             CompositionLocalProvider(LocalInspectionMode provides true) {
                 AgentEcoSettingsScreen(onBack = {}, onOpenModelProfiles = { opened = true }, onOpenLocalLlm = {},
                     onOpenAgentSettings = {}, onOpenSubagentSettings = {}, onOpenSkillSettings = {}, onOpenMcpSettings = {},
-                    onOpenQuickPhrases = {}, onOpenStats = {}, onOpenPhoneAgent = {}, viewModel = null)
+                    onOpenQuickPhrases = {}, onOpenStats = {}, onOpenPhoneAgent = {})
             }
         }) { root ->
             click(root, "模型档案管理")

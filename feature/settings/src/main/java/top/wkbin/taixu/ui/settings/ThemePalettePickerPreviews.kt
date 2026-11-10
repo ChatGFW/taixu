@@ -1,7 +1,7 @@
 package top.wkbin.taixu.ui.settings
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Surface
+import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -18,7 +18,6 @@ private fun ThemePalettePickerPreview() {
     TaiXuTheme(dynamicColor = false, palette = palette) {
         Surface {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                PersonalColorPreview()
                 ThemePalettePicker(palette, false, "system", {}, {}, {})
             }
         }

@@ -4,6 +4,7 @@ import java.io.IOException
 import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Job
+import top.wkbin.taixu.harness.session.ProviderActivityContext
 
 /** Reasoning may stay server-side with no visible deltas for several minutes. */
 internal const val REASONING_STREAM_WAIT_MS = 10 * 60 * 1_000L
@@ -18,7 +19,7 @@ internal fun observeStreamHeartbeat(line: String, state: AtomicInteger, watchdog
 
 internal suspend fun observeStreamActivity(line: String, state: AtomicInteger, watchdog: Job) {
     observeStreamHeartbeat(line, state, watchdog)
-    kotlinx.coroutines.currentCoroutineContext()[top.wkbin.taixu.harness.session.ProviderActivityContext]?.transport()
+    kotlinx.coroutines.currentCoroutineContext()[ProviderActivityContext]?.transport()
 }
 
 internal fun streamFailure(

@@ -1,6 +1,7 @@
 package top.wkbin.taixu.harness.mcp
 
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,20 +14,22 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonObject
-import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.McpServerRepository
+import top.wkbin.taixu.core.datastore.McpToolPolicyPreferences
+import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.core.model.McpConnectionState
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpToolInfo
 import top.wkbin.taixu.core.model.McpTransportType
 import top.wkbin.taixu.harness.events.AgentEventLogger
 import top.wkbin.taixu.runtime.LinuxRuntime
-import kotlin.time.Duration.Companion.milliseconds
+import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext
 
 /** Thin MCP registry coordinator; transports own protocol and process details. */
 class McpManager(
@@ -37,9 +40,9 @@ class McpManager(
     private val linuxRuntime: LinuxRuntime,
     private val logger: AppLogger,
     private val agentEventLogger: AgentEventLogger,
-    private val remoteServers: top.wkbin.taixu.core.datastore.RemoteServerRepository? = null,
+    private val remoteServers: RemoteServerRepository? = null,
     private val catalogAvailability: McpCatalogAvailability = McpCatalogAvailability(linuxRuntime, remoteServers = remoteServers),
-    private val toolPolicy: top.wkbin.taixu.core.datastore.McpToolPolicyPreferences? = null,
+    private val toolPolicy: McpToolPolicyPreferences? = null,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val standaloneScope = stdio.standaloneScope ?: remoteServers?.let { StandaloneMcpScope(it) }
@@ -167,7 +170,7 @@ class McpManager(
             return@withContext emptyList()
         }
         val key = discoveryKey(server)
-        val world = kotlinx.coroutines.currentCoroutineContext()[top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext]?.environment
+        val world = kotlinx.coroutines.currentCoroutineContext()[ExecutionEnvironmentContext]?.environment
         if (server.transportType == McpTransportType.STDIO && (world?.id?.backend?.let { it != "ssh" } ?: (remoteServers?.activeId?.value == null))) {
             val linuxReady = awaitLinuxRuntimeReady(linuxRuntime.state)
             if (!linuxReady) {
@@ -246,7 +249,6 @@ class McpManager(
             )
         }
     }
-
     /** UI 列表用：只读缓存工具数（按用户策略过滤），不启动进程、不做禁用清理。 */
     suspend fun cachedToolCounts(): Map<String, Int> = withContext(Dispatchers.IO) {
         val policies = toolPolicy?.snapshot().orEmpty()
@@ -263,6 +265,7 @@ class McpManager(
         toolName: String,
         arguments: JsonObject,
         workspace: String = "",
+        authorize: suspend (McpToolInfo) -> Boolean = { true },
     ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         val server = effectiveServers().firstOrNull { it.id == serverId && it.isEnabled }
             ?: return@withContext false to "未找到或未启用的 MCP 服务：$serverId"
@@ -271,15 +274,17 @@ class McpManager(
         val tool = tools.firstOrNull { it.name == toolName }
             ?: return@withContext false to buildString {
                 append("MCP[${server.name}] 没有名为 `$toolName` 的工具。")
-                val available = tools.take(12).joinToString("、") { it.name }
+                val visible = tools.filter { authorize(it) }
+                val available = visible.take(12).joinToString("、") { it.name }
                 if (available.isNotBlank()) {
                     append("可用：$available")
-                    if (tools.size > 12) append(" 等 ${tools.size} 个")
+                    if (visible.size > 12) append(" 等 ${visible.size} 个")
                     append("。")
                 }
                 append("可用 use_capability(action=\"inspect\", server=\"$serverId\") 查看工具清单与参数。")
             }
         if (toolPolicy?.policyFor(server.id, tool.name)?.enabled == false) return@withContext false to "MCP[${server.name}] 工具 `${tool.name}` 已在设置中禁用，本次调用未执行。"
+        if (!authorize(tool)) return@withContext false to "MCP[${server.id}] 工具 `${tool.name}` 不在当前 Bot 的工具授权内，本次调用未执行。"
         cancellableResult { transport(bound).execute(bound, tool.name, arguments) }
             .onFailure { logger.e("MCP[${server.name}] 工具 ${tool.name} 执行异常: ${it.message}", it) }
             .onSuccess { (ok, output) ->
@@ -288,14 +293,12 @@ class McpManager(
             }
             .getOrElse { false to "MCP 工具执行异常：${it.message ?: it::class.simpleName}" }
     }
-
     suspend fun discoverTools(server: McpServerConfig): List<McpToolInfo> = withContext(Dispatchers.IO) {
         val ready = catalogAvailability.resolve(listOf(server)).single()
         check(!server.requiresInstall || ready.installationReady == true) { "MCP 未启用或当前环境未安装：${server.id}" }
         val bound = boundConfig(ready)
         transport(bound).discover(bound)
     }
-
     suspend fun testServer(server: McpServerConfig): Result<List<McpToolInfo>> = withContext(Dispatchers.IO) {
         val ready = catalogAvailability.resolve(listOf(server)).single()
         if (server.requiresInstall && ready.installationReady != true) return@withContext Result.failure(IllegalStateException("MCP 未启用或当前环境未安装：${server.id}"))
@@ -314,14 +317,15 @@ class McpManager(
         }
         .onFailure { cache.remove(key); lastErrors[key] = it.message.orEmpty(); state(server.id, McpConnectionState.OFFLINE, key) }
     }
-
     suspend fun executeTool(
         fullToolName: String,
         arguments: JsonObject,
         workspace: String = "",
+        allowedServers: Set<String>? = null,
+        authorize: suspend (McpToolInfo) -> Boolean = { true },
     ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         if (!fullToolName.startsWith("mcp__")) return@withContext false to "无效的 MCP 工具名称：$fullToolName"
-        val servers = effectiveServers().filter { it.isEnabled }
+        val servers = effectiveServers().filter { it.isEnabled && (allowedServers == null || it.id.lowercase() in allowedServers) }
         val parsedServerId = fullToolName.removePrefix("mcp__").substringBefore("__")
         val candidateServers = servers.filter { server ->
             server.id == parsedServerId || McpToolApiName.isServerPrefix(fullToolName, server.id)
@@ -337,6 +341,7 @@ class McpManager(
             ?: return@withContext false to "未找到 MCP 服务：${tool.serverId}"
         if (toolPolicy?.policyFor(server.id, tool.name)?.enabled == false) return@withContext false to "MCP[${server.name}] 工具 `${tool.name}` 已在设置中禁用，本次调用未执行。"
         val bound = boundConfig(server, workspace)
+        if (!authorize(tool)) return@withContext false to "MCP[${server.id}] 工具 `${tool.name}` 不在当前 Bot 的工具授权内，本次调用未执行。"
         return@withContext cancellableResult { transport(bound).execute(bound, tool.name, arguments) }
             .onFailure { logger.e("MCP[${server.name}] 工具 ${tool.name} 执行异常: ${it.message}", it) }
             .onSuccess { (ok, output) ->
@@ -345,7 +350,6 @@ class McpManager(
             }
             .getOrElse { false to "MCP 工具执行异常：${it.message ?: it::class.simpleName}" }
     }
-
     private suspend fun discoverWithTimeout(server: McpServerConfig, key: String? = null): List<McpToolInfo> =
         withContext(McpConnectionScope(key ?: discoveryKey(server))) { withTimeoutOrNull(DISCOVERY_TIMEOUT_MS.milliseconds) { transport(server).discover(server) } }
             ?: error("工具发现超时（${DISCOVERY_TIMEOUT_MS / 1000}s）：沙箱会话或 MCP 进程可能已挂起")
@@ -357,7 +361,6 @@ class McpManager(
     } catch (throwable: Throwable) {
         Result.failure(throwable)
     }
-
     private suspend fun state(id: String, state: McpConnectionState, key: String? = null) {
         val scoped = key ?: discoveryKey(McpServerConfig(id, id))
         metadata.retain(scoped) { statuses.update(state, scoped) }
@@ -386,7 +389,7 @@ class McpManager(
 
     /** Bound owners always take precedence over another session's last workspace. */
     private suspend fun boundConfig(server: McpServerConfig, workspace: String? = null): McpServerConfig {
-        val world = kotlinx.coroutines.currentCoroutineContext()[top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext]?.environment
+        val world = kotlinx.coroutines.currentCoroutineContext()[ExecutionEnvironmentContext]?.environment
         return commandBuilder.bindWorkspaceRepository(server, world?.workingDirectory() ?: workspace.orEmpty())
     }
 
@@ -406,14 +409,11 @@ class McpManager(
 
     private suspend fun effectiveServers(): List<McpServerConfig> =
         catalogAvailability.resolve(repository.servers.first())
-
     private companion object {
         /** 单服务器工具发现总超时：覆盖沙箱会话拉起 + initialize + tools/list，超时即本轮跳过注入。 */
         const val DISCOVERY_TIMEOUT_MS = 8_000L
-
         /** 工具发现无会话上下文，agent 事件日志用占位 sessionId。 */
         const val DISCOVERY_LOG_SESSION = "-"
-
         const val RUNTIME_NOT_READY_MSG = "Linux runtime is not ready. Call initialize() first."
     }
 }

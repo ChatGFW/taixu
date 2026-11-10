@@ -2,7 +2,7 @@ package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,13 +28,13 @@ internal fun ComposerQuickActions(
     Row(verticalAlignment = Alignment.CenterVertically) {
         RuntimeIconButton(
             onClick = onOpenModels,
-            modifier = Modifier.size(48.dp),
+            modifier = Modifier.size(ComposerActionSize),
             contentDescription = stringResource(R.string.chat_select_model),
         ) {
             ModelBadge(
                 modelId = activeModel?.model,
                 providerIdOrName = activeModel?.provider.orEmpty(),
-                size = 26.dp,
+                size = 22.dp,
             )
         }
         val modeLabel = stringResource(when (approvalMode) {
@@ -43,23 +43,23 @@ internal fun ComposerQuickActions(
             ApprovalMode.REQUEST -> R.string.chat_approval_request
         })
         val modeColor = when (approvalMode) {
-            ApprovalMode.FULL_ACCESS -> MaterialTheme.colorScheme.error
-            ApprovalMode.ASSISTED -> MaterialTheme.colorScheme.primary
-            ApprovalMode.REQUEST -> MaterialTheme.colorScheme.onSurfaceVariant
+            ApprovalMode.FULL_ACCESS -> RuntimeTheme.colorScheme.error
+            ApprovalMode.ASSISTED -> RuntimeTheme.colorScheme.primary
+            ApprovalMode.REQUEST -> RuntimeTheme.colorScheme.onSurfaceVariant
         }
         RuntimeIconButton(
             onClick = onOpenApprovalModes,
-            modifier = Modifier.size(48.dp),
+            modifier = Modifier.size(ComposerActionSize),
             contentDescription = modeLabel,
         ) {
-            RuntimeIcon(RuntimeIconName.Shield, Modifier.size(22.dp), modeColor)
+            RuntimeIcon(RuntimeIconName.Shield, Modifier.size(20.dp), modeColor)
         }
         RuntimeIconButton(
             onClick = onOpenAttachSheet,
-            modifier = Modifier.size(48.dp),
+            modifier = Modifier.size(ComposerActionSize),
             contentDescription = stringResource(R.string.chat_add_attachment),
         ) {
-            RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+            RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

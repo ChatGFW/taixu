@@ -70,8 +70,9 @@ import top.wkbin.taixu.core.database.task.AgentTaskDao
         BudgetRequestEntity::class,
         BtwQueryEntity::class,
         AgentMessageFeedbackEntity::class,
+        ExternalAgentRuntimeTokenEntity::class,
     ],
-    version = 87,
+    version = 91,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -109,5 +110,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun botAssignmentDao(): BotAssignmentDao
     abstract fun botGroupSessionDao(): BotGroupSessionDao
     abstract fun btwQueryDao(): BtwQueryDao
+    abstract fun externalAgentRuntimeTokenDao(): ExternalAgentRuntimeTokenDao
 }
 

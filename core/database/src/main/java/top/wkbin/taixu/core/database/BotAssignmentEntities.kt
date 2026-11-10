@@ -1,7 +1,6 @@
 package top.wkbin.taixu.core.database
 
 import androidx.room.ColumnInfo
-import androidx.room.Transaction
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -10,8 +9,10 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 import top.wkbin.taixu.core.model.bot.BotWorkBatch
+import top.wkbin.taixu.core.model.bot.TaskBudgetExceededException
 
 @Entity(
     tableName = "bot_assignments",
@@ -61,6 +62,7 @@ data class BotAssignmentEntity(
     @ColumnInfo(defaultValue = "NULL") val rootWorkId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val stageId: String? = null,
     @ColumnInfo(defaultValue = "NULL") val workItemId: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val capabilityGrantJson: String? = null,
 )
 
 @Dao
@@ -118,7 +120,7 @@ interface BotAssignmentDao : GroupDeliveryDao, BotAssignmentRequestDao, Assignme
         val parent = task.parentAssignmentId?.let { findById(it) }
         val owner = parent?.let { ensureBudget(it) } ?: rootBudget(task)
         val state = requireNotNull(budgetState(owner.id))
-        if (state.limitTokens > 0 && state.availableTokens == 0L) throw top.wkbin.taixu.core.model.bot.TaskBudgetExceededException("任务树预算不足，不能继续分派；请由用户调整原预算。")
+        if (state.limitTokens > 0 && state.availableTokens == 0L) throw TaskBudgetExceededException("任务树预算不足，不能继续分派；请由用户调整原预算。")
         insertIndependentSession(session)
         insertIndependentAssignment(task.copy(budgetId = owner.id, teamBinding = linkedBinding(group)))
         insertAssignmentRequest(request)

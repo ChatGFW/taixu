@@ -9,6 +9,7 @@ import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ToolCall
+import top.wkbin.taixu.harness.session.ProviderActivityTracker
 
 /**
  * 会话级运行状态与前台聚焦镜像：状态机（就绪/运行中/等待审批…）、动作描述、
@@ -20,7 +21,7 @@ import top.wkbin.taixu.harness.ToolCall
 class SessionStateMirrors(
     private val tracker: CurrentSessionTracker,
 ) {
-    val providerActivity = top.wkbin.taixu.harness.session.ProviderActivityTracker()
+    val providerActivity = ProviderActivityTracker()
 
     private val _sessionRunStates = MutableStateFlow<Map<String, SessionRunState>>(emptyMap())
     /** 全局所有会话的运行状态映射（供会话抽屉、状态点等观察） */

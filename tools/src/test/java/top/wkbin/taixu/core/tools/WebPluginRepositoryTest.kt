@@ -23,6 +23,7 @@ import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
 import top.wkbin.taixu.core.model.*
 import top.wkbin.taixu.plugin.packages.WebPluginPackagePolicy
+import top.wkbin.taixu.runtime.service.ProotWebBootstrapLimitException
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], manifest = Config.NONE)
@@ -60,8 +61,8 @@ class WebPluginRepositoryTest {
         val content = mapOf("index.html" to bytes)
         val expected = manifest(content = content).let { it.copy(plugin = it.plugin!!.copy(webSource = "PROOT_STATIC")) }
         val uri = archive(expected, content)
-        assertTrue(runCatching { fixture.repository.preview(uri) }.exceptionOrNull() is top.wkbin.taixu.runtime.service.ProotWebBootstrapLimitException)
-        assertTrue(runCatching { fixture.repository.import(uri, expected) }.exceptionOrNull() is top.wkbin.taixu.runtime.service.ProotWebBootstrapLimitException)
+        assertTrue(runCatching { fixture.repository.preview(uri) }.exceptionOrNull() is ProotWebBootstrapLimitException)
+        assertTrue(runCatching { fixture.repository.import(uri, expected) }.exceptionOrNull() is ProotWebBootstrapLimitException)
         assertTrue(fixture.repository.packages.value.isEmpty())
         assertNull(fixture.registry.localManifest(expected.id, expected.version))
         assertTrue(fixture.context.cacheDir.listFiles().orEmpty().none { it.name.startsWith("web-preview-") || it.name.startsWith("txplugin-") })

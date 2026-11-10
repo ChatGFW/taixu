@@ -1,9 +1,11 @@
 package top.wkbin.taixu.harness
 
+import top.wkbin.taixu.harness.bot.TaskBudgetContext
 import top.wkbin.taixu.harness.core.AgentTurnRunner
 import top.wkbin.taixu.harness.core.ProviderTurnResult
 import top.wkbin.taixu.harness.core.TurnLifecycle
 import top.wkbin.taixu.harness.core.TurnOutcome
+import top.wkbin.taixu.harness.groupchat.GroupReplyFreshness
 
 sealed interface TurnProviderOutcome {
     data class Success(val result: ChatResult, val streamText: String) : TurnProviderOutcome
@@ -16,7 +18,7 @@ sealed interface TurnProviderOutcome {
  */
 class TurnRunner(
     private val normalizer: ProviderResponseNormalizer,
-    private val groupFreshness: top.wkbin.taixu.harness.groupchat.GroupReplyFreshness? = null,
+    private val groupFreshness: GroupReplyFreshness? = null,
 ) {
     private val core = AgentTurnRunner()
 
@@ -31,7 +33,7 @@ class TurnRunner(
         remainingRounds: Int = Int.MAX_VALUE,
         lifecycle: TurnLifecycle<NormalizedProviderResponse>? = null,
         sessionId: String? = null,
-    ): TurnOutcome = kotlinx.coroutines.withContext(sessionId?.let { top.wkbin.taixu.harness.bot.TaskBudgetContext(it) } ?: kotlin.coroutines.EmptyCoroutineContext) { core.run(
+    ): TurnOutcome = kotlinx.coroutines.withContext(sessionId?.let { TaskBudgetContext(it) } ?: kotlin.coroutines.EmptyCoroutineContext) { core.run(
         callProvider = {
             sessionId?.let { groupFreshness?.refresh(it) }
             when (val provider = callProvider()) {

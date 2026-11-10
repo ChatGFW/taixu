@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness.groupchat
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
+import top.wkbin.taixu.core.database.task.AgentTaskEntity
 import top.wkbin.taixu.core.database.task.AgentTaskRepository
 import top.wkbin.taixu.core.database.task.AgentTaskStatus
 import top.wkbin.taixu.core.model.SessionRunState
@@ -39,7 +40,7 @@ internal class GroupReplyTaskTracker(
 
     suspend fun snapshot(sessionId: String, taskId: String): Snapshot? = project(sessionId, tasks.find(taskId))
 
-    private suspend fun project(sessionId: String, task: top.wkbin.taixu.core.database.task.AgentTaskEntity?): Snapshot? {
+    private suspend fun project(sessionId: String, task: AgentTaskEntity?): Snapshot? {
         if (task == null) return null
         check(task.sessionId == sessionId) { "群回复任务不属于当前会话" }
         val operation = task.operationId?.let { runtime.findOperation(it) }

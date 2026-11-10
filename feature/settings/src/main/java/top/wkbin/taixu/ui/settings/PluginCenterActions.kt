@@ -1,8 +1,8 @@
 package top.wkbin.taixu.ui.settings
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -19,8 +19,8 @@ internal fun PluginCenterActions(
 ) {
     RuntimeCard(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(stringResource(R.string.plugin_center_intro), style = MaterialTheme.typography.bodyMedium)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(R.string.plugin_center_intro), style = RuntimeTheme.typography.bodyMedium)
+            RuntimeActionRow() {
                 RuntimeButton(onClick = onDownload, enabled = enabled) {
                     RuntimeIcon(RuntimeIconName.Download, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
@@ -32,7 +32,7 @@ internal fun PluginCenterActions(
                     Text(stringResource(R.string.plugin_center_import), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RuntimeActionRow() {
                 RuntimeTextButton(onClick = onBuiltinFeatures) { Text(stringResource(R.string.plugin_center_builtin)) }
                 RuntimeTextButton(onClick = onWebPlugins, enabled = enabled) { Text(stringResource(R.string.plugin_center_web)) }
             }

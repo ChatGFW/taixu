@@ -1,5 +1,10 @@
 package top.wkbin.taixu.runtime.tools
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
 import top.wkbin.taixu.core.model.RuntimeName
 import top.wkbin.taixu.core.model.RuntimeRequirement
 import top.wkbin.taixu.core.model.RuntimeState
@@ -12,18 +17,14 @@ import top.wkbin.taixu.core.tools.ProviderManager
 import top.wkbin.taixu.core.tools.ToolActionResult
 import top.wkbin.taixu.core.tools.ToolRuntimeAdapter
 import top.wkbin.taixu.core.tools.executionIdentity
+import top.wkbin.taixu.core.tools.installedToolVersion
 import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.service.ServiceLaunch
 import top.wkbin.taixu.runtime.shell.CommandResult
 import top.wkbin.taixu.runtime.shell.ManagedProcess
 import top.wkbin.taixu.runtime.shell.ProcessType
 import top.wkbin.taixu.runtime.shell.SessionConfig
 import top.wkbin.taixu.runtime.shell.ShellCommand
-import top.wkbin.taixu.runtime.service.ServiceLaunch
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.flow
 
 /**
  * 通用声明式配方执行引擎 (Generic Recipe Installer)
@@ -208,7 +209,7 @@ class GenericRecipeInstaller(
             }
 
             val versionOutput = versionResult.stdout.trim().lineSequence().firstOrNull()?.takeIf { it.isNotBlank() } ?: manifest.version
-            emit(InstallEvent.Completed(toolId, top.wkbin.taixu.core.tools.installedToolVersion(manifest, versionOutput)))
+            emit(InstallEvent.Completed(toolId, installedToolVersion(manifest, versionOutput)))
         } catch (cancellation: CancellationException) {
             if (manifest.source == "LOCAL") {
                 runCatching {

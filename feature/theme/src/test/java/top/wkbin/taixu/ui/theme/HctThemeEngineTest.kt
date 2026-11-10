@@ -48,7 +48,7 @@ class HctThemeEngineTest {
     @Test
     fun harmonizedSemanticColorsKeepWcagContrast() {
         for (dark in listOf(false, true)) {
-            val scheme = generateM3ColorScheme(Color(0xFF4259C3), dark)
+            val scheme = generatePaletteColorScheme(Color(0xFF4259C3), dark)
             val s = buildSemanticColors(scheme)
             assertContrast(s.success, s.onSuccess)
             assertContrast(s.successContainer, s.onSuccessContainer)
@@ -88,7 +88,7 @@ class HctThemeEngineTest {
         val seed = Color(0xFF4259C3)
         val seedHue = Hct.fromInt(seed.toArgb()).hue
         for (dark in listOf(false, true)) {
-            val scheme = generateM3ColorScheme(seed, dark)
+            val scheme = generatePaletteColorScheme(seed, dark)
             val primaryHue = Hct.fromInt(scheme.primary.toArgb()).hue
             assertTrue(
                 "primary hue $primaryHue should stay near seed hue $seedHue",

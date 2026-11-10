@@ -12,10 +12,13 @@ import top.wkbin.taixu.core.network.FileDownloader
 import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.*
 import top.wkbin.taixu.harness.directory.CapabilityToolGateway
+import top.wkbin.taixu.harness.effects.TerminalOutputCompressor
+import top.wkbin.taixu.harness.websearch.StubSearchProvider
+import top.wkbin.taixu.harness.websearch.WebSearchProviders
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.environment.*
-import top.wkbin.taixu.runtime.shell.*
-import top.wkbin.taixu.harness.websearch.StubSearchProvider
+import top.wkbin.taixu.runtime.shell.*
+
 
 class HarnessCommandOutputTest {
     @get:Rule val temporary = TemporaryFolder()
@@ -30,7 +33,7 @@ class HarnessCommandOutputTest {
             assertFalse(result.output.contains('\u001b'))
             assertTrue(result.output.contains("op" + "*".repeat(secret.length - 4) + "et"))
             val saved = fixture.world.contents.values.single()
-            assertFalse(top.wkbin.taixu.harness.effects.TerminalOutputCompressor.normalize(saved).contains(secret))
+            assertFalse(TerminalOutputCompressor.normalize(saved).contains(secret))
             assertFalse(saved.contains('\u001b'))
             val artifact = ToolOutputArtifact.decode(result.metadata[ToolOutputArtifact.METADATA_KEY])!!
             assertEquals(ToolOutputArtifact.capture(artifact.path, saved), artifact)
@@ -204,7 +207,7 @@ class HarnessCommandOutputTest {
             HostCapabilityToolBackend(secretRedactor = SecretRedactor()),
             LinuxCommandToolBackend(unused<LinuxRuntime>(), paths, environments = registry),
             DownloadToolBackend(unused<FileDownloader>(), hostFiles, WorkspaceMutationSnapshots(), registry),
-            SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(StubSearchProvider()))),
+            SearchWebToolBackend(WebSearchProviders(listOf(StubSearchProvider()))),
             ContextMemoryToolBackend(), AskUserToolBackend(policy, null), PromptAssetToolBackend(), HarnessServiceToolBackend(),
             CapabilityToolGateway(null) { _, _, _, _ -> error("host") }, environments = registry)
         return Fixture(executor, world, registry, host, commands)

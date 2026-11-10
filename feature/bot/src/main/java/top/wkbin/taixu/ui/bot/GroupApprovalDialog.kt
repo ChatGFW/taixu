@@ -1,14 +1,15 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateMapOf
@@ -62,7 +63,7 @@ internal fun GroupApprovalDialog(
                         RuntimeFilledTextField(
                             value = answers[index].orEmpty(),
                             onValueChange = { answers[index] = it },
-                            label = { Text(stringResource(R.string.fbot_answer_hint)) },
+                            labelText = stringResource(R.string.fbot_answer_hint),
                             modifier = Modifier.fillMaxWidth(),
                         )
                     } else Text(answers[index].orEmpty())

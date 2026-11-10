@@ -2,7 +2,7 @@ package top.wkbin.taixu.ui.components
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Scaffold
+import top.wkbin.taixu.ui.miuix.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.Dialog
@@ -15,6 +15,7 @@ fun RuntimeFullscreenPage(title: String, onBack: () -> Unit, statusText: String?
     Dialog(onDismissRequest = onBack,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         RuntimeDialogSystemBars()
+        // Scaffold owns frosted top-bar blur for the dialog page.
         Scaffold(modifier = Modifier.fillMaxSize(), topBar = {
             RuntimeTopBar(title = title, onBack = onBack, statusText = statusText)
         }, content = content)

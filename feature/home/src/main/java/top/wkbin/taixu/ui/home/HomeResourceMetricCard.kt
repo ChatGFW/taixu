@@ -1,9 +1,8 @@
 package top.wkbin.taixu.ui.home
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,15 +26,15 @@ internal fun ResourceMetricCard(
     icon: RuntimeIconName,
 ) {
     val effectiveAccent = when {
-        progress >= 0.9f -> MaterialTheme.colorScheme.error
-        progress >= 0.8f -> MaterialTheme.colorScheme.tertiary
+        progress >= 0.9f -> RuntimeTheme.colorScheme.error
+        progress >= 0.8f -> RuntimeTheme.colorScheme.tertiary
         else -> accentColor
     }
     RuntimeCard(
         modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.extraLarge,
-        contentPadding = PaddingValues(20.dp),
+        containerColor = RuntimeTheme.colorScheme.surfaceContainer,
+        shape = RuntimeTheme.shapes.extraLarge,
+        contentPadding = PaddingValues(16.dp),
     ) {
         Column(
             modifier = Modifier.fillMaxHeight(),
@@ -48,8 +47,8 @@ internal fun ResourceMetricCard(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 RuntimeIcon(
                     name = icon,
@@ -60,10 +59,10 @@ internal fun ResourceMetricCard(
 
             Text(
                 text = primaryValue,
-                style = MaterialTheme.typography.titleLarge.copy(
+                style = RuntimeTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Medium,
                 ),
-                color = MaterialTheme.colorScheme.onSurface,
+                color = RuntimeTheme.colorScheme.onSurface,
             )
 
             RuntimeLinearProgressIndicator(
@@ -71,24 +70,24 @@ internal fun ResourceMetricCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(10.dp)
-                    .clip(RoundedCornerShape(4.dp)),
+                    .clip(RuntimeTheme.shapes.tiny),
                 color = effectiveAccent,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                trackColor = RuntimeTheme.colorScheme.surfaceContainerHighest,
                 wavy = true,
             )
 
             Text(
                 text = "$progressText · $secondaryValue",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (progress >= 0.8f) effectiveAccent else MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = if (progress >= 0.8f) effectiveAccent else RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
 
             Text(
                 text = extraInfo,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

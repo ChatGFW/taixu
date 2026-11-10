@@ -1,11 +1,13 @@
 package top.wkbin.taixu.ui.chat
 
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
+import top.wkbin.taixu.ui.miuix.ModalBottomSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -18,7 +20,6 @@ import org.koin.compose.viewmodel.koinViewModel
  * 红点逻辑：ToolchainViewModel.hasGap 在检测完成后主动更新，
  * 即便用户没打开面板，只要后台/入口触发了检测，红点也会亮起。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ToolchainHost(visible: Boolean, onDismiss: () -> Unit, onGapChanged: (Boolean) -> Unit) {
     if (visible) {
@@ -26,7 +27,6 @@ internal fun ToolchainHost(visible: Boolean, onDismiss: () -> Unit, onGapChanged
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ToolchainSheet(
     onDismiss: () -> Unit,

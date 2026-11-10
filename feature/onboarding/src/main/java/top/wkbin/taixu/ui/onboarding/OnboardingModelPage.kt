@@ -3,19 +3,23 @@ package top.wkbin.taixu.ui.onboarding
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.core.tools.AgentProviderDefinition
+import top.wkbin.taixu.core.tools.ProviderGroup
+import top.wkbin.taixu.core.tools.ProviderProtocol
 import top.wkbin.taixu.feature.onboarding.R
 import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.components.RuntimeDropdownField
+import top.wkbin.taixu.ui.miuix.*
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun ModelSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier) {
@@ -26,13 +30,12 @@ internal fun ModelSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier)
     val discovered by viewModel?.discoveredModels?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val discovering by viewModel?.discoveringModels?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val discoveryError by viewModel?.modelDiscoveryError?.collectAsStateWithLifecycle() ?: previewStateOf(null)
-    val providers = viewModel?.providerCatalog ?: listOf(AgentProviderDefinition("custom", provider, "", group = top.wkbin.taixu.core.tools.ProviderGroup.CUSTOM))
+    val providers = viewModel?.providerCatalog ?: listOf(AgentProviderDefinition("custom", provider, "", group = ProviderGroup.CUSTOM))
     val selectedProvider = providers.firstOrNull { it.name == provider } ?: providers.first()
 
     val context = LocalContext.current
     var showImportDialog by remember { mutableStateOf(false) }
     var keyRevealed by remember { mutableStateOf(false) }
-    var providerMenuExpanded by remember { mutableStateOf(false) }
 
     val candidateModels = remember(discovered, selectedProvider) {
         (discovered + selectedProvider.recommendedModels).distinct().filter { it.isNotBlank() }
@@ -40,61 +43,49 @@ internal fun ModelSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier)
 
     LazyColumn(
         modifier = modifier.imePadding(),
-        contentPadding = runtimeContentPadding(horizontal = 24.dp, top = 8.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        contentPadding = runtimeContentPadding(horizontal = 12.dp, top = 8.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Surface(shape = MaterialTheme.shapes.largeIncreased, color = MaterialTheme.colorScheme.tertiaryContainer) {
-                        RuntimeIcon(RuntimeIconName.Brain, Modifier.padding(12.dp).size(24.dp), MaterialTheme.colorScheme.onTertiaryContainer)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    RuntimeTextButton(onClick = { showImportDialog = true }) {
-                        RuntimeIcon(RuntimeIconName.Download, Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.onboarding_connect_model), Modifier.weight(1f),
+                        style = RuntimeTheme.typography.headlineMedium)
+                    RuntimeFilledTonalButton(onClick = { showImportDialog = true }) {
                         Text(stringResource(R.string.model_setup_import))
                     }
                 }
-                Text(stringResource(R.string.onboarding_connect_model), style = MaterialTheme.typography.headlineMedium)
-                Text(stringResource(R.string.onboarding_connect_model_description), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.onboarding_connect_model_description), style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant)
             }
         }
         item {
-            Box {
-                RuntimeProviderCard(
-                    providerId = selectedProvider.id, name = selectedProvider.name,
-                    description = stringResource(if (selectedProvider.protocol == top.wkbin.taixu.core.tools.ProviderProtocol.ANTHROPIC) R.string.model_setup_protocol_anthropic else R.string.model_setup_protocol_openai),
-                    onClick = { providerMenuExpanded = true },
-                )
-                DropdownMenu(expanded = providerMenuExpanded, onDismissRequest = { providerMenuExpanded = false },
-                    modifier = Modifier.heightIn(max = 360.dp)) {
-                    providers.forEach { option ->
-                        DropdownMenuItem(
-                            leadingIcon = { ProviderBadge(option.id, size = 24.dp) },
-                            text = { Text(option.name, style = MaterialTheme.typography.bodyMedium) },
-                            trailingIcon = if (option.id == selectedProvider.id) {
-                                { RuntimeIcon(RuntimeIconName.Check, Modifier.size(20.dp)) }
-                            } else null,
-                            onClick = { viewModel?.selectProvider(option.id); providerMenuExpanded = false },
-                        )
-                    }
-                }
-            }
+            RuntimeDropdownField(
+                title = "模型服务商",
+                items = providers.map { it.name },
+                selectedIndex = providers.indexOfFirst { it.id == selectedProvider.id }.coerceAtLeast(0),
+                onSelectedIndexChange = { index ->
+                    providers.getOrNull(index)?.let { option -> viewModel?.selectProvider(option.id) }
+                },
+                summary = stringResource(
+                    if (selectedProvider.protocol == ProviderProtocol.ANTHROPIC) {
+                        R.string.model_setup_protocol_anthropic
+                    } else {
+                        R.string.model_setup_protocol_openai
+                    },
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
         item {
-            RuntimeCard(shape = MaterialTheme.shapes.extraLarge,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+            RuntimeSectionTitle(stringResource(R.string.model_setup_connection))
+            RuntimeCard(contentPadding = PaddingValues(12.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(R.string.model_setup_connection), style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary)
                     RuntimeFilledTextField(
                         value = baseUrl, onValueChange = { viewModel?.setBaseUrl(it) },
                         modifier = Modifier.fillMaxWidth(), singleLine = true,
-                        label = { Text(stringResource(R.string.model_setup_url)) },
+                        labelText = stringResource(R.string.model_setup_url),
                         placeholder = { Text("https://api.openai.com/v1") },
-                        leadingIcon = { RuntimeIcon(RuntimeIconName.Globe, Modifier.size(20.dp)) },
                         trailingIcon = {
                             RuntimeIconButton(onClick = { viewModel?.discoverModels() }, enabled = !discovering && baseUrl.isNotBlank(),
                                 contentDescription = stringResource(R.string.model_setup_discover)) {
@@ -106,8 +97,7 @@ internal fun ModelSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier)
                     RuntimeFilledTextField(
                         value = apiKey, onValueChange = { viewModel?.setApiKey(it) },
                         modifier = Modifier.fillMaxWidth(), singleLine = true,
-                        label = { Text(stringResource(R.string.model_setup_key)) }, placeholder = { Text("sk-…") },
-                        leadingIcon = { RuntimeIcon(RuntimeIconName.Key, Modifier.size(20.dp)) },
+                        labelText = stringResource(R.string.model_setup_key), placeholder = { Text("sk-…") },
                         visualTransformation = if (keyRevealed) VisualTransformation.None else PasswordVisualTransformation(),
                         trailingIcon = {
                             if (apiKey.isNotEmpty()) RuntimeIconButton(onClick = { keyRevealed = !keyRevealed },
@@ -120,22 +110,19 @@ internal fun ModelSetupPage(viewModel: OnboardingViewModel?, modifier: Modifier)
             }
         }
         item {
-            RuntimeCard(shape = MaterialTheme.shapes.extraLarge,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+            RuntimeSectionTitle(stringResource(R.string.model_setup_model))
+            RuntimeCard(contentPadding = PaddingValues(12.dp)) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(R.string.model_setup_model), style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary)
                     RuntimeFilledTextField(
                         value = model, onValueChange = { viewModel?.setModelId(it) },
                         modifier = Modifier.fillMaxWidth(), singleLine = true,
-                        label = { Text("Model ID") }, placeholder = { Text("gpt-4o / deepseek-chat") },
-                        leadingIcon = { RuntimeIcon(RuntimeIconName.Model, Modifier.size(20.dp)) },
+                        labelText = "Model ID", placeholder = { Text("gpt-4o / deepseek-chat") },
                     )
                     OnboardingModelCandidates(candidateModels, model) { viewModel?.setModelId(it) }
                 }
             }
         }
-        discoveryError?.let { err -> item { Text(err, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) } }
+        discoveryError?.let { err -> item { Text(err, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall) } }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 RuntimeButton(onClick = { viewModel?.saveModelAndFinish() }, enabled = model.isNotBlank() && baseUrl.isNotBlank(),

@@ -1,19 +1,12 @@
 package top.wkbin.taixu.harness
 
-import kotlinx.serialization.json.JsonObject
-import top.wkbin.taixu.core.security.SecretRedactor
-import top.wkbin.taixu.harness.directory.CapabilityToolGateway
-import top.wkbin.taixu.core.network.DownloadEvent
-import top.wkbin.taixu.core.network.DownloadRequest
-import top.wkbin.taixu.core.network.FileDownloader
-import top.wkbin.taixu.runtime.FakeLinuxRuntime
-import top.wkbin.taixu.runtime.shell.CommandResult
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -26,8 +19,19 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import top.wkbin.taixu.core.database.AgentSkillDao
 import top.wkbin.taixu.core.database.AgentSkillEntity
-import top.wkbin.taixu.core.database.AgentSkillRepository
+import top.wkbin.taixu.core.database.AgentSkillRepository
+
+import top.wkbin.taixu.core.network.DownloadEvent
+import top.wkbin.taixu.core.network.DownloadRequest
+import top.wkbin.taixu.core.network.FileDownloader
+import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.SearchWebToolBackend
+import top.wkbin.taixu.harness.directory.CapabilityToolGateway
+import top.wkbin.taixu.harness.websearch.SearchHit
+import top.wkbin.taixu.harness.websearch.WebSearchProvider
+import top.wkbin.taixu.harness.websearch.WebSearchProviders
+import top.wkbin.taixu.runtime.FakeLinuxRuntime
+import top.wkbin.taixu.runtime.shell.CommandResult
 
 class ToolExecutorTest {
 
@@ -63,7 +67,7 @@ class ToolExecutorTest {
             askUserToolBackend = AskUserToolBackend(approvalPolicyEngine),
             promptAssetToolBackend = PromptAssetToolBackend(),
             harnessServiceToolBackend = HarnessServiceToolBackend(),
-            searchWebToolBackend = SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(StubSearchProvider()))),
+            searchWebToolBackend = SearchWebToolBackend(WebSearchProviders(listOf(StubSearchProvider()))),
             capabilityToolGateway = CapabilityToolGateway(null) { _, _, _, _ -> error("unexpected host dispatch") },
         )
     }
@@ -357,7 +361,7 @@ class ToolExecutorTest {
             askUserToolBackend = AskUserToolBackend(ApprovalPolicyEngine(HarnessPathResolver())),
             promptAssetToolBackend = PromptAssetToolBackend(skillRepository = AgentSkillRepository(dao)),
             harnessServiceToolBackend = HarnessServiceToolBackend(),
-            searchWebToolBackend = SearchWebToolBackend(top.wkbin.taixu.harness.websearch.WebSearchProviders(listOf(StubSearchProvider()))),
+            searchWebToolBackend = SearchWebToolBackend(WebSearchProviders(listOf(StubSearchProvider()))),
             capabilityToolGateway = CapabilityToolGateway(null) { _, _, _, _ -> error("unexpected host dispatch") },
         )
     }
@@ -385,7 +389,7 @@ class ToolExecutorTest {
 }
 
 /** app 测试源集内私有桩：占位搜索 Provider（app 测试看不到 harness 测试源集的 StubSearchProvider）。 */
-private class StubSearchProvider : top.wkbin.taixu.harness.websearch.WebSearchProvider {
+private class StubSearchProvider : WebSearchProvider {
     override val id = "stub"
-    override suspend fun search(query: String, count: Int) = emptyList<top.wkbin.taixu.harness.websearch.SearchHit>()
+    override suspend fun search(query: String, count: Int) = emptyList<SearchHit>()
 }

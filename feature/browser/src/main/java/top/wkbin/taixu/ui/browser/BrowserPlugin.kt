@@ -14,6 +14,7 @@ import top.wkbin.taixu.plugin.ui.NativePagePlugin
 import top.wkbin.taixu.plugin.ui.NativePluginEntry
 import top.wkbin.taixu.plugin.ui.NativePluginPage
 import top.wkbin.taixu.plugin.ui.PluginEntryLocation
+import top.wkbin.taixu.ui.components.RuntimeIconName
 
 private val LocalBrowserPluginOwner = staticCompositionLocalOf<BrowserViewModel?> { null }
 
@@ -33,7 +34,7 @@ object BrowserPlugin {
             extensions = listOf(PluginExtension(page.extensionId, PluginExtensionPoint.PAGE)),
         ),
         title = { stringResource(R.string.fbrowser_plugin_title) },
-        icon = top.wkbin.taixu.ui.components.RuntimeIconName.Globe,
+        icon = RuntimeIconName.Globe,
         description = { stringResource(R.string.fbrowser_plugin_description) },
         entries = listOf(
             NativePluginEntry("open", "main", PluginEntryLocation.MENU) { stringResource(R.string.fbrowser_plugin_title) },

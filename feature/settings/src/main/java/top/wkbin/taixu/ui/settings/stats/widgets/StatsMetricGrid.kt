@@ -9,9 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,8 +95,8 @@ private fun MetricTile(
     Box(
         modifier = modifier
             .height(72.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+            .clip(RuntimeTheme.shapes.small)
+            .background(RuntimeTheme.colorScheme.onSurface.copy(alpha = 0.05f))
             .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Column(
@@ -111,13 +110,13 @@ private fun MetricTile(
                 RuntimeIcon(
                     name = item.icon,
                     modifier = Modifier.size(15.dp),
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                    tint = RuntimeTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                 )
                 Text(
                     text = item.label,
-                    style = MaterialTheme.typography.bodySmall.copy(
+                    style = RuntimeTheme.typography.bodySmall.copy(
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                     ),
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -125,10 +124,10 @@ private fun MetricTile(
             }
             Text(
                 text = item.value,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
+                style = RuntimeTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Medium,
                     fontSize = 17.sp,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = RuntimeTheme.colorScheme.onSurface,
                 ),
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,

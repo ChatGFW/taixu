@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
@@ -18,16 +21,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -159,14 +159,14 @@ internal fun SessionPlanBoardCard(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RuntimeTheme.shapes.small)
             .clickable {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 expanded = !expanded
             },
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.30f)),
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
+        shape = RuntimeTheme.shapes.small,
+        border = BorderStroke(1.dp, RuntimeTheme.colorScheme.primary.copy(alpha = 0.30f)),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(12.dp).animateContentSize(),
@@ -176,18 +176,18 @@ internal fun SessionPlanBoardCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                RuntimeIcon(RuntimeIconName.List, Modifier.size(16.dp), MaterialTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.List, Modifier.size(16.dp), RuntimeTheme.colorScheme.onSurface)
                 Text(
                     goal.ifBlank { stringResource(R.string.chat_plan_board_header) },
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
                     stringResource(R.string.chat_plan_board_progress, completedCount, steps.size),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             LinearProgressIndicator(
@@ -210,31 +210,31 @@ internal fun SessionPlanBoardCard(
                                 Box(
                                     modifier = Modifier
                                         .size(14.dp)
-                                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                        .background(RuntimeTheme.colorScheme.primary, CircleShape),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     RuntimeIcon(
                                         RuntimeIconName.Check,
                                         Modifier.size(9.dp),
-                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        tint = RuntimeTheme.colorScheme.onPrimary,
                                     )
                                 }
                             } else {
                                 Box(
                                     modifier = Modifier
                                         .size(14.dp)
-                                        .border(1.5.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                                        .border(1.5.dp, RuntimeTheme.colorScheme.outline, CircleShape),
                                 )
                             }
                             Text(
                                 step.title,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = RuntimeTheme.typography.bodySmall,
                                 modifier = Modifier.weight(1f),
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                                 textDecoration = if (step.isCompleted) TextDecoration.LineThrough else null,
                                 color = when {
-                                    step.isCompleted -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    step.isCompleted -> RuntimeTheme.colorScheme.onSurfaceVariant
                                     else -> Color.Unspecified
                                 },
                             )
@@ -269,17 +269,17 @@ internal fun StickyPlanBar(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
+            .clip(RuntimeTheme.shapes.medium)
             .clickable {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 expanded = !expanded
             },
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = MaterialTheme.shapes.medium,
+        color = RuntimeTheme.colorScheme.surfaceContainerLow,
+        shape = RuntimeTheme.shapes.medium,
         border = BorderStroke(
             1.dp,
-            if (allDone) MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
-            else MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+            if (allDone) RuntimeTheme.colorScheme.outline.copy(alpha = 0.25f)
+            else RuntimeTheme.colorScheme.primary.copy(alpha = 0.35f),
         ),
     ) {
         Column(
@@ -294,7 +294,7 @@ internal fun StickyPlanBar(
                 RuntimeIcon(
                     if (allDone) RuntimeIconName.Check else RuntimeIconName.List,
                     Modifier.size(14.dp),
-                    if (allDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary,
+                    if (allDone) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.primary,
                 )
                 Text(
                     text = when {
@@ -302,36 +302,36 @@ internal fun StickyPlanBar(
                         activeStep != null -> activeStep.title
                         else -> goal.ifBlank { stringResource(R.string.chat_plan_board_header) }
                     },
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
-                    color = if (allDone) MaterialTheme.colorScheme.onSurfaceVariant else Color.Unspecified,
+                    color = if (allDone) RuntimeTheme.colorScheme.onSurfaceVariant else Color.Unspecified,
                 )
                 // 进度计数 chip
                 Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
-                    shape = RoundedCornerShape(4.dp),
+                    color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.10f),
+                    shape = RuntimeTheme.shapes.tiny,
                 ) {
                     Text(
                         stringResource(R.string.chat_plan_board_progress, completedCount, steps.size),
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.primary,
                     )
                 }
                 RuntimeIcon(
                     if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
                     Modifier.size(12.dp),
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                    RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                 )
             }
             // 细进度条（始终显示）
             LinearProgressIndicator(
                 progress = { PlanStepParser.progress(steps) },
                 modifier = Modifier.fillMaxWidth().height(2.dp).clip(CircleShape),
-                color = if (allDone) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                color = if (allDone) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.primary,
+                trackColor = RuntimeTheme.colorScheme.surfaceContainerHighest,
             )
             // 展开：完整步骤列表（带最大高度保护与垂直滚动）
             AnimatedVisibility(visible = expanded) {
@@ -351,31 +351,31 @@ internal fun StickyPlanBar(
                                 Box(
                                     modifier = Modifier
                                         .size(13.dp)
-                                        .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                        .background(RuntimeTheme.colorScheme.primary, CircleShape),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    RuntimeIcon(RuntimeIconName.Check, Modifier.size(8.dp), MaterialTheme.colorScheme.onPrimary)
+                                    RuntimeIcon(RuntimeIconName.Check, Modifier.size(8.dp), RuntimeTheme.colorScheme.onPrimary)
                                 }
                             } else {
                                 Box(
                                     modifier = Modifier
                                         .size(13.dp)
-                                        .border(1.5.dp, MaterialTheme.colorScheme.outline, CircleShape),
+                                        .border(1.5.dp, RuntimeTheme.colorScheme.outline, CircleShape),
                                 )
                             }
                             Text(
                                 step.title,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = RuntimeTheme.typography.bodySmall,
                                 modifier = Modifier.weight(1f),
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                                 textDecoration = if (step.isCompleted) TextDecoration.LineThrough else null,
                                 color = when {
-                                    step.isCompleted -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    step.isCompleted -> RuntimeTheme.colorScheme.onSurfaceVariant
                                     step == activeStep -> Color.Unspecified
-                                    else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                                    else -> RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                                 },
-                                fontWeight = if (step == activeStep) FontWeight.SemiBold else null,
+                                fontWeight = if (step == activeStep) FontWeight.Medium else null,
                             )
                         }
                     }

@@ -48,7 +48,6 @@ dependencyResolutionManagement {
             forRepository { google() }
             filter {
                 includeGroupByRegex("androidx\\.a2ui(\\..*)?")
-                includeModule("androidx.compose.material3", "material3-a2ui")
             }
         }
         // materialkolor 6.0.0 在阿里云镜像只同步了 POM（缺 .module 与 AAR，子模块 -android 均 404）；

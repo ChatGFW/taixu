@@ -1,7 +1,7 @@
 package top.wkbin.taixu.ui.developer
 
 import androidx.annotation.StringRes
-import androidx.compose.material3.LocalTextStyle
+import top.wkbin.taixu.ui.miuix.LocalTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -150,7 +150,7 @@ private fun localizedResource(source: String): Int? = when (source) {
     }
 
 @Composable
-private fun resolveLocalizedString(source: String): String {
+internal fun resolveLocalizedString(source: String): String {
     localizedResource(source)?.let { return stringResource(it) }
     return when {
         source.endsWith(" 个活动进程") -> stringResource(R.string.developer_active_process_count, source.removeSuffix(" 个活动进程"))
@@ -183,7 +183,7 @@ fun LocalizedText(
     overflow: TextOverflow = TextOverflow.Clip, softWrap: Boolean = true,
     maxLines: Int = Int.MAX_VALUE, minLines: Int = 1,
     onTextLayout: (TextLayoutResult) -> Unit = {}, style: TextStyle = LocalTextStyle.current,
-) = androidx.compose.material3.Text(
+) = top.yukonga.miuix.kmp.basic.Text(
     text = resolveLocalizedString(text), modifier = modifier, color = color,
     fontSize = fontSize, fontStyle = fontStyle, fontWeight = fontWeight,
     fontFamily = fontFamily, letterSpacing = letterSpacing, textDecoration = textDecoration,
@@ -203,7 +203,7 @@ fun LocalizedText(
     maxLines: Int = Int.MAX_VALUE, minLines: Int = 1,
     inlineContent: Map<String, androidx.compose.foundation.text.InlineTextContent> = mapOf(),
     onTextLayout: (TextLayoutResult) -> Unit = {}, style: TextStyle = LocalTextStyle.current,
-) = androidx.compose.material3.Text(
+) = top.yukonga.miuix.kmp.basic.Text(
     text = text, modifier = modifier, color = color, fontSize = fontSize,
     fontStyle = fontStyle, fontWeight = fontWeight, fontFamily = fontFamily,
     letterSpacing = letterSpacing, textDecoration = textDecoration, textAlign = textAlign,

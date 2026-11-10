@@ -9,9 +9,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,14 +53,14 @@ internal fun ProjectSection(
 
         if (projectGroups.isEmpty()) {
             Surface(
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                shape = MaterialTheme.shapes.small,
+                color = RuntimeTheme.colorScheme.surfaceContainer,
+                shape = RuntimeTheme.shapes.small,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
                     text = stringResource(R.string.chat_drawer_no_projects),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     modifier = Modifier.padding(10.dp),
                 )
             }
@@ -76,7 +76,7 @@ internal fun ProjectSection(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(MaterialTheme.shapes.small)
+                            .clip(RuntimeTheme.shapes.small)
                             .clickable { onToggleExpand(group.workspacePath) }
                             .padding(start = 8.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -86,11 +86,11 @@ internal fun ProjectSection(
                             name = if (isExpanded) RuntimeIconName.FolderOpen
                             else RuntimeIconName.Folder,
                             modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = group.projectName,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = RuntimeTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
@@ -98,8 +98,8 @@ internal fun ProjectSection(
                         if (group.sessions.isNotEmpty()) {
                             Text(
                                 text = "${group.sessions.size}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.outline,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.outline,
                             )
                         }
 
@@ -115,7 +115,7 @@ internal fun ProjectSection(
                             RuntimeIcon(
                                 name = RuntimeIconName.Plus,
                                 modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = RuntimeTheme.colorScheme.onSurface,
                             )
                         }
 
@@ -123,7 +123,7 @@ internal fun ProjectSection(
                             name = if (isExpanded) RuntimeIconName.ChevronDown
                             else RuntimeIconName.ChevronRight,
                             modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
 
@@ -138,8 +138,8 @@ internal fun ProjectSection(
                             if (group.sessions.isEmpty()) {
                                 Text(
                                     text = stringResource(R.string.chat_drawer_no_sessions_in_project),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    style = RuntimeTheme.typography.labelSmall,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 )
                             } else {

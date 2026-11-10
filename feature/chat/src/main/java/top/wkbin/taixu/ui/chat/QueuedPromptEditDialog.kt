@@ -1,14 +1,17 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -27,12 +30,12 @@ internal fun QueuedPromptEditDialog(editor: QueuedPromptEditor) {
         title = { Text(stringResource(R.string.chat_queue_edit_title)) },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.chat_queue_edit_description), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.chat_queue_edit_description), style = RuntimeTheme.typography.bodySmall)
                 if (edit.prompt.message.imageUrls.isNotEmpty()) Text(stringResource(R.string.chat_queue_edit_images, edit.prompt.message.imageUrls.size))
                 RuntimeFilledTextField(
                     value = edit.text, onValueChange = editor::update, enabled = !edit.busy,
                     modifier = Modifier.fillMaxWidth(), minLines = 3,
-                    label = { Text(stringResource(R.string.chat_queue_edit_content)) },
+                    labelText = stringResource(R.string.chat_queue_edit_content),
                     isError = edit.error != null,
                     supportingText = edit.error?.let { error -> { Text(error) } },
                 )

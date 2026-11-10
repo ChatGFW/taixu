@@ -5,9 +5,9 @@ import android.os.PersistableBundle
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipEntry
@@ -46,16 +46,16 @@ private fun WorkflowExportDialog(definition: WorkflowDefinition, isDirty: Boolea
     RuntimeAlertDialog(onDismissRequest = onDismiss, title = { Text("导出工作流 JSON") }, text = {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(if (isDirty) "导出当前已应用的编辑草稿，包含未保存修改。" else "导出当前编辑器中的工作流定义。")
-            Text("JSON 包含节点配置和默认变量，复制前可在这里核对内容；再次导入会创建新的手动工作流。", style = MaterialTheme.typography.bodySmall)
+            Text("JSON 包含节点配置和默认变量，复制前可在这里核对内容；再次导入会创建新的手动工作流。", style = RuntimeTheme.typography.bodySmall)
             raw?.let { text ->
-                Text("${definition.nodes.size} 个节点 · ${definition.edges.size} 条连接 · ${text.length} 个字符", style = MaterialTheme.typography.labelSmall)
+                Text("${definition.nodes.size} 个节点 · ${definition.edges.size} 条连接 · ${text.length} 个字符", style = RuntimeTheme.typography.labelSmall)
                 RuntimeFilledTextField(value = text.take(24_000), onValueChange = {}, readOnly = true,
-                    label = { Text("JSON 预览") }, minLines = 4, maxLines = 8, modifier = Modifier.fillMaxWidth())
-                if (text.length > 24_000) Text("预览展示前 24000 个字符，“复制完整 JSON”会复制全部内容。", style = MaterialTheme.typography.bodySmall)
+                    labelText = "JSON 预览", minLines = 4, maxLines = 8, modifier = Modifier.fillMaxWidth())
+                if (text.length > 24_000) Text("预览展示前 24000 个字符，“复制完整 JSON”会复制全部内容。", style = RuntimeTheme.typography.bodySmall)
             }
-            if (raw == null && error == null) Text("正在生成…", style = MaterialTheme.typography.bodySmall)
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-            if (copied) Text("完整 JSON 已复制", style = MaterialTheme.typography.bodySmall)
+            if (raw == null && error == null) Text("正在生成…", style = RuntimeTheme.typography.bodySmall)
+            error?.let { Text(it, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall) }
+            if (copied) Text("完整 JSON 已复制", style = RuntimeTheme.typography.bodySmall)
             WorkflowSaveDocumentButton(raw, definition.name)
         }
     }, dismissButton = { RuntimeOutlinedButton(onClick = onDismiss) { Text("关闭", maxLines = 1) } }, confirmButton = {

@@ -1,66 +1,69 @@
 package top.wkbin.taixu.ui.bot
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.feature.bot.R
-import top.wkbin.taixu.ui.components.RuntimeDropdownMenu
-import top.wkbin.taixu.ui.components.RuntimeDropdownMenuItem
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeDropdownField
 
 @Composable
 internal fun BotModelPicker(
     profiles: List<AiModelEntity>, profileId: String?, variant: String?, enabled: Boolean,
     onChange: (String?, String?) -> Unit,
 ) {
-    var chooseProfile by remember { mutableStateOf(false) }
-    var chooseModel by remember { mutableStateOf(false) }
     val profile = profiles.firstOrNull { it.id == profileId }
-    Column {
-        Text(stringResource(R.string.fbot_provider_profile), style = MaterialTheme.typography.labelMedium)
-        Box {
-            RuntimeOutlinedButton(onClick = { chooseProfile = true }, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
-                Text(profile?.let { "${it.name} · ${it.provider}" }
-                    ?: stringResource(if (profileId == null) R.string.fbot_model_default else R.string.fbot_model_invalid),
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            RuntimeDropdownMenu(expanded = chooseProfile, onDismissRequest = { chooseProfile = false }) {
-                RuntimeDropdownMenuItem(text = { Text(stringResource(R.string.fbot_model_default)) },
-                    onClick = { chooseProfile = false; onChange(null, null) })
-                profiles.forEach { item ->
-                    RuntimeDropdownMenuItem(text = { Text("${item.name} · ${item.provider}", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        onClick = { chooseProfile = false; onChange(item.id, null) })
-                }
-            }
+    val defaultLabel = stringResource(R.string.fbot_model_default)
+    val invalidLabel = stringResource(R.string.fbot_model_invalid)
+    val profileDefaultLabel = stringResource(R.string.fbot_profile_default)
+    Column(Modifier.fillMaxWidth()) {
+        val profileOptions = remember(profiles, defaultLabel) {
+            listOf(null as String? to defaultLabel) + profiles.map { it.id to "${it.name} · ${it.provider}" }
         }
+        val profileIndex = when {
+            profileId == null -> 0
+            profiles.any { it.id == profileId } -> profileOptions.indexOfFirst { it.first == profileId }.coerceAtLeast(0)
+            else -> 0
+        }
+        RuntimeDropdownField(
+            title = stringResource(R.string.fbot_provider_profile),
+            items = if (profileId != null && profile == null) {
+                profileOptions.map { it.second } + invalidLabel
+            } else {
+                profileOptions.map { it.second }
+            },
+            selectedIndex = if (profileId != null && profile == null) profileOptions.size else profileIndex,
+            onSelectedIndexChange = { index ->
+                val id = profileOptions.getOrNull(index)?.first
+                onChange(id, null)
+            },
+            enabled = enabled,
+        )
         if (profile != null) {
-            Text(stringResource(R.string.fbot_concrete_model), style = MaterialTheme.typography.labelMedium)
-            Box {
-                RuntimeOutlinedButton(onClick = { chooseModel = true }, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
-                    Text(variant ?: stringResource(R.string.fbot_profile_default), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                RuntimeDropdownMenu(expanded = chooseModel, onDismissRequest = { chooseModel = false }) {
-                    RuntimeDropdownMenuItem(text = { Text(stringResource(R.string.fbot_profile_default)) },
-                        onClick = { chooseModel = false; onChange(profile.id, null) })
-                    profile.model.split(',').map(String::trim).filter(String::isNotBlank).distinct().forEach { model ->
-                        RuntimeDropdownMenuItem(text = { Text(model, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            onClick = { chooseModel = false; onChange(profile.id, model) })
-                    }
-                }
+            val variants = remember(profile.model) {
+                profile.model.split(',').map(String::trim).filter(String::isNotBlank).distinct()
             }
+            val modelOptions = remember(variants, profileDefaultLabel) {
+                listOf(null as String? to profileDefaultLabel) + variants.map { it to it }
+            }
+            val modelIndex = modelOptions.indexOfFirst { it.first == variant }.let { if (it < 0) 0 else it }
+            RuntimeDropdownField(
+                title = stringResource(R.string.fbot_concrete_model),
+                items = modelOptions.map { it.second },
+                selectedIndex = modelIndex,
+                onSelectedIndexChange = { index -> onChange(profile.id, modelOptions[index].first) },
+                enabled = enabled,
+            )
         }
-        Text(stringResource(R.string.fbot_model_scope_hint), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            stringResource(R.string.fbot_model_scope_hint),
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

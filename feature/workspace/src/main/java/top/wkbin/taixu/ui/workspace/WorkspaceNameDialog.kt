@@ -6,9 +6,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -36,20 +36,20 @@ internal fun WorkspaceNameDialog(
 ) {
     RuntimeAlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
-        title = { Text(title, fontWeight = FontWeight.Bold) },
+        title = { Text(title, fontWeight = FontWeight.Medium) },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 RuntimeFilledTextField(
                     value = value,
                     onValueChange = onValueChange,
-                    label = { Text(label) },
+                    labelText = label,
                     enabled = !busy,
                     isError = validationError != null,
                     supportingText = validationError?.let { error -> { Text(error) } },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                operationError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                operationError?.let { Text(it, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall) }
             }
         },
         confirmButton = {

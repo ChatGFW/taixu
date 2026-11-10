@@ -1,33 +1,38 @@
 package top.wkbin.taixu.harness
 
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.HarnessSessionRepository
+import top.wkbin.taixu.core.datastore.AgentPreferences
+import top.wkbin.taixu.core.model.ApprovalMode
+import top.wkbin.taixu.core.model.RunMode
+import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.approval.ApprovalAuditRecorder
 import top.wkbin.taixu.harness.approval.RunInitiator
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
+import top.wkbin.taixu.harness.approval.applyMcpRiskOverride
 import top.wkbin.taixu.harness.approval.currentRunInitiator
 import top.wkbin.taixu.harness.approval.planBlockedResult
+import top.wkbin.taixu.harness.bot.GroupGovernanceGuard
 import top.wkbin.taixu.harness.checkpoint.CheckpointStore
 import top.wkbin.taixu.harness.core.ToolCheckpoints
 import top.wkbin.taixu.harness.directory.CapabilityToolGateway
 import top.wkbin.taixu.harness.directory.ScriptCallInterrupted
 import top.wkbin.taixu.harness.directory.ScriptCapabilityDispatcher
 import top.wkbin.taixu.harness.directory.annotationsForCall
-import top.wkbin.taixu.harness.approval.applyMcpRiskOverride
+import top.wkbin.taixu.harness.environment.LocalExecutionArtifacts
+import top.wkbin.taixu.harness.environment.SessionExecutionEnvironments
+import top.wkbin.taixu.harness.environment.executionOutputRedactor
+import top.wkbin.taixu.harness.environment.redactExecutionOutput
 import top.wkbin.taixu.harness.events.HarnessEvent
 import top.wkbin.taixu.harness.events.HarnessEventBus
 import top.wkbin.taixu.harness.mcp.McpManager
 import top.wkbin.taixu.harness.mcp.McpToolCallPolicy
 import top.wkbin.taixu.harness.validation.ToolSchemaValidator
-import top.wkbin.taixu.core.security.SecretRedactor
-import top.wkbin.taixu.core.datastore.AgentPreferences
-import top.wkbin.taixu.core.model.ApprovalMode
-import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.runtime.LinuxEnvironmentManager
-import java.util.UUID
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.first
-import kotlinx.serialization.json.JsonObject
 
 /**
  * Harness 工具执行器：把 LLM 发出的 ToolCall 翻译成受控操作。
@@ -73,8 +78,8 @@ class ToolExecutor(
     private val settingsDataStore: AgentPreferences? = null,
     private val toolCheckpoints: ToolCheckpoints<ToolExecutionRequest, ToolResult> = ToolCheckpoints(),
     workspaceToolBackend: WorkspaceToolBackend? = null,
-    private val governanceGuard: top.wkbin.taixu.harness.bot.GroupGovernanceGuard? = null,
-    private val environments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
+    private val governanceGuard: GroupGovernanceGuard? = null,
+    private val environments: SessionExecutionEnvironments? = null,
 ) {
     private val mutationSnapshots = WorkspaceMutationSnapshots(checkpointStore, eventBus)
     private val workspaceTools = workspaceToolBackend ?: WorkspaceToolBackend(
@@ -94,21 +99,21 @@ class ToolExecutor(
         promptAssetToolBackend = promptAssetToolBackend,
         capabilityToolGateway = capabilityToolGateway,
         searchWebToolBackend = searchWebToolBackend,
-        searchRedactor = { session, workspace -> top.wkbin.taixu.harness.environment.executionOutputRedactor(
+        searchRedactor = { session, workspace -> executionOutputRedactor(
             secretRedactor, environments, linuxEnvironmentManager, settingsDataStore, session, workspace) },
     )
 
     private val executionBoundary = ToolExecutionBoundary(toolCheckpoints) { request, output ->
-        val redacted = top.wkbin.taixu.harness.environment.redactExecutionOutput(output, secretRedactor,
+        val redacted = redactExecutionOutput(output, secretRedactor,
             environments, linuxEnvironmentManager, settingsDataStore, request.sessionId, request.workspace)
         truncateToolOutput(
             output = redacted,
             toolName = if (request.call.tool == HarnessTool.HISTORY_READ) "history_read" else request.call.rawToolName ?: HarnessApiMapper.apiName(request.call.tool),
             fileAccess = if (environments != null) environments.environment(request.sessionId, request.workspace).artifacts
-            else if (request.workspace.isNotBlank()) top.wkbin.taixu.harness.environment.LocalExecutionArtifacts(fileAccess.withBase(request.workspace)) else null,
+            else if (request.workspace.isNotBlank()) LocalExecutionArtifacts(fileAccess.withBase(request.workspace)) else null,
             metadata = null,
             redactNormalized = { normalized ->
-                top.wkbin.taixu.harness.environment.redactExecutionOutput(
+                redactExecutionOutput(
                     normalized, secretRedactor, environments, linuxEnvironmentManager, settingsDataStore,
                     request.sessionId, request.workspace,
                 )
@@ -284,10 +289,10 @@ class ToolExecutor(
             rawOutput
         }
         // 先对全量输出脱敏，再截断/落盘：落盘引流文件必须与结果正文同一脱敏口径
-        val redactedOutput = top.wkbin.taixu.harness.environment.redactExecutionOutput(finalOutput, secretRedactor,
+        val redactedOutput = redactExecutionOutput(finalOutput, secretRedactor,
             environments, linuxEnvironmentManager, settingsDataStore, sessionId, workspace)
         ToolFileArtifacts.sanitize(toolMetadata, toolCall.tool) { path ->
-            top.wkbin.taixu.harness.environment.redactExecutionOutput(path, secretRedactor,
+            redactExecutionOutput(path, secretRedactor,
                 environments, linuxEnvironmentManager, settingsDataStore, sessionId, workspace)
         }
         val imagePayload = toolMetadata.remove("image_payload")
@@ -300,10 +305,10 @@ class ToolExecutor(
                 output = redactedOutput,
                 toolName = if (toolCall.tool == HarnessTool.HISTORY_READ) "history_read" else toolCall.rawToolName ?: HarnessApiMapper.apiName(toolCall.tool),
                 fileAccess = if (environments != null) environments.environment(sessionId, workspace).artifacts
-                else if (workspace.isNotBlank()) top.wkbin.taixu.harness.environment.LocalExecutionArtifacts(fileAccess.withBase(workspace)) else null,
+                else if (workspace.isNotBlank()) LocalExecutionArtifacts(fileAccess.withBase(workspace)) else null,
                 metadata = toolMetadata,
                 redactNormalized = { normalized ->
-                    top.wkbin.taixu.harness.environment.redactExecutionOutput(
+                    redactExecutionOutput(
                         normalized, secretRedactor, environments, linuxEnvironmentManager, settingsDataStore, sessionId, workspace,
                     )
                 },

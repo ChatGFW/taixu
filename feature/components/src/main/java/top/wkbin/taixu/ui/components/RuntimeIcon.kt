@@ -1,10 +1,12 @@
 package top.wkbin.taixu.ui.components
 
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
 import top.wkbin.taixu.feature.components.R
 
 enum class RuntimeIconName {
@@ -38,7 +40,20 @@ fun RuntimeIcon(
     modifier: Modifier = Modifier,
     tint: Color = Color.Unspecified,
 ) {
-    val resId = when (name) {
+    runtimeIconVector(name)?.let { vector ->
+        Icon(vector, contentDescription = null, modifier = modifier,
+            tint = if (tint == Color.Unspecified) LocalContentColor.current else tint)
+        return
+    }
+    DrawableIcon(name, runtimeIconRes(name), modifier, tint)
+}
+
+/** Glyph as a vector for slots that only take [ImageVector] (miuix navigation items). */
+@Composable
+fun runtimeIconImageVector(name: RuntimeIconName): ImageVector =
+    runtimeIconVector(name) ?: ImageVector.vectorResource(runtimeIconRes(name))
+
+internal fun runtimeIconRes(name: RuntimeIconName): Int = when (name) {
         RuntimeIconName.Home -> R.drawable.components_ic_home
         RuntimeIconName.Workspace -> R.drawable.components_ic_workspace
         RuntimeIconName.Terminal -> R.drawable.components_ic_terminal
@@ -146,8 +161,10 @@ fun RuntimeIcon(
         RuntimeIconName.PanelLeftClose -> R.drawable.components_ic_panel_left_close
         RuntimeIconName.PanelRightOpen -> R.drawable.components_ic_panel_right_open
         RuntimeIconName.WriteDocument -> R.drawable.components_ic_write_document
-    }
+}
 
+@Composable
+private fun DrawableIcon(name: RuntimeIconName, resId: Int, modifier: Modifier, tint: Color) {
     // 彩色品牌 Logo 保持原色；单色图标跟随内容色，可被显式 tint 覆盖
     val isColorfulBrand = name in COLORFUL_BRAND_ICONS
     val effectiveTint = when {

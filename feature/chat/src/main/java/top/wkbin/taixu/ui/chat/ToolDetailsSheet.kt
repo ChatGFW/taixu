@@ -8,10 +8,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Tab
-import androidx.compose.material3.SecondaryTabRow
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -48,11 +46,11 @@ internal fun ToolDetailsSheet(call: ToolCall, result: ToolResult?, workspace: St
         title = {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(renderer.icon(ui), Modifier.size(22.dp), MaterialTheme.colorScheme.primary)
+                RuntimeIcon(renderer.icon(ui), Modifier.size(22.dp), RuntimeTheme.colorScheme.onSurface)
                 Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.chat_tool_details_title), style = MaterialTheme.typography.titleMedium)
-                    Text(renderer.title(ui), style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(stringResource(R.string.chat_tool_details_title), style = RuntimeTheme.typography.titleMedium)
+                    Text(renderer.title(ui), style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 RuntimeIconButton(onClick = onDismiss, contentDescription = stringResource(R.string.chat_close)) {
                     RuntimeIcon(RuntimeIconName.Close, Modifier.size(20.dp))
@@ -61,29 +59,30 @@ internal fun ToolDetailsSheet(call: ToolCall, result: ToolResult?, workspace: St
         },
         text = {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SecondaryTabRow(selectedTabIndex = selectedTab) {
-                    Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 },
-                        text = { Text(stringResource(if (call.tool == HarnessTool.BASE) R.string.chat_tool_details_command else R.string.chat_tool_details_arguments)) })
-                    Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 },
-                        text = { Text(stringResource(R.string.chat_tool_details_output)) })
-                    if (fileTool) Tab(selected = selectedTab == 2, onClick = { selectedTab = 2 },
-                        text = { Text(stringResource(previewLabel)) })
-                }
+                top.yukonga.miuix.kmp.basic.TabRow(
+                tabs = buildList {
+                    add(stringResource(if (call.tool == HarnessTool.BASE) R.string.chat_tool_details_command else R.string.chat_tool_details_arguments))
+                    add(stringResource(R.string.chat_tool_details_output))
+                    if (fileTool) add(stringResource(previewLabel))
+                },
+                selectedTabIndex = selectedTab,
+                onTabSelected = { selectedTab = it },
+            )
                 Text(stringResource(toolStateLabel(toolStepState(result, executing))),
-                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    style = RuntimeTheme.typography.labelMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (selectedTab == 2 && fileTool) {
                         renderer.Preview(ui, onOpenFile?.let { open -> { project, path -> onDismiss(); open(project, path) } })
                     } else if (currentText.isNotEmpty()) {
                         SelectionContainer {
-                            Text(currentText.take(64_000), style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
+                            Text(currentText.take(64_000), style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
                         }
                         if (currentText.length > 64_000) Text(stringResource(R.string.chat_tool_details_preview),
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        Text(stringResource(R.string.chat_tool_details_no_output), style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.chat_tool_details_no_output), style = RuntimeTheme.typography.bodyMedium,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

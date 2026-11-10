@@ -1,6 +1,7 @@
 package top.wkbin.taixu.core.database
 
 import androidx.room.*
+import top.wkbin.taixu.core.model.bot.BotTeamDefinition
 import top.wkbin.taixu.core.model.bot.GroupGovernance
 
 @Dao
@@ -43,7 +44,7 @@ interface GroupTemplateDao : GroupGovernanceDao, TeamDefinitionDao {
         val oldMembers = teamMembers(group.id)
         members.forEachIndexed { index, id -> insertTemplateMember(GroupMemberEntity(group.id, id, oldMembers.size + index, System.currentTimeMillis())) }
         val previous = effectiveTeam(group.id)
-        val definition = top.wkbin.taixu.core.model.bot.BotTeamDefinition(group.adminBotId, previous.supervisors + supervisors,
+        val definition = BotTeamDefinition(group.adminBotId, previous.supervisors + supervisors,
             GroupGovernance(governance(group.id).rules + policy.rules))
         val teamId = linkedTeamId(group.id) ?: java.util.UUID.randomUUID().toString()
         val now = System.currentTimeMillis()

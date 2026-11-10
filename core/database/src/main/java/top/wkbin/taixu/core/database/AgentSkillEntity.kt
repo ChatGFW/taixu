@@ -114,8 +114,18 @@ class AgentSkillRepository(
                 registerDir(dir, promptFile, guestPath, knownPaths, imported)
             }
         val scannedPaths = roots.map { it.hostDir.canonicalPath }
+        val collapsedRoots = roots.flatMap { root ->
+            SkillDirectoryDiscovery.AUTO_COLLAPSED_COLLECTIONS.mapNotNull { name ->
+                File(root.hostDir, name).takeIf { it.isDirectory }?.canonicalPath
+            }
+        }
         existing.filterNot { it.isBuiltin }.forEach { skill ->
             val path = skill.resourcePath?.let { File(it).canonicalPath } ?: return@forEach
+            // 插件技能集合（如 android-skills）整树不入库；清理历史误注册的平铺子技能。
+            if (collapsedRoots.any { path == it || isNestedPath(path, it) }) {
+                dao.deleteCustom(skill.id)
+                return@forEach
+            }
             if (scannedPaths.any { path == it || isNestedPath(path, it) } &&
                 knownPaths.any { isNestedPath(path, it) && File(it).isDirectory }
             ) {

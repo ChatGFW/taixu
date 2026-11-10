@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -7,22 +10,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.minimumInteractiveComponentSize
+import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,8 +31,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.HarnessTool
@@ -64,7 +61,7 @@ fun ToolDiffView(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xFF090D14), RoundedCornerShape(8.dp))
+            .background(Color(0xFF090D14), RuntimeTheme.shapes.chip)
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -123,8 +120,8 @@ private fun EditToolDiff(
         if (!it.success) {
             Text(
                 text = it.output,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.error,
             )
         }
     }
@@ -178,8 +175,8 @@ private fun WriteToolDiff(
     val lineCount = remember(content) { content.count { it == '\n' } + 1 }
     Text(
         text = stringResource(R.string.chat_full_file_write, lineCount, content.length),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = RuntimeTheme.typography.labelSmall,
+        color = RuntimeTheme.colorScheme.onSurfaceVariant,
     )
 
     // 内容预览（前 10 行）
@@ -189,7 +186,7 @@ private fun WriteToolDiff(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF06090F), RoundedCornerShape(6.dp))
+            .background(Color(0xFF06090F), RuntimeTheme.shapes.extraSmall)
             .horizontalScroll(rememberScrollState())
             .padding(8.dp),
     ) {
@@ -204,7 +201,7 @@ private fun WriteToolDiff(
 
     result?.let {
         if (!it.success) {
-            Text(it.output, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            Text(it.output, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.error)
         }
     }
 }
@@ -226,7 +223,7 @@ private fun ReadToolDiff(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF06090F), RoundedCornerShape(6.dp))
+                    .background(Color(0xFF06090F), RuntimeTheme.shapes.extraSmall)
                     .horizontalScroll(rememberScrollState())
                     .padding(8.dp),
             ) {
@@ -239,7 +236,7 @@ private fun ReadToolDiff(
                 )
             }
         } else {
-            Text(res.output, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            Text(res.output, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.error)
         }
     }
 }
@@ -258,7 +255,7 @@ private fun BaseToolDiff(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF06090F), RoundedCornerShape(4.dp))
+            .background(Color(0xFF06090F), RuntimeTheme.shapes.tiny)
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 8.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -269,7 +266,7 @@ private fun BaseToolDiff(
             color = Color(0xFF7EE787),
             fontFamily = FontFamily.Monospace,
             fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Medium,
         )
         Text(
             text = command,
@@ -286,7 +283,7 @@ private fun BaseToolDiff(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(TerminalBoxBg, RoundedCornerShape(6.dp))
+                    .background(TerminalBoxBg, RuntimeTheme.shapes.extraSmall)
                     .horizontalScroll(rememberScrollState())
                     .padding(10.dp),
             ) {
@@ -302,7 +299,6 @@ private fun BaseToolDiff(
     }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun FilePathHeader(
     path: String,
@@ -371,7 +367,7 @@ private fun FilePathHeader(
             RuntimeIcon(RuntimeIconName.File, Modifier.size(15.dp), tint = Color(0xFF8FA1BA))
             Text(
                 text = path,
-                style = MaterialTheme.typography.labelMedium,
+                style = RuntimeTheme.typography.labelMedium,
                 fontFamily = FontFamily.Monospace,
                 color = Color(0xFFDCE6F5),
                 fontWeight = FontWeight.Medium,
@@ -404,7 +400,7 @@ private fun FilePathHeader(
             if (!previewContent.isNullOrEmpty()) {
                 Surface(
                     color = Color(0xFF1B2C47),
-                    shape = RoundedCornerShape(4.dp),
+                    shape = RuntimeTheme.shapes.tiny,
                     modifier = Modifier.minimumInteractiveComponentSize().clickable { showPreviewSheet = true },
                 ) {
                     Row(
@@ -415,7 +411,7 @@ private fun FilePathHeader(
                         RuntimeIcon(RuntimeIconName.Document, Modifier.size(12.dp), tint = Color(0xFF79C0FF))
                         Text(
                             text = stringResource(R.string.chat_artifact_preview),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = RuntimeTheme.typography.labelSmall,
                             color = Color(0xFF79C0FF),
                         )
                     }
@@ -423,7 +419,7 @@ private fun FilePathHeader(
 
                 Surface(
                     color = Color(0xFF1B2C47),
-                    shape = RoundedCornerShape(4.dp),
+                    shape = RuntimeTheme.shapes.tiny,
                     modifier = Modifier.minimumInteractiveComponentSize().clickable {
                         exportDocumentLauncher.launch(defaultFileName)
                     },
@@ -436,7 +432,7 @@ private fun FilePathHeader(
                         RuntimeIcon(RuntimeIconName.Download, Modifier.size(12.dp), tint = Color(0xFF79C0FF))
                         Text(
                             text = stringResource(R.string.chat_artifact_export_short),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = RuntimeTheme.typography.labelSmall,
                             color = Color(0xFF79C0FF),
                         )
                     }
@@ -446,7 +442,7 @@ private fun FilePathHeader(
             if (projectName.isNotBlank() && onOpenFile != null) {
                 Surface(
                     color = Color(0xFF1E283D),
-                    shape = RoundedCornerShape(4.dp),
+                    shape = RuntimeTheme.shapes.tiny,
                     modifier = Modifier.minimumInteractiveComponentSize().clickable { onOpenFile(projectName, relativePath) },
                 ) {
                     Row(
@@ -457,7 +453,7 @@ private fun FilePathHeader(
                         RuntimeIcon(RuntimeIconName.Code, Modifier.size(12.dp), tint = Color(0xFF7EE787))
                         Text(
                             text = stringResource(R.string.chat_open_editor),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = RuntimeTheme.typography.labelSmall,
                             color = Color(0xFF7EE787),
                         )
                     }

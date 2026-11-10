@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,13 +13,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -51,23 +54,23 @@ internal fun SessionMessageHits(query: String, search: suspend (String) -> List<
 @Composable
 internal fun SessionMessageSearchContent(state: SessionMessageSearchState, onSwitch: (String) -> Unit, onRetry: () -> Unit) {
     if (state.query.isBlank()) return
-    val secondary = MaterialTheme.colorScheme.onSurfaceVariant
+    val secondary = RuntimeTheme.colorScheme.onSurfaceVariant
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(stringResource(R.string.chat_drawer_message_hits), style = MaterialTheme.typography.labelMedium,
+        Text(stringResource(R.string.chat_drawer_message_hits), style = RuntimeTheme.typography.labelMedium,
             color = secondary, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
         when {
             state.loading -> Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 RuntimeCircularProgressIndicator(Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.chat_message_search_loading), style = MaterialTheme.typography.bodySmall, color = secondary)
+                Text(stringResource(R.string.chat_message_search_loading), style = RuntimeTheme.typography.bodySmall, color = secondary)
             }
             state.failed -> Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.chat_message_search_failed), style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.chat_message_search_failed), style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.error, modifier = Modifier.weight(1f))
                 RuntimeTextButton(onClick = onRetry) { Text(stringResource(R.string.chat_message_search_retry)) }
             }
             state.hits.isEmpty() -> Text(stringResource(R.string.chat_message_search_empty),
-                style = MaterialTheme.typography.bodySmall, color = secondary, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+                style = RuntimeTheme.typography.bodySmall, color = secondary, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
             else -> state.hits.forEach { hit ->
                 Row(Modifier.fillMaxWidth().clickable { onSwitch(hit.sessionId) }.padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically) {
@@ -75,16 +78,16 @@ internal fun SessionMessageSearchContent(state: SessionMessageSearchState, onSwi
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         val title = hit.sessionTitle?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_drawer_untitled)
-                        Text(title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Medium,
+                        Text(title, style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.Medium,
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         val excerpt = hit.excerpt.trim()
                         val ranges = remember(excerpt, state.query) { literalSearchRanges(excerpt, state.query) }
-                        val highlight = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        val highlight = SpanStyle(color = RuntimeTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
                         val annotated = buildAnnotatedString {
                             append(excerpt)
                             ranges.forEach { addStyle(highlight, it.first, it.last + 1) }
                         }
-                        Text(annotated, style = MaterialTheme.typography.bodySmall, color = secondary,
+                        Text(annotated, style = RuntimeTheme.typography.bodySmall, color = secondary,
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                 }

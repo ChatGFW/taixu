@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.bot
-
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -7,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,21 +17,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScaffoldDefaults
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.EmptyScaffoldTopBar
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.wkbin.taixu.ui.miuix.ScaffoldDefaults
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,18 +47,16 @@ import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.EmptyPanel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.runtimeContentPadding
-
 enum class GroupChatViewMode {
     CHAT,
     STUDIO,
 }
-
 @Composable
 fun GroupChatScreen(
     groupId: String,
@@ -126,7 +123,6 @@ fun GroupChatScreen(
     } else {
         stringResource(R.string.fbot_group_members, members.size)
     }
-
     LaunchedEffect(groupId) { viewModel.bind(groupId) }
     LaunchedEffect(Unit) { viewModel.notices.collect { snackbarHostState.showSnackbar(it) } }
     LaunchedEffect(exportFile) {
@@ -147,35 +143,32 @@ fun GroupChatScreen(
         onFollowingChange = { following = it },
         onAnchorChange = { anchorId = it },
     )
-
     val studio = viewMode == GroupChatViewMode.STUDIO
     Scaffold(
         contentWindowInsets = if (studio) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
-        topBar = {
-            if (!studio) {
+        // STUDIO 必须用 EmptyScaffoldTopBar 同一引用，否则会误开零尺寸 textureBlur。
+        topBar = if (studio) EmptyScaffoldTopBar else {
+            {
                 GroupChatTopBar(
-                    viewMode = viewMode,
-                    groupName = state.group?.name.orEmpty(),
-                    statusText = statusText,
-                    busy = busy,
-                    workSummary = workSummary,
-                    exporting = state.exporting,
-                    onBack = onBack,
-                    onSwitchMode = { viewMode = it },
-                    onExportDiagnostics = viewModel::exportDiagnostics,
-                    onShowInfo = { showInfo = true },
+                    viewMode = viewMode, groupName = state.group?.name.orEmpty(),
+                    statusText = statusText, busy = busy, workSummary = workSummary,
+                    exporting = state.exporting, onBack = onBack, onSwitchMode = { viewMode = it },
+                    onExportDiagnostics = viewModel::exportDiagnostics, onShowInfo = { showInfo = true },
                 )
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = if (studio) Color(PixelOfficeRoom.FLOOR) else MaterialTheme.colorScheme.surface,
+        containerColor = if (studio) Color(PixelOfficeRoom.FLOOR) else RuntimeTheme.colorScheme.surface,
     ) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
                 .then(
                     if (studio) Modifier
-                    else Modifier.padding(padding).background(groupBackgroundBrush(state.group?.background)),
+                    else Modifier
+                        .then(runtimeScrollViewport(padding))
+                        .padding(bottom = padding.calculateBottomPadding())
+                        .background(groupBackgroundBrush(state.group?.background)),
                 ),
         ) {
             Box(Modifier.fillMaxWidth().weight(1f)) {
@@ -217,7 +210,10 @@ fun GroupChatScreen(
                     )
                 } else if (messages.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp)
+                        .padding(top = padding.calculateTopPadding()),
                     contentAlignment = Alignment.Center,
                 ) {
                     EmptyPanel(
@@ -231,7 +227,11 @@ fun GroupChatScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = runtimeContentPadding(horizontal = 16.dp, top = 8.dp, bottom = 8.dp),
+                        contentPadding = runtimeContentPadding(
+                            horizontal = 16.dp,
+                            top = 8.dp + padding.calculateTopPadding(),
+                            bottom = 8.dp,
+                        ),
                         verticalArrangement = Arrangement.Top,
                     ) {
                         items(chatEntries, key = { it.message.id }) { entry ->
@@ -262,7 +262,7 @@ fun GroupChatScreen(
                             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 14.dp, bottom = 10.dp),
                         ) {
                             Surface(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                color = RuntimeTheme.colorScheme.surfaceContainerHigh,
                                 shape = CircleShape,
                                 shadowElevation = 2.dp,
                             ) {
@@ -283,14 +283,14 @@ fun GroupChatScreen(
                             }
                             if (unseen > 0) {
                                 Surface(
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = RuntimeTheme.colorScheme.primary,
                                     shape = CircleShape,
                                     modifier = Modifier.align(Alignment.TopEnd),
                                 ) {
                                     Text(
                                         text = if (unseen > 99) "99+" else "$unseen",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        style = RuntimeTheme.typography.labelSmall,
+                                        color = RuntimeTheme.colorScheme.onPrimary,
                                         modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                                     )
                                 }
@@ -329,7 +329,6 @@ fun GroupChatScreen(
             }
         }
     }
-
     if (showInfo) {
         state.group?.let { group ->
             GroupInfoDialog(

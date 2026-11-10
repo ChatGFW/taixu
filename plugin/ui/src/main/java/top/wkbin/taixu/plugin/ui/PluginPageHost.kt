@@ -1,15 +1,18 @@
 package top.wkbin.taixu.plugin.ui
 
+import androidx.compose.runtime.setValue
+
+import androidx.compose.runtime.getValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -43,7 +46,7 @@ fun PluginPageHost(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(stringResource(R.string.ui_plugin_page_unavailable), style = MaterialTheme.typography.bodyLarge)
+            Text(stringResource(R.string.ui_plugin_page_unavailable), style = RuntimeTheme.typography.bodyLarge)
             if (!embedded) {
                 RuntimeTextButton(onClick = onBack) { Text(stringResource(R.string.ui_plugin_page_back)) }
             }

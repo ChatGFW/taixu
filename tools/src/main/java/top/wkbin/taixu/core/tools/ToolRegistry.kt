@@ -29,6 +29,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import top.wkbin.taixu.plugin.packages.PluginPackageProtocol
 
 data class SignedRegistryRequest(
     val manifestUrl: String,
@@ -140,7 +141,7 @@ class ToolRegistry(
             // directory avoids walking through multi-gigabyte payload entries before showing
             // the confirmation dialog. Pipe-backed providers fall back to streaming safely.
             val manifestText = inspectSeekableManifest(uri, execution) ?: inspectStreamingManifest(uri, execution)
-            val parsed = top.wkbin.taixu.plugin.packages.PluginPackageProtocol.decode(manifestText)
+            val parsed = PluginPackageProtocol.decode(manifestText)
             val manifest = parsed.copy(source = "LOCAL", offlineOnly = true, installMethod = "LOCAL_PACKAGE")
             ToolManifestValidator.validateAll(listOf(manifest))
             requireExecution(manifest, execution)
@@ -244,7 +245,7 @@ class ToolRegistry(
                 require(candidate.version == sameTool.version || SemanticVersion.parse(candidate.version)!! > SemanticVersion.parse(sameTool.version)!!) { "Web 插件版本必须递增" }
             }
         } else require(sameTool?.plugin == null) { "不能用 v1 覆盖 v2 插件身份" }
-        require(previous.none { it.id != candidate.id && top.wkbin.taixu.plugin.packages.PluginPackageProtocol.identity(it) == top.wkbin.taixu.plugin.packages.PluginPackageProtocol.identity(candidate) }) {
+        require(previous.none { it.id != candidate.id && PluginPackageProtocol.identity(it) == PluginPackageProtocol.identity(candidate) }) {
             "插件身份已被其他包占用"
         }
     }

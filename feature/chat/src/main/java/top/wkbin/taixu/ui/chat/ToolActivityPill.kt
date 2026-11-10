@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -22,32 +25,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.theme.semanticColors
-import androidx.compose.material3.rememberModalBottomSheetState
+import top.wkbin.taixu.ui.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -77,7 +73,6 @@ import java.util.Locale
  * 🌟 底部悬浮工具活动胶囊 (Floating Tool Activity Strip / Live Pill)
  * 实时捕获后台 Shell 命令/工具调用/构建进度，提供运行时长、命令摘要、一键中止与展开日志抽屉。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolActivityPill(
     running: Boolean,
@@ -156,18 +151,18 @@ fun ToolActivityPill(
             HarnessTool.BASE, HarnessTool.PROCESS -> semanticColors().info
             HarnessTool.WRITE, HarnessTool.EDIT -> semanticColors().success
             HarnessTool.SUBAGENT -> semanticColors().agent
-            else -> MaterialTheme.colorScheme.primary
+            else -> RuntimeTheme.colorScheme.primary
         }
 
         val actionSummary = activeToolCall?.let { formatToolSummary(it) } ?: status ?: stringResource(R.string.chat_thinking)
 
         Surface(
             onClick = { showDetailSheet = true },
-            shape = RoundedCornerShape(8.dp),
-            color = if (compact) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+            shape = RuntimeTheme.shapes.chip,
+            color = if (compact) Color.Transparent else RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
             border = if (compact) null else androidx.compose.foundation.BorderStroke(
                 0.5.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -205,12 +200,12 @@ fun ToolActivityPill(
                     // 工具名称与摘要
                     Text(
                         text = actionSummary,
-                        style = MaterialTheme.typography.labelSmall.copy(
+                        style = RuntimeTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Medium,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 11.sp,
                         ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
@@ -220,11 +215,11 @@ fun ToolActivityPill(
                     if (elapsedMillis > 0) {
                         Text(
                             text = formatDuration(elapsedMillis),
-                            style = MaterialTheme.typography.labelSmall.copy(
+                            style = RuntimeTheme.typography.labelSmall.copy(
                                 fontFamily = FontFamily.Monospace,
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                             ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         )
                     }
                 }
@@ -238,7 +233,7 @@ fun ToolActivityPill(
                         modifier = Modifier
                             .size(16.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.75f))
+                            .background(RuntimeTheme.colorScheme.errorContainer.copy(alpha = 0.75f))
                             .clickable(onClick = onStop)
                             .semantics { contentDescription = stopLabel },
                         contentAlignment = Alignment.Center,
@@ -246,7 +241,7 @@ fun ToolActivityPill(
                         RuntimeIcon(
                             name = RuntimeIconName.Close,
                             modifier = Modifier.size(9.dp),
-                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            tint = RuntimeTheme.colorScheme.onErrorContainer,
                         )
                     }
                 }
@@ -264,7 +259,7 @@ fun ToolActivityPill(
         PlainBackdropModalBottomSheet(
             onDismissRequest = { showDetailSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            containerColor = RuntimeTheme.colorScheme.surfaceContainerHigh,
         ) {
             Column(
                 modifier = Modifier
@@ -280,17 +275,17 @@ fun ToolActivityPill(
                 ) {
                     Text(
                         text = stringResource(R.string.chat_tool_detail_title),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = RuntimeTheme.typography.titleMedium,
                     )
                     StatusBadge(
                         text = if (running) runningStatusText else readyStatusText,
-                        color = if (running) Color(0xFF00E5FF) else MaterialTheme.colorScheme.primary,
+                        color = if (running) semanticColors().info else RuntimeTheme.colorScheme.primary,
                     )
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    shape = RuntimeTheme.shapes.small,
+                    color = RuntimeTheme.colorScheme.surfaceContainerLowest,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
@@ -299,22 +294,22 @@ fun ToolActivityPill(
                     ) {
                         Text(
                             text = typeText,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
+                            style = RuntimeTheme.typography.labelMedium,
+                            color = RuntimeTheme.colorScheme.primary,
                         )
                         Text(
                             text = stringResource(R.string.chat_tool_detail_args),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
                             text = if (showRawArgs) argsText else argsText.take(ARG_PREVIEW_LENGTH) +
                                 if (argsText.length > ARG_PREVIEW_LENGTH) stringResource(R.string.chat_tool_detail_args_truncated) else "",
-                            style = MaterialTheme.typography.bodySmall.copy(
+                            style = RuntimeTheme.typography.bodySmall.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 12.sp,
                             ),
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = RuntimeTheme.colorScheme.onSurface,
                         )
                         if (argsText.length > ARG_PREVIEW_LENGTH) {
                             RuntimeTextButton(
@@ -325,7 +320,7 @@ fun ToolActivityPill(
                                     stringResource(
                                         if (showRawArgs) R.string.chat_tool_detail_hide_raw else R.string.chat_tool_detail_view_raw,
                                     ),
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = RuntimeTheme.typography.labelSmall,
                                 )
                             }
                         }

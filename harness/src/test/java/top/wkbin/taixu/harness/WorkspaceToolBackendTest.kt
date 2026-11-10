@@ -16,6 +16,9 @@ import top.wkbin.taixu.core.common.result.AppError
 import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.common.result.ErrorCode
 import top.wkbin.taixu.harness.checkpoint.CheckpointStore
+import top.wkbin.taixu.harness.text.HashlineEditStats
+import top.wkbin.taixu.harness.text.HashlinePolicy
+import top.wkbin.taixu.runtime.environment.HashlineAnchors
 
 class WorkspaceToolBackendTest {
     @get:Rule val temporary = TemporaryFolder()
@@ -90,7 +93,7 @@ class WorkspaceToolBackendTest {
         val result = WorkspaceToolBackend(
             { memory },
             WorkspaceMutationSnapshots(store),
-            hashlinePolicy = { top.wkbin.taixu.harness.text.HashlinePolicy(legacyEditEnabled = true) },
+            hashlinePolicy = { HashlinePolicy(legacyEditEnabled = true) },
         ).execute(request(HarnessTool.EDIT, """{"path":"a.txt","oldText":"old","newText":"new"}"""))
         assertTrue(result.success)
         assertTrue(result.output.contains("memory-match"))
@@ -105,7 +108,7 @@ class WorkspaceToolBackendTest {
         val result = WorkspaceToolBackend(
             { memory },
             WorkspaceMutationSnapshots(store),
-            hashlinePolicy = { top.wkbin.taixu.harness.text.HashlinePolicy(legacyEditEnabled = true) },
+            hashlinePolicy = { HashlinePolicy(legacyEditEnabled = true) },
         ).execute(request(HarnessTool.EDIT, """{"path":"a.txt","oldText":"old","newText":"new"}"""))
         assertFalse(result.success)
         assertEquals("old", memory.content)
@@ -116,7 +119,7 @@ class WorkspaceToolBackendTest {
     @Test fun `hashline edit applies ops and captures checkpoint`() = runBlocking {
         val memory = MemoryOperations().apply { content = "function hello() {\n  return \"world\";\n}\n" }
         val store = CheckpointStore().apply { beginTurn("session", "edit") }
-        val line2 = top.wkbin.taixu.runtime.environment.HashlineAnchors.anchorOf(2, "  return \"world\";")
+        val line2 = HashlineAnchors.anchorOf(2, "  return \"world\";")
         val result = WorkspaceToolBackend({ memory }, WorkspaceMutationSnapshots(store)).execute(
             request(
                 HarnessTool.EDIT,
@@ -200,32 +203,32 @@ class WorkspaceToolBackendTest {
     }
 
     @Test fun `hashline policy can disable ops or legacy and records stats`() = runBlocking {
-        top.wkbin.taixu.harness.text.HashlineEditStats.resetForTests()
+        HashlineEditStats.resetForTests()
         val memory = MemoryOperations().apply { content = "a\n" }
         val opsOff = WorkspaceToolBackend(
             { memory },
             hashlinePolicy = {
-                top.wkbin.taixu.harness.text.HashlinePolicy(editOpsEnabled = false)
+                HashlinePolicy(editOpsEnabled = false)
             },
         ).execute(request(HarnessTool.EDIT, """{"path":"a.txt","ops":[{"op":"delete","start":"1:00"}]}"""))
         assertFalse(opsOff.success)
         assertEquals("HASHLINE_OPS_DISABLED", opsOff.metadata["hashline_error"])
-        assertEquals(1, top.wkbin.taixu.harness.text.HashlineEditStats.snapshot()["ops_disabled"])
+        assertEquals(1, HashlineEditStats.snapshot()["ops_disabled"])
 
         val legacyOff = WorkspaceToolBackend(
             { memory },
             hashlinePolicy = {
-                top.wkbin.taixu.harness.text.HashlinePolicy(legacyEditEnabled = false)
+                HashlinePolicy(legacyEditEnabled = false)
             },
         ).execute(request(HarnessTool.EDIT, """{"path":"a.txt","oldText":"a","newText":"b"}"""))
         assertFalse(legacyOff.success)
         assertEquals("HASHLINE_LEGACY_DISABLED", legacyOff.metadata["hashline_error"])
-        assertEquals(1, top.wkbin.taixu.harness.text.HashlineEditStats.snapshot()["legacy_disabled"])
+        assertEquals(1, HashlineEditStats.snapshot()["legacy_disabled"])
         assertEquals("a\n", memory.content)
     }
 
     @Test fun `default policy rejects legacy oldText without enabling`() = runBlocking {
-        top.wkbin.taixu.harness.text.HashlineEditStats.resetForTests()
+        HashlineEditStats.resetForTests()
         val memory = MemoryOperations().apply { content = "a\n" }
         val result = WorkspaceToolBackend({ memory }).execute(
             request(HarnessTool.EDIT, """{"path":"a.txt","oldText":"a","newText":"b"}"""),

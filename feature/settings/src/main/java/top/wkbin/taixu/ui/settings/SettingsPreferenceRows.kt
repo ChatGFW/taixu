@@ -1,16 +1,25 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.foundation.clickable
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.LayoutDirection
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.icon.MiuixIcons
+import top.yukonga.miuix.kmp.icon.basic.ArrowRight
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.wkbin.taixu.ui.components.*
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 
@@ -19,12 +28,49 @@ import top.wkbin.taixu.ui.settings.LocalizedText as Text
 internal fun SettingsGroup(content: @Composable () -> Unit) {
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RuntimeTheme.shapes.medium,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainer,
         contentPadding = PaddingValues(0.dp),
     ) {
         Column { content() }
     }
+}
+
+/** miuix 行内文案：标题保持库字阶，描述固定单行，超出省略，避免长描述挤成两行。 */
+@Composable
+private fun SettingsRowTexts(title: String, subtitle: String?, enabled: Boolean) {
+    Text(
+        title,
+        fontSize = MiuixTheme.textStyles.headline1.fontSize,
+        fontWeight = FontWeight.Medium,
+        color = if (enabled) MiuixTheme.colorScheme.onBackground else MiuixTheme.colorScheme.disabledOnSecondaryVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+    if (!subtitle.isNullOrEmpty()) {
+        Text(
+            subtitle,
+            fontSize = MiuixTheme.textStyles.body2.fontSize,
+            color = if (enabled) MiuixTheme.colorScheme.onSurfaceVariantSummary else MiuixTheme.colorScheme.disabledOnSecondaryVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun RowScope.SettingsRowArrow(enabled: Boolean) {
+    val tint = MiuixTheme.colorScheme.onSurfaceVariantActions
+    val layoutDirection = LocalLayoutDirection.current
+    Image(
+        modifier = Modifier
+            .size(width = 10.dp, height = 16.dp)
+            .graphicsLayer { scaleX = if (layoutDirection == LayoutDirection.Rtl) -1f else 1f }
+            .align(Alignment.CenterVertically),
+        imageVector = MiuixIcons.Basic.ArrowRight,
+        contentDescription = null,
+        colorFilter = ColorFilter.tint(if (enabled) tint else MiuixTheme.colorScheme.disabledOnSecondaryVariant),
+    )
 }
 
 @Composable
@@ -32,40 +78,26 @@ internal fun SettingsRow(
     icon: RuntimeIconName,
     title: String,
     subtitle: String,
-    value: String? = null,
     onClick: (() -> Unit)? = null,
     tonalIcon: Boolean = false,
     enabled: Boolean = true,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
-    val interaction = if (onClick == null) Modifier else Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-    Row(
-        interaction.fillMaxWidth()
-            .heightIn(min = if (tonalIcon) SettingsDensity.navRowMinHeight else SettingsDensity.rowMinHeight)
-            .padding(horizontal = SettingsDensity.rowHorizontalPadding, vertical = SettingsDensity.rowVerticalPadding),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(SettingsDensity.iconGap),
+    BasicComponent(
+        onClick = onClick,
+        enabled = enabled,
+        startAction = { SettingsRowIcon(icon) },
+        endActions = {
+            Row(
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .align(Alignment.CenterVertically)
+                    .weight(1f, fill = false),
+            ) { trailing() }
+            if (onClick != null) SettingsRowArrow(enabled)
+        },
     ) {
-        if (tonalIcon) {
-            Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.secondaryContainer) {
-                Box(Modifier.size(SettingsDensity.navTileSize), contentAlignment = Alignment.Center) {
-                    RuntimeIcon(icon, Modifier.size(SettingsDensity.navIconSize), MaterialTheme.colorScheme.onSecondaryContainer)
-                }
-            }
-        } else RuntimeIcon(icon, Modifier.size(SettingsDensity.iconSize), MaterialTheme.colorScheme.primary)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(SettingsDensity.textGap)) {
-            FlowRow(verticalArrangement = Arrangement.spacedBy(4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(title, style = settingsTitleStyle(), color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis)
-                value?.let {
-                    Text(it, style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
-            Text(subtitle, style = settingsSupportingStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2, overflow = TextOverflow.Ellipsis)
-        }
-        trailing()
+        SettingsRowTexts(title, subtitle, enabled)
     }
 }
 
@@ -78,24 +110,21 @@ internal fun ToggleRow(
     change: (Boolean) -> Unit,
     enabled: Boolean = true,
 ) {
-    Row(
-        Modifier.fillMaxWidth().toggleable(checked, enabled = enabled, role = Role.Switch, onValueChange = change)
-            .heightIn(min = SettingsDensity.rowMinHeight)
-            .padding(horizontal = SettingsDensity.rowHorizontalPadding, vertical = SettingsDensity.rowVerticalPadding),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(SettingsDensity.iconGap),
+    BasicComponent(
+        onClick = { if (enabled) change(!checked) },
+        role = Role.Switch,
+        enabled = enabled,
+        startAction = { SettingsRowIcon(icon) },
+        endActions = {
+            Switch(checked = checked, onCheckedChange = change, enabled = enabled)
+        },
     ) {
-        RuntimeIcon(icon, Modifier.size(SettingsDensity.iconSize),
-            if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = .38f))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(SettingsDensity.textGap)) {
-            Text(title, style = settingsTitleStyle(),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else .38f))
-            Text(subtitle, style = settingsSupportingStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else .38f))
-        }
-        RuntimeSwitch(checked, onCheckedChange = null, enabled = enabled,
-            thumbContent = if (checked) {
-                { RuntimeIcon(RuntimeIconName.Check, Modifier.size(16.dp), MaterialTheme.colorScheme.onPrimaryContainer) }
-            } else null)
+        SettingsRowTexts(title, subtitle, enabled)
     }
+}
+
+/** Row glyphs sit a step behind the title: softer ink and a fixed gap before the text column. */
+@Composable
+internal fun SettingsRowIcon(icon: RuntimeIconName) {
+    RuntimeIcon(icon, Modifier.padding(end = RuntimeSpacing.rowIconEnd).size(RuntimeSpacing.rowIconSize), RuntimeTheme.colorScheme.onSurface)
 }

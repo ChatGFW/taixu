@@ -23,7 +23,7 @@ internal fun ToolStatusStyleSettingsCard() {
     val classicDots by preferences?.classicToolStatusDots?.collectAsStateWithLifecycle(initialValue = false) ?: previewStateOf(false)
     val scope = rememberCoroutineScope()
     PersonalizationSection(stringResource(R.string.settings_tool_status_style)) {
-        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(Modifier.selectableGroup()) {
             PreferenceSurface(last = false) {
                 ThemeOptionRow(stringResource(R.string.settings_tool_status_icons),
                     stringResource(R.string.settings_tool_status_icons_description), !classicDots) {

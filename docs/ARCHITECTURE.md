@@ -4,11 +4,11 @@
 
 ## 1. 🚀 项目定位与技术栈摘要 (Tech Stack Snapshot)
 
-- **核心定位**：在 **Android 无 Root 用户态** 下，基于 **PRoot** 运行完整的 **Linux 沙箱**，并深度集成 **AI Agent Harness 智能体引擎**、**原生 PTY 终端**、**工作区文件管理** 与 **Material 3 Expressive UI**。
+- **核心定位**：在 **Android 无 Root 用户态** 下，基于 **PRoot** 运行完整的 **Linux 沙箱**，并深度集成 **AI Agent Harness 智能体引擎**、**原生 PTY 终端**、**工作区文件管理** 与 **Miuix 原生 UI**。
 - **Android / UI 层**：
   - **主工程构建链**：Gradle 9.7.0 / AGP 9.3.1 / Kotlin 2.4.10 / compileSdk 37.1 / targetSdk 37 / NDK 30.0.15729638
   - **语言**：Kotlin（100% Kotlin + Jetpack Compose）
-  - **UI 风格**：Material 3 Expressive (M3 动态表面、Haptic 触觉反馈、双栏自适应 Dual-Pane)
+  - **UI 风格**：Miuix（原生组件、HCT 动态配色、触觉反馈、双栏自适应）
   - **依赖注入**：Koin 4.2.2（显式 Kotlin DSL）
   - **状态与异步**：Kotlin Coroutines, StateFlow, SharedFlow
   - **本地存储**：Jetpack DataStore (Preferences), Room Database (SQLite)
@@ -49,8 +49,8 @@ LinuxAIRuntime/
 │   ├── runtime/         # 纯 Kotlin 插件状态机、代次、使用租约与资源排空
 │   └── ui/              # 原生页面贡献、Compose 宿主与受限静态 Web 页面适配
 └── feature/              # Compose UI 业务特性层
-    ├── components/      # 太墟 M3 Expressive 设计规范、通用组件 (RuntimeCard, TopBar, Icons)
-    ├── theme/           # Material 3 调色板、字体、主题配置
+    ├── components/      # 太墟 Miuix 设计系统、通用组件 (RuntimeCard, TopBar, Icons)
+    ├── theme/           # Miuix 调色板、原生字阶、页面间距与主题配置
     ├── home/            # 系统概览：Linux 状态、内存/磁盘/进程实时监控，从侧边导航进入
     ├── chat/            # 默认入口：智枢对话、共享会话抽屉、任务拆解卡片、宽屏双栏布局
     ├── terminal/        # 终端 Compose UI 与触觉按键条；会话/VT100 状态机位于 runtime

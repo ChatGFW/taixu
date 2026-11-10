@@ -10,6 +10,11 @@ import org.junit.Test
  */
 class BotCapabilitySelectionTest {
 
+    @Test fun `tool entry parsing preserves exact names and handles separators`() {
+        assertEquals(listOf("Read", "read", "status"), parseCapabilityTools(" Read, read，status\nRead, "))
+        assertEquals(emptyList<String>(), parseCapabilityTools(" ,，\n "))
+    }
+
     @Test fun `first tap from unrestricted selects only that server`() {
         assertEquals(listOf("codegraph"), toggleCapabilitySelection(null, "codegraph"))
     }

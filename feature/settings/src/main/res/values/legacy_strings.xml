@@ -158,7 +158,7 @@
     <string name="settings_text_0010" formatted="false">GGUF 文件路径</string>
     <string name="settings_text_0011" formatted="false">JSON 语法解析错误</string>
     <string name="settings_text_0012" formatted="false">JSON 配置已复制</string>
-    <string name="settings_text_0013" formatted="false">M3 曜石天鹅绒暗色，沉浸专注</string>
+    <string name="settings_text_0013" formatted="false">深色沉浸，专注阅读</string>
     <string name="settings_text_0014" formatted="false">MCP JSON 配置</string>
     <string name="settings_text_0015" formatted="false">MCP JSON 配置 (Cursor / Claude 格式)</string>
     <string name="settings_text_0016" formatted="false">MCP 插件与协议生态</string>
@@ -388,7 +388,7 @@
     <string name="settings_text_0244" formatted="false">点击上方“新增挂载”将任意 Android 目录映射到 Linux 沙箱中</string>
     <string name="settings_text_0245" formatted="false">点击右上角 + 添加</string>
     <string name="settings_text_0246" formatted="false">点击快捷插入动态宏变量：</string>
-    <string name="settings_text_0247" formatted="false">版本: v0.3.0 (Material 3 Expressive)</string>
+    <string name="settings_text_0247" formatted="false">版本: v0.3.0</string>
     <string name="settings_text_0248" formatted="false">生成安全 Token</string>
     <string name="settings_text_0249" formatted="false">用户名称</string>
     <string name="settings_text_0251" formatted="false">申请豁免电池优化</string>

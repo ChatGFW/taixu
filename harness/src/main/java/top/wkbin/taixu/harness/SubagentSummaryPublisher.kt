@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.security.SecretRedactor
 import top.wkbin.taixu.harness.environment.SessionExecutionEnvironments
+import top.wkbin.taixu.harness.environment.redactExecutionOutput
 import top.wkbin.taixu.runtime.LinuxEnvironmentManager
 
 /** Save reports through the parent world's files/artifacts, after the same redaction as tool output. */
@@ -17,7 +18,7 @@ class SubagentSummaryPublisher(
         sessionId: String, workspace: String): String {
         val environment = environments?.environment(sessionId, workspace)
         val files = environment?.files ?: if (workspace.isBlank()) localFiles else localFiles.withBase(workspace)
-        val sanitized = outcomes.map { it.copy(summary = top.wkbin.taixu.harness.environment.redactExecutionOutput(
+        val sanitized = outcomes.map { it.copy(summary = redactExecutionOutput(
             it.summary, redactor, environments, linuxEnvironment, preferences, sessionId, workspace)) }
         return paginateSubagentSummary(sanitized, environment?.id?.workspace ?: workspace, files, environment?.artifacts)
     }

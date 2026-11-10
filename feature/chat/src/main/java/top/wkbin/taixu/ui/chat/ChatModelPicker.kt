@@ -3,8 +3,6 @@ package top.wkbin.taixu.ui.chat
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -15,6 +13,9 @@ import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.model.ModelMetadataRegistry
 import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 /** 发现列表与手动输入共用一个面板，避免列表、表单和多组按钮互相挤占高度。 */
 @Composable
@@ -42,8 +43,7 @@ internal fun ProviderModelPickerDialog(
         subtitle = profile.name.ifBlank { profile.provider },
         onDismissRequest = onDismiss,
         actions = {
-            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth(), spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
                 RuntimeTextButton(onClick = { manual = !manual }) {
                     Text(stringResource(if (manual) R.string.chat_model_list else R.string.chat_manual_model))
                 }
@@ -66,7 +66,7 @@ internal fun ProviderModelPickerDialog(
             LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
                 item {
                     RuntimeFilledTextField(value = manualId, onValueChange = { manualId = it },
-                        label = { Text(stringResource(R.string.chat_model_id)) },
+                        labelText = stringResource(R.string.chat_model_id),
                         supportingText = { Text(stringResource(R.string.chat_switch_model_hint)) },
                         modifier = Modifier.fillMaxWidth(), singleLine = true)
                 }
@@ -77,17 +77,17 @@ internal fun ProviderModelPickerDialog(
             if (discovering) Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 RuntimeCircularProgressIndicator(Modifier.size(24.dp))
-                Text(stringResource(R.string.chat_model_discovering), style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.chat_model_discovering), style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant)
             }
             LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (!error.isNullOrBlank()) item {
-                    Text(error, Modifier.padding(vertical = 8.dp), style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error)
+                    Text(error, Modifier.padding(vertical = 8.dp), style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.error)
                 }
                 if (candidates.isEmpty() && !discovering) item {
                     Text(stringResource(R.string.chat_no_matching_models), Modifier.padding(vertical = 24.dp),
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
                 items(candidates, key = { it }) { modelId ->
                     RuntimeSelectionRow(headline = modelId, selected = modelId == selectedModelVariant,

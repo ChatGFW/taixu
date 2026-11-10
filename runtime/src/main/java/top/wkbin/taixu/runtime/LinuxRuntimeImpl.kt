@@ -2,7 +2,18 @@ package top.wkbin.taixu.runtime
 
 import android.os.Build
 import android.os.StatFs
-import top.wkbin.taixu.runtime.environment.boundLocalDistribution
+import java.io.File
+import java.util.UUID
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.common.result.AppError
 import top.wkbin.taixu.core.common.result.AppResult
@@ -14,37 +25,27 @@ import top.wkbin.taixu.core.model.InstalledDistro
 import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.core.model.StorageMountBinding
 import top.wkbin.taixu.runtime.backend.BackendSelector
+import top.wkbin.taixu.runtime.bridge.HostBridge
+import top.wkbin.taixu.runtime.bridge.SandboxCredentialStore
+import top.wkbin.taixu.runtime.environment.boundLocalDistribution
+import top.wkbin.taixu.runtime.proot.ProotInstaller
 import top.wkbin.taixu.runtime.proot.QemuCompatibilityLayout
 import top.wkbin.taixu.runtime.proot.hostSupplementaryGroupIds
 import top.wkbin.taixu.runtime.proot.syncGuestGroups
-import top.wkbin.taixu.runtime.bridge.HostBridge
-import top.wkbin.taixu.runtime.bridge.SandboxCredentialStore
 import top.wkbin.taixu.runtime.pty.PtyManager
-import top.wkbin.taixu.runtime.proot.ProotInstaller
 import top.wkbin.taixu.runtime.rootfs.RootfsInstaller
-import top.wkbin.taixu.runtime.terminal.terminalBanner
 import top.wkbin.taixu.runtime.shell.CommandResult
+import top.wkbin.taixu.runtime.shell.ForegroundCommandAdmission
 import top.wkbin.taixu.runtime.shell.InteractiveLaunchSpec
 import top.wkbin.taixu.runtime.shell.LinuxSession
 import top.wkbin.taixu.runtime.shell.ManagedProcess
-import top.wkbin.taixu.runtime.shell.ProcessType
 import top.wkbin.taixu.runtime.shell.ProcessRegistry
+import top.wkbin.taixu.runtime.shell.ProcessType
 import top.wkbin.taixu.runtime.shell.SessionConfig
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import top.wkbin.taixu.runtime.shell.ShellExecutor
-import top.wkbin.taixu.runtime.shell.ForegroundCommandAdmission
-import java.io.File
-import java.util.UUID
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
+import top.wkbin.taixu.runtime.shell.launchRuntimeSession
+import top.wkbin.taixu.runtime.terminal.terminalBanner
 
 class LinuxRuntimeImpl(
     private val pathManager: RuntimePathManager,
@@ -550,7 +551,7 @@ class LinuxRuntimeImpl(
     override suspend fun startSession(config: SessionConfig, distroId: String?): LinuxSession = storageActivities.activity {
         val prepared = prepareInteractiveSession(config, distroId)
         try {
-            val session = top.wkbin.taixu.runtime.shell.launchRuntimeSession(
+            val session = launchRuntimeSession(
                 ptyManager, prepared.effectiveConfig, prepared.command, prepared.fallbackCommand, prepared.hostEnvironment,
                 resize = { columns, rows -> resizePty(prepared.markerPath, columns, rows, prepared.distroId) },
                 cleanup = { check(!prepared.markerFile.exists() || prepared.markerFile.delete()) { "Session marker cleanup failed" } },
@@ -831,7 +832,6 @@ class LinuxRuntimeImpl(
     private class RuntimeArchitectureException(message: String) : IllegalStateException(message)
 
     private class InsufficientStorageException(message: String) : IllegalStateException(message)
-
     companion object {
         const val MIN_FREE_BYTES = 600L * 1024L * 1024L
     }

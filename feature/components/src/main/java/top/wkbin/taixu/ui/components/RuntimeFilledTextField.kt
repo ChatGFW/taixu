@@ -1,15 +1,14 @@
 package top.wkbin.taixu.ui.components
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldColors
-import androidx.compose.material3.TextFieldDefaults
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.OutlinedTextField
+import top.wkbin.taixu.ui.miuix.OutlinedTextFieldDefaults
+import top.wkbin.taixu.ui.miuix.TextField
+import top.wkbin.taixu.ui.miuix.TextFieldColors
+import top.wkbin.taixu.ui.miuix.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -21,7 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
- * 表单文本输入框：圆角描边（圆框）样式，委托 Material 3 OutlinedTextField。
+ * 表单文本输入框：miuix 填充样式（无常驻描边，聚焦时主色描边），委托 Miuix TextField。
  * 保留焦点/错误指示、浮动标签与 IME 行为；名称保留历史叫法，避免全站调用点改名。
  */
 @Composable
@@ -31,7 +30,7 @@ fun RuntimeFilledTextField(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     readOnly: Boolean = false,
-    textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
+    textStyle: TextStyle = RuntimeTheme.typography.bodyLarge,
     label: (@Composable () -> Unit)? = null,
     placeholder: (@Composable () -> Unit)? = null,
     leadingIcon: (@Composable () -> Unit)? = null,
@@ -47,13 +46,9 @@ fun RuntimeFilledTextField(
     maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     minLines: Int = 1,
     interactionSource: MutableInteractionSource? = null,
-    shape: Shape = RoundedCornerShape(14.dp),
-    colors: TextFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
-        focusedBorderColor = MaterialTheme.colorScheme.primary,
-        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-    ),
+    shape: Shape = RuntimeTheme.shapes.medium,
+    colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
+    labelText: String? = null,
 ) {
     val actualInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
     OutlinedTextField(
@@ -64,6 +59,7 @@ fun RuntimeFilledTextField(
         readOnly = readOnly,
         textStyle = textStyle,
         label = label,
+        labelText = labelText,
         placeholder = placeholder,
         leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,
@@ -95,7 +91,7 @@ fun RuntimeComposerTextField(
 ) {
     TextField(value = value, onValueChange = onValueChange, modifier = modifier,
         placeholder = placeholder, visualTransformation = visualTransformation,
-        textStyle = MaterialTheme.typography.bodyLarge, minLines = 1, maxLines = 5,
+        textStyle = RuntimeTheme.typography.bodyLarge, minLines = 1, maxLines = 5,
         keyboardOptions = keyboardOptions,
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,

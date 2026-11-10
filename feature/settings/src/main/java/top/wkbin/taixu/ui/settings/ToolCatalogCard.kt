@@ -1,90 +1,44 @@
 package top.wkbin.taixu.ui.settings
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
-import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.components.SpotlightGuideOverlay
-import top.wkbin.taixu.ui.components.rememberSpotlightAnchor
-import top.wkbin.taixu.ui.components.spotlightAnchor
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import top.wkbin.taixu.core.database.ToolEntity
 import top.wkbin.taixu.core.model.ToolState
 import top.wkbin.taixu.core.tools.ToolInstallProgress
 import top.wkbin.taixu.core.tools.ToolVerification
 import top.wkbin.taixu.ui.components.NoticeBanner
-import top.wkbin.taixu.ui.components.InfoRow
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.StatusBadge
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
-import top.wkbin.taixu.core.tools.LocalPluginImportState
-import top.wkbin.taixu.feature.components.R as ComponentsR
-import top.wkbin.taixu.feature.settings.R
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.wkbin.taixu.ui.settings.LocalizedText as Text
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -110,8 +64,8 @@ internal fun ToolCard(
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onOpenDetail,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        shape = MaterialTheme.shapes.extraLarge,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainer,
+        shape = RuntimeTheme.shapes.extraLarge,
         contentPadding = PaddingValues(SettingsDensity.cardPadding),
     ) {
         Column(
@@ -144,11 +98,11 @@ internal fun ToolCard(
                         ) {
                             Text(
                                 text = tool.name,
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold,
+                                style = RuntimeTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Medium,
                                     fontSize = 16.sp,
                                 ),
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = RuntimeTheme.colorScheme.onSurface,
                                 modifier = Modifier.fillMaxWidth(),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -156,13 +110,13 @@ internal fun ToolCard(
                             val displayVersion = tool.installedVersion ?: tool.manifestVersion
                             if (displayVersion.isNotBlank()) {
                                 Surface(
-                                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    shape = RoundedCornerShape(50),
+                                    color = RuntimeTheme.colorScheme.surfaceContainerHighest,
+                                    shape = CircleShape,
                                 ) {
                                     Text(
                                         text = "v$displayVersion",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = RuntimeTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                                         maxLines = 1,
                                         softWrap = false, overflow = TextOverflow.Ellipsis,
@@ -171,19 +125,19 @@ internal fun ToolCard(
                             }
                             Surface(
                                 color = if (source == "LOCAL") {
-                                    MaterialTheme.colorScheme.tertiaryContainer
+                                    RuntimeTheme.colorScheme.tertiaryContainer
                                 } else {
-                                    MaterialTheme.colorScheme.secondaryContainer
+                                    RuntimeTheme.colorScheme.secondaryContainer
                                 },
-                                shape = RoundedCornerShape(50),
+                                shape = CircleShape,
                             ) {
                                 Text(
                                     text = if (source == "LOCAL") "本地插件" else "在线插件",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 12.sp),
                                     color = if (source == "LOCAL") {
-                                        MaterialTheme.colorScheme.onTertiaryContainer
+                                        RuntimeTheme.colorScheme.onTertiaryContainer
                                     } else {
-                                        MaterialTheme.colorScheme.onSecondaryContainer
+                                        RuntimeTheme.colorScheme.onSecondaryContainer
                                     },
                                     modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                                     maxLines = 1,
@@ -199,8 +153,8 @@ internal fun ToolCard(
                                 "DEVELOPER_TOOL" -> "开发加速包"
                                 else -> tool.category
                             }}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline,
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = RuntimeTheme.colorScheme.outline,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -219,11 +173,11 @@ internal fun ToolCard(
                         else -> "未安装"
                     },
                     color = when {
-                        isUpdateAvailable -> MaterialTheme.colorScheme.primary
+                        isUpdateAvailable -> RuntimeTheme.colorScheme.primary
                         isInstalled -> successStatusColor()
-                        isInstalling -> MaterialTheme.colorScheme.tertiary
-                        isFailed -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.outline
+                        isInstalling -> RuntimeTheme.colorScheme.tertiary
+                        isFailed -> RuntimeTheme.colorScheme.error
+                        else -> RuntimeTheme.colorScheme.outline
                     },
                 )
             }
@@ -232,7 +186,7 @@ internal fun ToolCard(
             Text(
                 text = tool.description,
                 style = settingsSupportingStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -247,8 +201,8 @@ internal fun ToolCard(
                     ) {
                         Text(
                             text = progress.message,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = RuntimeTheme.colorScheme.primary,
                             modifier = Modifier.weight(1f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -256,8 +210,8 @@ internal fun ToolCard(
                         progress.progress?.let { p ->
                             Text(
                                 text = "${(p * 100).toInt()}%",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary,
+                                style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                color = RuntimeTheme.colorScheme.primary,
                                 modifier = Modifier.padding(start = 8.dp),
                                 maxLines = 1,
                                 softWrap = false,
@@ -269,8 +223,8 @@ internal fun ToolCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(6.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        color = MaterialTheme.colorScheme.primary,
+                            .clip(RuntimeTheme.shapes.tiny),
+                        color = RuntimeTheme.colorScheme.primary,
                     )
                 }
             }
@@ -280,95 +234,37 @@ internal fun ToolCard(
                 NoticeBanner(text = "自检异常: ${verification.detail}", isError = true)
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f))
 
-            // Actions row: Spacious, distinct secondary buttons on left, prominent action on right
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                // Secondary actions
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    FilledTonalButton(
-                        onClick = onOpenDetail,
-                        shape = RoundedCornerShape(50),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                    ) {
-                        Text("详情配置", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
-                    }
-
-                    TextButton(
-                        onClick = onViewLogs,
-                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
-                    ) {
-                        Text("日志", style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
-                    }
-
-                    if (isInstalled) {
-                        TextButton(
-                            onClick = onUninstall,
-                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
-                        ) {
-                            Text("卸载", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error, maxLines = 1, softWrap = false)
-                        }
+            // 整卡可点进详情，操作区只留日志 / 卸载 / 安装类动作。
+            RuntimeActionRow(Modifier.fillMaxWidth()) {
+                TextButton(onClick = onViewLogs) {
+                    Text("日志", maxLines = 1, softWrap = false)
+                }
+                if (isInstalled) {
+                    TextButton(onClick = onUninstall) {
+                        Text("卸载", color = RuntimeTheme.colorScheme.error, maxLines = 1, softWrap = false)
                     }
                 }
-
-                // Primary actions (Install / Retry / Update)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (isUpdateAvailable) {
-                        Button(
-                            onClick = onUpdate,
-                            shape = RoundedCornerShape(50),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp),
-                        ) {
-                            Text("更新", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
-                        }
-                    } else if (isFailed) {
-                        Button(
-                            onClick = onStartAiHealing,
-                            shape = RoundedCornerShape(50),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 5.dp),
-                        ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Brain,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Spacer(Modifier.width(3.dp))
-                            Text("AI 自愈", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
-                        }
-                        FilledTonalButton(
-                            onClick = onInstall,
-                            shape = RoundedCornerShape(50),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 5.dp),
-                        ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Download,
-                                modifier = Modifier.size(13.dp),
-                            )
-                            Spacer(Modifier.width(3.dp))
-                            Text("重试", fontWeight = FontWeight.Medium, style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
-                        }
-                    } else if (!isInstalled && !isInstalling) {
-                        Button(
-                            onClick = onInstall,
-                            shape = RoundedCornerShape(50),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp),
-                        ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Download,
-                                modifier = Modifier.size(14.dp),
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text("安装", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelSmall, maxLines = 1, softWrap = false)
-                        }
+                if (isUpdateAvailable) {
+                    Button(onClick = onUpdate, shape = CircleShape) {
+                        Text("更新", fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
+                    }
+                } else if (isFailed) {
+                    Button(onClick = onStartAiHealing, shape = CircleShape) {
+                        RuntimeIcon(RuntimeIconName.Brain, Modifier.size(14.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text("AI 自愈", fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
+                    }
+                    FilledTonalButton(onClick = onInstall, shape = CircleShape) {
+                        RuntimeIcon(RuntimeIconName.Download, Modifier.size(13.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text("重试", fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
+                    }
+                } else if (!isInstalled && !isInstalling) {
+                    Button(onClick = onInstall, shape = CircleShape) {
+                        RuntimeIcon(RuntimeIconName.Download, Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("安装", fontWeight = FontWeight.Medium, maxLines = 1, softWrap = false)
                     }
                 }
             }

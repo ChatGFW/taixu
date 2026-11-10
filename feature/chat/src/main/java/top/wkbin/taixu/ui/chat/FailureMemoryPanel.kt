@@ -6,9 +6,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,27 +57,27 @@ internal fun FailureMemoryPanel(sessionId: String, access: FailureMemoryAccess) 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.chat_failure_memory_title, state?.records?.size ?: 0),
-                style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                style = RuntimeTheme.typography.titleSmall, modifier = Modifier.weight(1f))
             if (!state?.records.isNullOrEmpty()) {
                 RuntimeTextButton(onClick = { state?.let(delete) }, enabled = !busy) {
                     Text(stringResource(R.string.chat_confirm_clear), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
-        Text(stringResource(R.string.chat_failure_memory_hint), style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (error) Text(stringResource(R.string.chat_failure_memory_error), color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.chat_failure_memory_hint), style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant)
+        if (error) Text(stringResource(R.string.chat_failure_memory_error), color = RuntimeTheme.colorScheme.error,
+            style = RuntimeTheme.typography.bodySmall)
         if (state?.records.isNullOrEmpty() && !error) {
-            Text(stringResource(R.string.chat_failure_memory_empty), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.chat_failure_memory_empty), style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant)
         }
         state?.let { reviewed ->
             reviewed.records.asReversed().forEach { record ->
-                Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = MaterialTheme.shapes.medium) {
+                Surface(color = RuntimeTheme.colorScheme.surfaceContainerLow, shape = RuntimeTheme.shapes.medium) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(record.toolName, style = MaterialTheme.typography.labelLarge, maxLines = 1,
+                            Text(record.toolName, style = RuntimeTheme.typography.labelLarge, maxLines = 1,
                                 overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                             RuntimeTextButton(onClick = { delete(reviewed.copy(records = listOf(record))) }, enabled = !busy) {
                                 Text(stringResource(R.string.chat_confirm_delete), maxLines = 1)
@@ -91,10 +91,10 @@ internal fun FailureMemoryPanel(sessionId: String, access: FailureMemoryAccess) 
                         }
                         Text(stringResource(R.string.chat_failure_memory_details, stringResource(kind), record.attempts,
                             DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(record.expiresAt))),
-                            style = MaterialTheme.typography.bodySmall)
+                            style = RuntimeTheme.typography.bodySmall)
                         SelectionContainer {
                             Text(stringResource(R.string.chat_failure_memory_source, record.signature, record.callEntryId, record.resultEntryId),
-                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }

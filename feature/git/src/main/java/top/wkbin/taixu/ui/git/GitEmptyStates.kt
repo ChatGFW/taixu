@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,13 +35,13 @@ internal fun NotARepoContent() {
             TaixuGitEmptyIllustration()
             Text(
                 stringResource(R.string.fgit_not_repo_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = RuntimeTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
             )
             Text(
                 stringResource(R.string.fgit_not_repo_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 12.dp),
             )
@@ -52,7 +52,7 @@ internal fun NotARepoContent() {
 @Composable
 internal fun EmptyHint(text: String) {
     RuntimeCard(
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
         contentPadding = PaddingValues(14.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -64,8 +64,8 @@ internal fun EmptyHint(text: String) {
             TaixuGitEmptyIllustration()
             Text(
                 text,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
         }

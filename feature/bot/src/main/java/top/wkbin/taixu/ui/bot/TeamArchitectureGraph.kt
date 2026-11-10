@@ -1,37 +1,38 @@
 package top.wkbin.taixu.ui.bot
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
-import top.wkbin.taixu.feature.bot.R
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
 import top.wkbin.taixu.core.model.bot.*
+import top.wkbin.taixu.feature.bot.R
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 /** Inline preview opens a separate full-window page without discarding the team draft. */
 @Composable
@@ -44,10 +45,10 @@ internal fun TeamArchitectureGraph(team: GroupTeam, governance: GroupGovernance,
     val horizontal = rememberScrollState()
     val vertical = rememberScrollState()
     Column(if (fullScreen) Modifier.fillMaxSize() else Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("实线：直属管理　虚线：审议／准奏　红色虚线：封驳", style = MaterialTheme.typography.bodySmall)
+        Text("实线：直属管理　虚线：审议／准奏　红色虚线：封驳", style = RuntimeTheme.typography.bodySmall)
         if (!fullScreen) RuntimeTextButton(onClick = { expanded = true }) { Text(stringResource(R.string.fbot_graph_open)) }
-        else Text(stringResource(if (runtime != null) R.string.fbot_graph_runtime_hint else if (editable) R.string.fbot_graph_edit_hint else R.string.fbot_graph_view_hint), style = MaterialTheme.typography.bodySmall)
-        Row {
+        else Text(stringResource(if (runtime != null) R.string.fbot_graph_runtime_hint else if (editable) R.string.fbot_graph_edit_hint else R.string.fbot_graph_view_hint), style = RuntimeTheme.typography.bodySmall)
+        RuntimeActionRow() {
             RuntimeTextButton(onClick = { fit = true }) { Text("全图") }
             RuntimeTextButton(onClick = { fit = false; manualScale = 1f }) { Text("原尺寸") }
             RuntimeTextButton(onClick = { manualScale = (manualScale / 1.4f).coerceAtLeast(.1f); fit = false }) { Text("−") }
@@ -77,7 +78,7 @@ internal fun TeamArchitectureGraph(team: GroupTeam, governance: GroupGovernance,
         if (!fullScreen) governance.rules.forEach { rule ->
             val names = members.associateBy { it.id }
             Text("${rule.name}：${names[rule.authorId]?.name} → 审议 ${names[rule.reviewerId]?.name} → 准奏执行 ${names[rule.executorId]?.name}；封驳返回起草者",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.tertiary)
+                style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.tertiary)
         }
     }
     if (expanded && !fullScreen) TeamArchitecturePage(team, governance, members, editable, { expanded = false }, runtime) { id ->
@@ -89,11 +90,11 @@ internal fun TeamArchitectureGraph(team: GroupTeam, governance: GroupGovernance,
 @Composable
 private fun TeamGraphDrawing(graph: TeamGraphLayout, team: GroupTeam, members: List<Bot>,
     editable: Boolean, runtime: TeamGraphRuntime?, onSelectMember: (String) -> Unit) {
-    val managementColor = MaterialTheme.colorScheme.primary
-    val reviewColor = MaterialTheme.colorScheme.tertiary
-    val rejectionColor = MaterialTheme.colorScheme.error
+    val managementColor = RuntimeTheme.colorScheme.primary
+    val reviewColor = RuntimeTheme.colorScheme.tertiary
+    val rejectionColor = RuntimeTheme.colorScheme.error
     val measurer = rememberTextMeasurer()
-    val labelStyle = MaterialTheme.typography.labelSmall
+    val labelStyle = RuntimeTheme.typography.labelSmall
     val names = members.associateBy { it.id }
     Canvas(Modifier.fillMaxSize()) {
         val nodes = graph.nodes.associateBy { it.id }
@@ -149,19 +150,19 @@ private fun TeamGraphDrawing(graph: TeamGraphLayout, team: GroupTeam, members: L
         val x = (from.x + to.x) / 2 + 80f
         val y = if (edge.kind == TeamGraphEdgeKind.MANAGEMENT) (from.y + 76f + to.y) / 2 - 18f
             else minOf(from.y, to.y) + if (rejection) 80f else -24f
-        RuntimeTextButton(modifier = Modifier.offset((x - 96).dp, y.dp).width(192.dp).height(36.dp).testTag("team-edge-${edge.from}-${edge.to}"),
+        RuntimeTextButton(modifier = Modifier.offset((x - 96).dp, y.dp).width(192.dp).testTag("team-edge-${edge.from}-${edge.to}"),
             contentPadding = PaddingValues(2.dp), onClick = { onSelectMember(if (edge.kind == TeamGraphEdgeKind.MANAGEMENT) edge.to else "proposal:" + activity.proposalIds.joinToString(",")) }) {
-            Text(activity.label, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(activity.label, style = RuntimeTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
     graph.nodes.forEach { node ->
         RuntimeCard(modifier = Modifier.offset(node.x.dp, node.y.dp).width(160.dp).heightIn(min = 76.dp).testTag("team-graph-member-${node.id}"),
             onClick = if (editable) ({ onSelectMember(node.id) }) else null, contentPadding = PaddingValues(10.dp)) {
             Column {
-                Text(names[node.id]?.name ?: node.id, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(names[node.id]?.name ?: node.id, style = RuntimeTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(if (node.id == team.adminBotId) "团队主控／裁决" else names[node.id]?.role.orEmpty(),
-                    style = MaterialTheme.typography.bodySmall, maxLines = if (runtime == null) 2 else 1, overflow = TextOverflow.Ellipsis)
-                runtime?.nodes?.get(node.id)?.let { activity -> Text(activity.label, style = MaterialTheme.typography.labelSmall, color = if (activity.blocked) rejectionColor else reviewColor) }
+                    style = RuntimeTheme.typography.bodySmall, maxLines = if (runtime == null) 2 else 1, overflow = TextOverflow.Ellipsis)
+                runtime?.nodes?.get(node.id)?.let { activity -> Text(activity.label, style = RuntimeTheme.typography.labelSmall, color = if (activity.blocked) rejectionColor else reviewColor) }
             }
         }
     }

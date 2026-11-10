@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.bot
 
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,27 +12,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Scaffold
+import top.yukonga.miuix.kmp.basic.SnackbarHost
+import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
@@ -41,10 +39,10 @@ import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeSwitch
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
-import top.wkbin.taixu.ui.components.StatusBadge
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 
 @Composable
 fun BotDetailScreen(
@@ -56,6 +54,7 @@ fun BotDetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val profiles by viewModel.modelProfiles.collectAsStateWithLifecycle()
     val mcpServers by viewModel.mcpServers.collectAsStateWithLifecycle()
+    val runtimeServerStatus by viewModel.externalRuntimeServerStatus.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
@@ -96,7 +95,7 @@ fun BotDetailScreen(
                         RuntimeIcon(
                             RuntimeIconName.Trash,
                             Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.error,
+                            tint = RuntimeTheme.colorScheme.error,
                         )
                     }
                 },
@@ -111,15 +110,23 @@ fun BotDetailScreen(
                 } else {
                     Text(
                         stringResource(R.string.fbot_bot_missing),
-                        color = MaterialTheme.colorScheme.error,
+                        color = RuntimeTheme.colorScheme.error,
                     )
                 }
             }
             return@Scaffold
         }
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .then(runtimeScrollViewport(padding))
+                .padding(bottom = padding.calculateBottomPadding()),
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = padding.calculateTopPadding())
+                    .padding(runtimeContentPadding(top = RuntimeSpacing.pageTop)),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 listOf(
@@ -143,6 +150,21 @@ fun BotDetailScreen(
                     profiles = profiles,
                     mcpServers = mcpServers,
                     onSave = viewModel::save,
+                    externalRuntime = {
+                        BotExternalRuntimePanel(
+                            bot = bot,
+                            busy = state.busy,
+                            tokens = state.runtimeTokens,
+                            issuedPlaintext = state.issuedRuntimeToken,
+                            serverStatus = runtimeServerStatus,
+                            onIssue = viewModel::issueRuntimeToken,
+                            onRevoke = viewModel::revokeRuntimeToken,
+                            onRevokeExpired = viewModel::revokeExpiredRuntimeTokens,
+                            onRestoreLocal = viewModel::restoreLocalRuntime,
+                            onToggleServer = viewModel::toggleExternalRuntimeServer,
+                            onClearIssued = viewModel::clearIssuedRuntimeToken,
+                        )
+                    },
                 )
                 TAB_MEMORY -> BotMemoryPanel(
                     files = state.memoryFiles,

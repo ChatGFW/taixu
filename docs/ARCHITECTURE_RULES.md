@@ -8,7 +8,7 @@
 - `:harness:core` 同样保持 Pure Kotlin，只承载轮次解释器、执行契约与存储无关的会话投影规则；不得依赖 Android、网络客户端、DI、数据库或运行时实现。工具副作用必须在意图提交完成后执行，结果提交完成后才能进入下一轮。
 - `architectureCheck` 已接入 `app:preBuild` 验证阶段，会主动阻止模型层平台化、非法 feature 横向依赖和业务层直连 DAO。
 - **治理策略即代码**：上述门禁的全部规则登记在根目录 [`architecture-policy.json`](../architecture-policy.json)（模块依赖白名单 `requires`、依赖环检查、`importBans` import 黑名单、`maxFileLines` 文件尺寸棘轮）。该文件是唯一事实源——**新增模块或调整模块依赖时必须同步登记**，否则门禁失败。
-- 存量超限文件（>400 行）登记在 `.architecture-baseline.json` 棘轮基线：行数**只许缩减不许上涨**；新文件必须合规。缩减代码后运行 `architectureBaselineSync` 下调基线。
+- 存量超限文件（>`architecture-policy.json` 的 `global.maxFileLines`，当前 400）登记在 `.architecture-baseline.json` 棘轮基线：行数**只许缩减不许上涨**；新文件必须合规。缩减代码后运行 `architectureBaselineSync` 下调基线。
 - PR 的 `architecture-baseline.yml` 使用可信目标 commit 检查基线新增/上涨、全局上限放宽及已缩减源码回涨；旧基线尚未同步也不能恢复已偿还技术债。只读任务 `architectureBaselineCheck` 提示可收紧条目，不自动写入基线；普通 Android 构建不新增 Python 依赖。
 
 ---
@@ -20,39 +20,43 @@
 
 ---
 
-## 3. 🎨 M3 Expressive 与 UX/UI 设计系统与前端架构铁律
+## 3. 🎨 Miuix 与 UX/UI 设计系统与前端架构铁律
+
+> **Compose / miuix 机械约定**（页面骨架、`squircle*`、毛玻璃、宽屏 gutter、分组卡拆分、Dialog/Sheet inset、语义色、Flow 收集、跳过友好与帧率 State）统一见 [`UI_GUIDELINES.md`](UI_GUIDELINES.md)。改任何 `ui/` 文件前先读该文档。本节只保留组件入口名单与太墟产品级 UX。
 
 1. **统一设计系统组件（严禁 raw Material 组件散落）**：
-   - 容器必须使用 `top.wkbin.taixu.ui.components.RuntimeCard`（支持 `containerColor`, `borderColor`, `contentPadding`, `onClick`），**严禁**使用原生 `androidx.compose.material3.Card` 或自定义 `Modifier.border/background` 拼接容器，确保 Material You（标准 M3）主题下表面色与微边框统一生效。
-   - 按钮统一使用 `RuntimeButton`, `RuntimeFilledTonalButton`, `RuntimeOutlinedButton`, `RuntimeTextButton`, `RuntimeIconButton`。
-   - 模型接入与档案主表单复用 `RuntimeProviderCard`（整卡选择预设）与 `RuntimeFilledTextField`（原生 Material3 填充式 TextField，保留浮动标签、焦点和错误指示）；连接信息合并分组，避免每个输入框外再独立套一张卡片。
+   - 容器必须使用 `top.wkbin.taixu.ui.components.RuntimeCard`（支持 `containerColor`, `borderColor`, `contentPadding`, `onClick`），**严禁**使用原生 `androidx.compose.material3.Card` 或自定义 `Modifier.border/background` 拼接容器，底层委托 miuix Card，主题、平滑圆角与按压反馈统一。细节见 [`UI_GUIDELINES.md`](UI_GUIDELINES.md)。
+   - 按钮统一使用 `RuntimeButton`, `RuntimeFilledTonalButton`, `RuntimeOutlinedButton`, `RuntimeTextButton`, `RuntimeIconButton`。工具栏/输入区/侧栏的加号、发送、上下文等圆形操作对齐 miuix `IconButton` 的 **40dp** 与约 **20dp** 图标，禁止用 Material 48dp touch-target 或库默认 **60dp FAB** 撑大实心底；新建入口优先放顶栏 `actions`，不要为「适配」保留 FAB 骨架。
+   - 模型接入与档案主表单复用 `RuntimeProviderCard`（整卡选择预设）与 `RuntimeFilledTextField`（委托 miuix TextField，保留浮动标签、焦点和错误指示）；连接信息合并分组，避免每个输入框外再独立套一张卡片。
    - 弹窗统一使用 `top.wkbin.taixu.ui.components.RuntimeAlertDialog`。
-   - 开关与进度指示使用 `RuntimeSwitch`, `RuntimeLinearProgressIndicator`, `RuntimeCircularProgressIndicator`（后两者默认参数即 Expressive 波浪/形变加载实现；线性显式传 `progress` 时回落经典确定性样式，需要确定性波浪时传 `wavy = true`；圆环显式传 `strokeWidth`/`trackColor` 时回落经典确定性样式）。
+   - 同一区域的多个操作按钮使用 `RuntimeActionRow`，统一高度、等分宽度、字号和圆角，窄屏与大字号自动换行；取消/保存等表单底栏采用 20dp 间距，正文中的操作组采用 12dp 间距。禁止在操作组中分别指定按钮高度、weight 或紧凑内边距。
+   - 开关与进度指示使用 `RuntimeSwitch`, `RuntimeLinearProgressIndicator`, `RuntimeCircularProgressIndicator`（统一委托 miuix ProgressIndicator）。
 2. **弹窗与表单软键盘安全（IME 防遮挡）**：
-   - 所有包含 `OutlinedTextField` 或列表的 Dialog `text` 内容区域，**严禁**设置死锁的固定高宽或外层硬编码 `offset`，**必须**包裹 `modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())`，确保在移动端软键盘弹起时表单可顺畅滑动，操作按钮始终可见可达。
+   - 所有包含 `OutlinedTextField` 或列表的 Dialog `text` 内容区域，**严禁**设置死锁的固定高宽或外层硬编码 `offset`，**必须**包裹 `modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())`，确保在移动端软键盘弹起时表单可顺畅滑动，操作按钮始终可见可达。长内容高度上限与 Sheet 底 inset 见 [`UI_GUIDELINES.md`](UI_GUIDELINES.md)。
 3. **顶部与主导航规范**：
    - **聊天消息层级**：按用户轮次展示一次助手标识，正文保留自然顺序；相邻的助手思考、普通工具及提问调用概览经 `projectChatTimeline()` 合为一条可折叠的过程链，思考作为链内步骤但不计入工具调用次数，标题只显示工具调用次数，竖线连接各项；带推理的助手消息拆成「思考步骤 + 正文」，正文气泡不再重复渲染已入链的思考；默认展开最近 8 步及最近的待关注记录，较早步骤按 8 步补出。过程行采用 28dp 最小行高，大字号自然增高；连续工具行之间不叠加列表项外间距。命令与折叠思考使用无底色的紧凑单行，不为每项增加满宽卡片或图标底座；过程行由共享的 RuntimeProcessIcon 统一使用 18dp 图标槽、24 单位矢量网格、1.65 单位圆角描边和 8dp 图文间距；思考、普通工具的图标、标题、耗时及展开思考使用 onSurfaceVariant 次级灰色，输出正文保留 onSurface，普通成功态不染色。仅正在执行的工具和实时思考的前缀图标、标题使用 1.7 秒周期的轻柔透明度呼吸（0.65–1），完成、暂停及待审批立即恢复静态；计时保持稳定，动画只更新绘制层，不逐帧重组正文。工具执行、实时思考与首响应等待的计时每 100ms 刷新，始终显示一位小数秒；已完成步骤优先使用真实记录耗时。普通完成态由小图标及无障碍状态表达，失败和审批保留行内状态色文字。工具标题使用本地可读动作，已知可执行程序使用固定摘要，不展示命令参数或脚本正文；点击命令后用底部弹窗查看参数、输出、文件与 Diff，聊天列表不原地展开日志；弹窗保留完整内容复制及受运行状态约束的重试；子智能体、交互界面与审批/问答交互卡保持独立，提问调用概览入链不改变交互卡和审批门控。审批、结果未知、失败、运行和未取得结果必须区分；新任务运行不得使旧轮未完成调用变成运行态。每段正文直接提供复制和创建分支按钮，轮次末尾另保留重新生成与反馈；token 诊断通过上下文面板查看。聊天及侧栏共用本地聊天标识，默认名称「太墟」与太墟 Logo；外观设置可编辑名称、从系统照片选择器选择头像，经可拖动、缩放的 1:1 正方形裁切确认后导入，或恢复默认。名称与图像仅作本地 UI 显示，不加入模型上下文；图片复制到私有目录，限制大小并验证图像，文件名仅允许 UUID。分组与历史轮次折叠共存，定位必须使用同一投影并展开目标步骤。UI 投影不修改持久化消息或模型上下文。调用链展开/收起沿用主题 MotionScheme 的尺寸过渡；软键盘弹出仅在仍跟随最新消息且用户没有滚动时定位底部，不打断历史阅读。
    - **群聊消息展示**：群聊与单聊共用 `feature/components` 的 `RuntimeProcessIcon`、`RuntimeProcessTimer` 和呼吸动画，禁止 feature 横向依赖。成员头像与姓名在消息组顶部标注，正文占满消息可用宽度；普通正文不套色面卡片，用户消息使用 primaryContainer/onPrimaryContainer。思考与工具采用中性灰紧凑过程行，工具默认展开最近 8 步，失败与未完成步骤始终可见；点击步骤打开底部详情，只展示既有步骤记录，不伪造完整日志或未知耗时。停止、历史未完成步骤保持静态并明确待核对。思考保留限高视口、跟随尾部和手动阅读保护；正文有独立复制入口。输入区统一一体化圆角组件，保留附件、@成员以及执行中追加消息和停止操作；顶栏保留办公室快捷入口，群信息与诊断导出置于更多菜单。
    - **聊天背景**：在“外观与终端”中使用系统照片选择器更换或移除图片，预览与聊天页共用 `RuntimeChatBackground`；聊天页由 `ChatPageSurface` 在内容内边距之外统一绘制全屏背景，覆盖顶栏和系统栏区域，不在消息面板重复绘制；有背景时使用主题提供的半透明表面承托顶栏、输入区与 AI 正文，并关闭消息列表的纯色渐变遮罩；可见度与模糊参数通过 `ChatBackgroundPreferences` 持久化。图片复制到 App 私有目录，仅作为界面背景，不自动附加到模型请求；终端和浏览器面板不使用聊天背景。
-   - 顶部导航统一使用 `RuntimeTopBar`（支持 `title`, `statusText`, `onBack`）。设置首页、外观、智能体、Linux 与诊断子页使用带 `scrollBehavior` 的大标题重载，经 `PersonalizationScaffold` 委托共用 `RuntimeSettingsScaffold` 连接滚动；工坊、环境变量、SSH/FTP、本地模型、Linux 系统管理、存储、关于、赞助支持、应用管理、权限向导及工具配置详情复用同一布局，统一宽屏居中与 IME 避让；状态摘要、工具栏操作与 Snackbar 通过同一布局保留；详情分组使用 `SettingsDetailCard`，端口编辑使用 `SettingsPortEditor` 让输入与操作分行，避免窄屏挤压；设置分组由 `PreferenceSurface` 复用 RuntimeCard，采用主题色面、28dp 外圆角与 4dp 内圆角；通用 SettingsRow / ToggleRow 的默认密度由 SettingsDensity 管理：80dp 最小行高、14dp 垂直内边距、24dp 图标、16sp 标题与 12sp/18sp 行高的说明；设置首页的导航入口走 `tonalIcon = true` 分支，采用 88dp 最小行高、40dp 色调图标块（medium 圆角、20dp 图标），说明文字与普通行同为 12sp/18sp，与子页保持同一密度档位；导航说明保持简短，普通说明最多两行。当前值以 12sp 放在标题旁，列表默认不放尾部箭头，避免状态独占一行和挤压说明；大字体仍允许自然增高。模型档案、插件工具、快捷短语、Agent 参数、MCP 服务与挂载列表也使用该大标题重载；模型编辑保留紧凑顶栏，表单消费 Scaffold Insets 并使用 imePadding，确保键盘弹出后仍可滚动到保存操作；工作流仅在目录态展开大标题，编辑和运行态保留紧凑工具栏。模型激活状态使用色面表达，卡片操作区采用可换行布局。系统概览使用同一大标题重载，资源卡片通过 FlowRow 与按字体缩放的最小宽度自然换行；聊天和终端保持各自的信息密度。
-   - 首次引导依次为欢迎、免责声明与使用须知、沙箱初始化、可选权限引导、模型接入；使用须知须主动勾选确认后继续，运行时恢复不得跳过该步骤；同一说明可从设置中的「免责声明与使用须知」重看；欢迎与设置插图共用 RuntimeIllustration，使用原创矢量与主题角色色；权限页提供通知、悬浮窗、文件管理、自启动和电池优化入口，所有权限均不阻塞继续，仅用户点击时请求授权。首次引导完成后默认进入智枢聊天；主页面不显示底部导航栏。会话与主功能统一通过对话页的菜单键打开左侧抽屉；抽屉顶部保留品牌与搜索/新建，会话项只显示标题，不放左侧图标；列表保留项目/Bot/最近分区，最近会话按更新时间排序，不再按日期分组，底部固定设置与功能入口；项目、系统概览与设置均进入当前导航栈，使用与其他子页面一致的覆盖转场及返回行为；设置子页面和通知深链也共用该栈，顶栏返回与系统返回均执行出栈。侧栏底部提供设置入口，功能列表不重复显示对话与设置。
+   - 顶部导航统一使用 `RuntimeTopBar`（支持 `title`, `statusText`, `onBack`）。设置首页、外观、智能体、Linux 与诊断子页使用带 `scrollBehavior` 的大标题重载，经 `PersonalizationScaffold` 委托共用 `RuntimeSettingsScaffold` 连接滚动；工坊、环境变量、SSH/FTP、本地模型、Linux 系统管理、存储、关于、赞助支持、应用管理、权限向导及工具配置详情复用同一布局，统一宽屏居中与 IME 避让；状态摘要、工具栏操作与 Snackbar 通过同一布局保留；详情分组使用 `SettingsDetailCard`，端口编辑使用 `SettingsPortEditor` 让输入与操作分行，避免窄屏挤压；设置分组由 `PreferenceSurface` 复用 RuntimeCard，采用 miuix 中性卡片色与 16dp squircle 外圆角，组内行直角拼接成一张卡片；通用 SettingsRow / ToggleRow 的默认密度由 miuix `BasicComponent`、`ArrowPreference`、`SwitchPreference`、`RadioButtonPreference` 和 `SmallTitle` 管理，采用库默认密度与间距，字阶统一取自 `feature/theme` 的 `RuntimeTextStyles`（比 miuix 默认收紧一档，同时注入 `MiuixTheme`），允许系统大字体自然增高；可点击入口使用库的按压反馈。模型档案、插件工具、快捷短语、Agent 参数、MCP 服务与挂载列表也使用该大标题重载；模型编辑保留紧凑顶栏，表单消费 Scaffold Insets 并使用 imePadding，确保键盘弹出后仍可滚动到保存操作；工作流仅在目录态展开大标题，编辑和运行态保留紧凑工具栏。模型激活状态使用色面表达，卡片操作区采用可换行布局。系统概览使用同一大标题重载，资源卡片通过 FlowRow 与按字体缩放的最小宽度自然换行；聊天和终端保持各自的信息密度。
+   - 首次引导依次为欢迎、免责声明与使用须知、沙箱初始化、可选权限引导、模型接入；使用须知须主动勾选确认后继续，运行时恢复不得跳过该步骤；同一说明可从设置中的「免责声明与使用须知」重看；引导与设置页不使用装饰插图，层级只靠字阶、灰度与卡片分组表达；权限页提供通知、悬浮窗、文件管理、自启动和电池优化入口，所有权限均不阻塞继续，仅用户点击时请求授权。首次引导完成后默认进入智枢聊天；主页面不显示底部导航栏。会话与主功能统一通过对话页的菜单键打开左侧抽屉；抽屉顶部保留品牌与搜索/新建，会话项只显示标题，不放左侧图标；列表保留项目/Bot/最近分区，最近会话按更新时间排序，不再按日期分组，底部固定设置与功能入口；项目、系统概览与设置均进入当前导航栈，使用与其他子页面一致的覆盖转场及返回行为；设置子页面和通知深链也共用该栈，顶栏返回与系统返回均执行出栈。侧栏底部提供设置入口，功能列表不重复显示对话与设置。
    - 聊天顶栏采用悬浮圆形菜单与右侧胶囊操作区，会话标题与模型名称在侧栏查看；消息可滚到顶栏下方，纯色背景使用顶部渐变淡出，不为顶栏单独保留整行占位。新建入口位于侧栏搜索栏旁。审批模式在会话输入框工具栏展示与切换，全部放行状态始终可见；工作台控制按需展开。抽屉通过滑动或点击主页面遮罩关闭，不放关闭按钮；仅聊天根页面允许滑动打开抽屉，设置及其他覆盖页面禁用该手势，返回聊天后恢复。抽屉、键盘和系统导航栏均使用实际窗口 Insets，不保留旧底部栏占位。
-   - **窗口三态（WindowSizeClass）**：断点统一读取 `LocalRuntimeWidthClass` / `widthClassOf()`（600dp / 840dp），**严禁**再写死 `maxWidth >= xxx.dp` 之类的散落断点。紧凑态沿用推拉抽屉；中间态左侧常驻 `RuntimeNavigationRail`，侧栏以浮层滑出；展开态侧栏常驻停靠、可收起为 Rail。导航常驻时 `LocalAppNavigation` 为空，顶栏不显示菜单键。
+   - **窗口三态（WindowSizeClass）**：断点统一读取 `LocalRuntimeWidthClass` / `widthClassOf()`（600dp / 840dp），**严禁**再写死 `maxWidth >= xxx.dp` 之类的散落断点。紧凑态沿用推拉抽屉；中间态左侧常驻 `RuntimeNavigationRail`，侧栏以浮层滑出；展开态侧栏常驻停靠、可收起为 Rail。导航常驻时 `LocalAppNavigation` 为空，顶栏不显示菜单键。宽屏 gutter / 缺口细节见 [`UI_GUIDELINES.md`](UI_GUIDELINES.md)。
    - **形态切换不硬切**：跨断点（折叠/展开、分屏改宽）时，页面、侧栏、终端与浏览器面板必须以 `movableContentOf` 迁移而非重建；面板宽度用 `RuntimeAdaptiveMotion` 动画过渡；形态相关的选择状态（侧栏收起、伴随面板显隐与比例、终端/浏览器选择）上提为 `rememberSaveable`。双栏判定以“可用宽度”为准，空间不足时退回滑出面板。
 4. **响应式与小屏防截断/防折行**：
    - 消息气泡（如 `UserBubble`）必须采用响应式宽度（`Modifier.widthIn(max = 560.dp)`），避免在平板/折叠屏/大屏上被限制过窄。
-   - 列表/设置类滚动页的水平内边距使用 `runtimeContentPadding(horizontal = 16.dp, ...)`：宽屏下内容最大 840dp 居中，滚动手势仍覆盖整页；同质卡片列表（如工作区项目）使用 `GridCells.Adaptive` + `fullWidthItem` 自适应列数。
+   - 列表/设置类滚动页的水平内边距使用 `runtimeContentPadding(...)`（默认 12dp 页面边距）：宽屏下内容最大 840dp 居中，滚动手势仍覆盖整页；同质卡片列表（如工作区项目）使用 `GridCells.Adaptive` + `fullWidthItem` 自适应列数。
    - 单行文本、路径或标签（如文件路径、短语标题、状态标签）必须显式声明 `maxLines = 1, overflow = TextOverflow.Ellipsis`，严禁长字符串将同行的操作按钮挤出屏幕。
    - 横向多按钮行（如操作栏、卡片底部动作）必须配置适当紧凑的 `contentPadding` 与 `labelSmall` 单行字号，杜绝 360dp 窄屏宽度下文字断行造成按钮高度参差不齐。
 5. **层级与多层材质防冲突**：
-   - 在 `RuntimeCard` 内嵌的日志区、终端代码块或次级子项中，应使用 `Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest/Highest)`，避免多层嵌套 Card 导致色调与阴影层级混乱。
-6. **M3 Expressive 主题体系（TaiXuTheme 单一装配入口）**：
-   - 主题装配唯一入口为 `feature/theme` 的 `TaiXuTheme`：内部使用 `MaterialExpressiveTheme` + `MotionScheme.expressive()`；**严禁**任何模块自建 `MaterialTheme(...)` 组件树或直接调用 `dynamicLightColorScheme` / `dynamicDarkColorScheme`。读取 token 仍用 `MaterialTheme.colorScheme/typography/shapes` 与 `semanticColors()`。
+   - 在 `RuntimeCard` 内嵌的日志区、终端代码块或次级子项中，应使用 `Surface(color = RuntimeTheme.colorScheme.surfaceContainerLowest/Highest)`，避免多层嵌套 Card 导致色调与阴影层级混乱。
+6. **Miuix 主题体系（TaiXuTheme 单一装配入口）**：
+   - 主题装配唯一入口为 `feature/theme` 的 `TaiXuTheme`，内部使用 `MiuixTheme`。应用语义色通过 `RuntimeTheme.colorScheme` 读取，字阶映射到 miuix `textStyles`，状态语义仍通过 `semanticColors()` 读取。默认深浅色采用 miuix 原生色板，保存的自选种子色与壁纸取色继续映射到同一主题。禁止引入 `androidx.compose.material3`。
    - 动态取色为「系统 Monet 优先 + HCT 兜底」：API 31+ 且系统色板未被 ROM 锁死时直接采用系统 `ColorScheme`；否则（API<31、ROM 锁死预置色、无壁纸种子）经 `rememberWallpaperDynamicColorScheme` 用 material-color-utilities 的 `SchemeTonalSpot`（SPEC_2025）从壁纸种子派生，与系统 Monet 同一算法族。
    - 外观设置的手动色盘与配色风格共用 `AppearancePreferences` 持久化；选中色盘时原子关闭壁纸取色，重新启用时保留手动选择。预设种子与 HCT 风格生成集中于 `feature/theme`，经 `TaiXuTheme` 应用到全局；默认保留玄同色板与系统 Monet 行为。
-   - 排版回归 M3 规范字重：`AppTypography = Typography()` 仅保留字体族/字号微调，**严禁**在主题层对 label/title 等角色全局加粗；局部强调在调用点用 `fontWeight` 覆盖。
+   - 页面间距统一消费 `feature/theme` 的 `RuntimeSpacing`，列表页面采用 12dp 外边距与卡片间距，普通卡片内容内边距为 16dp；原生 Preference 保留库内置行距，带图标的 startAction 使用 24dp 图标及 6dp 尾部留白。
+   - 排版映射 miuix 原生字阶：`AppTypography = Typography()` 以库的 `main` / `body1` / `headline` / `title` / `footnote` 为基础，**严禁**在主题层对 label/title 等角色全局加粗；局部强调在调用点用 `fontWeight` 覆盖。
    - 语义色（success / warning / info / agent / 图表色板）由主题装配时 `buildSemanticColors(colorScheme)` 用 `Blend.harmonize` 向当前主色谐调（保持 tone/chroma，色相旋转 ≤15°），经 `LocalSemanticColors` 下发；页面**严禁**硬编码色值，中性功能色（code/terminal）保持固定不参与谐调。
-   - 圆角使用扩展 `Shapes` token（largeIncreased=20 / extraLargeIncreased=32 / extraExtraLarge=48dp）；**严禁**散落硬编码圆角。
+   - 圆角使用扩展 `Shapes` token；卡片/菜单/输入等容器统一落在 16dp squircle（`medium`/`large`/`extraLarge`），`extraLargeIncreased`=20、`extraExtraLarge`=28 仅用于非卡片造型；**严禁**散落硬编码圆角，且卡片经 `atMostCardRadius` 不得大于 16dp。手搓形状与毛玻璃骨架见 [`UI_GUIDELINES.md`](UI_GUIDELINES.md)。
    - 视觉 token（颜色、排版、形状、语义色、聊天背景偏好）只能在 `feature/theme` 定义，其他模块只消费不定义。
 
 ---

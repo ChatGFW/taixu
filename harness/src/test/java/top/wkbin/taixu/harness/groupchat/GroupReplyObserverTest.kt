@@ -7,12 +7,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.model.ChunkedText
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.harness.AssistantText
@@ -20,9 +22,9 @@ import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolResult
-import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.harness.queue.PromptQueue
 import top.wkbin.taixu.harness.session.PromptSubmission
+import top.wkbin.taixu.harness.session.ProviderActivity
 import top.wkbin.taixu.harness.session.SessionControl
 
 @RunWith(RobolectricTestRunner::class)
@@ -68,7 +70,7 @@ class GroupReplyObserverTest {
             advanceTimeBy(10)
             control.messages.value = listOf(AssistantText("thought", 0, "", reasoning = "thinking $time"))
             control.modelOutputRevisions.value = mapOf("session" to time.toLong())
-            control.providerActivities.value = mapOf("session" to top.wkbin.taixu.harness.session.ProviderActivity("op", 0, 1, lastTransportAt = time * 10L))
+            control.providerActivities.value = mapOf("session" to ProviderActivity("op", 0, 1, lastTransportAt = time * 10L))
             runCurrent()
         }
         assertTrue(updates.any { it.executionWarning })
@@ -101,7 +103,7 @@ class GroupReplyObserverTest {
 
     @Test fun `live group projection forwards chunks without materializing full strings`() = runTest {
         val control = FakeControl()
-        val builder = top.wkbin.taixu.core.model.ChunkedText.Builder()
+        val builder = ChunkedText.Builder()
         val updates = mutableListOf<GroupReplyProgress>()
         val result = async {
             GroupReplyObserver(control, log) { testScheduler.currentTime }
@@ -364,7 +366,7 @@ class GroupReplyObserverTest {
         override val sessionRunStates = MutableStateFlow(mapOf("session" to SessionRunState.RUNNING))
         override val sessionStatuses = MutableStateFlow<Map<String, String>>(emptyMap())
         override val modelOutputRevisions = MutableStateFlow<Map<String, Long>>(emptyMap())
-        override val providerActivities = MutableStateFlow<Map<String, top.wkbin.taixu.harness.session.ProviderActivity>>(emptyMap())
+        override val providerActivities = MutableStateFlow<Map<String, ProviderActivity>>(emptyMap())
         val messages = MutableStateFlow<List<HarnessMessage>>(emptyList())
         val cancelled = mutableListOf<String?>()
         override fun messagesForSession(sessionId: String) = messages
@@ -374,7 +376,8 @@ class GroupReplyObserverTest {
         override suspend fun submit(sessionId: String, text: String, imageUrls: List<String>, queue: PromptQueue): PromptSubmission = error("unused")
         override fun send(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
         override fun steer(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
-        override fun followUp(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
+        override fun followUp(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
+
         override fun appendOnly(text: String, targetSessionId: String?, imageUrls: List<String>) = Unit
         override fun cancel(targetSessionId: String?) { cancelled += targetSessionId }
         override fun resolveApproval(requestId: String, approved: Boolean, rememberForSession: Boolean) = Unit

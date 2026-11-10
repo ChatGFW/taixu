@@ -2,9 +2,9 @@ package top.wkbin.taixu.ui.chat
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+
 import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,66 +12,40 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.minimumInteractiveComponentSize
+import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.material3.Slider
-import androidx.compose.material3.toPath
-import androidx.compose.material3.SliderDefaults
+import top.wkbin.taixu.ui.miuix.Slider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.unit.DpSize
-import androidx.graphics.shapes.Morph
 import kotlinx.coroutines.flow.drop
 import kotlin.math.roundToInt
-import androidx.compose.material3.ExperimentalMaterial3Api
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
-import androidx.compose.material3.SwitchDefaults
-import top.wkbin.taixu.ui.components.RuntimeTab
-import androidx.compose.material3.SecondaryTabRow
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.ModalBottomSheet
+import top.wkbin.taixu.ui.miuix.Surface
+import top.wkbin.taixu.ui.miuix.SwitchDefaults
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
-import androidx.compose.material3.rememberModalBottomSheetState
+import top.wkbin.taixu.ui.miuix.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import top.wkbin.taixu.feature.chat.R
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,14 +55,12 @@ import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.McpServerRow
-import top.wkbin.taixu.ui.theme.semanticColors
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.core.model.McpConnectionState
 import top.wkbin.taixu.core.model.AgentSkill
 import top.wkbin.taixu.core.model.McpServerConfig
 
 /** 底部弹层：能力挂载面板、推理强度滑块、审批模式选择。 */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SkillsAndMcpSheet(
     allSkills: List<AgentSkill>,
@@ -110,7 +82,7 @@ internal fun SkillsAndMcpSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -128,60 +100,37 @@ internal fun SkillsAndMcpSheet(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.chat_capabilities),
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        style = RuntimeTheme.typography.headlineSmall,
+                        color = RuntimeTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = stringResource(R.string.chat_capabilities_description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = MaterialTheme.shapes.large,
+                    color = RuntimeTheme.colorScheme.primaryContainer,
+                    shape = RuntimeTheme.shapes.large,
                 ) {
                     Text(
                         text = stringResource(R.string.chat_capabilities_enabled, activeSkillsCount + activeMcpCount),
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                        color = RuntimeTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                     )
                 }
             }
 
             // 分段标签页
-            SecondaryTabRow(
+            top.yukonga.miuix.kmp.basic.TabRow(
+                tabs = listOf(
+                    stringResource(R.string.chat_skills_count, activeSkillsCount, allSkills.size),
+                    stringResource(R.string.chat_mcp_count, activeMcpCount, mcpServers.size),
+                ),
                 selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                contentColor = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clip(MaterialTheme.shapes.large),
-            ) {
-                RuntimeTab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = {
-                        Text(
-                            stringResource(R.string.chat_skills_count, activeSkillsCount, allSkills.size),
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
-                            ),
-                        )
-                    },
-                )
-                RuntimeTab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = {
-                        Text(
-                            stringResource(R.string.chat_mcp_count, activeMcpCount, mcpServers.size),
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
-                            ),
-                        )
-                    },
-                )
-            }
+                onTabSelected = { selectedTab = it },
+            )
 
             // 列表内容展示
             Box(
@@ -200,8 +149,8 @@ internal fun SkillsAndMcpSheet(
                         ) {
                             Text(
                                 stringResource(R.string.chat_no_skills),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodyMedium,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     } else {
@@ -213,9 +162,9 @@ internal fun SkillsAndMcpSheet(
                                 val skill = allSkills[index]
                                 val isPinned = skill.id in pinnedMentionIds || skill.name.lowercase() in pinnedMentionIds
                                 RuntimeCard(
-                                    containerColor = if (skill.isEnabled) MaterialTheme.colorScheme.surfaceContainerHigh
-                                    else MaterialTheme.colorScheme.surfaceContainer,
-                                    shape = MaterialTheme.shapes.large, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+                                    containerColor = if (skill.isEnabled) RuntimeTheme.colorScheme.surfaceContainerHigh
+                                    else RuntimeTheme.colorScheme.surfaceContainer,
+                                    shape = RuntimeTheme.shapes.large, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Column(
@@ -229,21 +178,21 @@ internal fun SkillsAndMcpSheet(
                                             ) {
                                                 Text(
                                                     text = skill.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                                    style = MaterialTheme.typography.titleMedium.copy(
-                                                        fontWeight = FontWeight.SemiBold,
+                                                    style = RuntimeTheme.typography.titleMedium.copy(
+                                                        fontWeight = FontWeight.Medium,
                                                     ),
-                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    color = RuntimeTheme.colorScheme.onSurface,
                                                 )
                                                 Surface(
-                                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                                    shape = MaterialTheme.shapes.small,
+                                                    color = RuntimeTheme.colorScheme.secondaryContainer,
+                                                    shape = RuntimeTheme.shapes.small,
                                                 ) {
                                                     Text(
                                                         text = skill.category,
-                                                        style = MaterialTheme.typography.labelMedium.copy(
-                                                            fontWeight = FontWeight.Bold,
+                                                        style = RuntimeTheme.typography.labelMedium.copy(
+                                                            fontWeight = FontWeight.Medium,
                                                         ),
-                                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                        color = RuntimeTheme.colorScheme.onSecondaryContainer,
                                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                                     )
                                                 }
@@ -251,8 +200,8 @@ internal fun SkillsAndMcpSheet(
                                             if (skill.description.isNotBlank()) {
                                                 Text(
                                                     text = skill.description,
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    style = RuntimeTheme.typography.bodyMedium,
+                                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                                     maxLines = 2,
                                                     overflow = TextOverflow.Ellipsis,
                                                     modifier = Modifier.padding(top = 2.dp),
@@ -266,18 +215,18 @@ internal fun SkillsAndMcpSheet(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                                         ) {
                                             Surface(
-                                                shape = MaterialTheme.shapes.medium,
-                                                color = if (isPinned) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                                shape = RuntimeTheme.shapes.medium,
+                                                color = if (isPinned) RuntimeTheme.colorScheme.primaryContainer else RuntimeTheme.colorScheme.surfaceContainerHighest,
                                                 modifier = Modifier
                                                     .minimumInteractiveComponentSize()
                                                     .clickable { onTogglePin(skill.id) },
                                             ) {
                                                 Text(
                                                     if (isPinned) stringResource(R.string.chat_pinned_on) else stringResource(R.string.chat_pinned_off),
-                                                    style = MaterialTheme.typography.labelMedium.copy(
-                                                        fontWeight = if (isPinned) FontWeight.Bold else FontWeight.Normal,
+                                                    style = RuntimeTheme.typography.labelMedium.copy(
+                                                        fontWeight = if (isPinned) FontWeight.Medium else FontWeight.Normal,
                                                     ),
-                                                    color = if (isPinned) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    color = if (isPinned) RuntimeTheme.colorScheme.onPrimaryContainer else RuntimeTheme.colorScheme.onSurfaceVariant,
                                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                                 )
                                             }
@@ -286,8 +235,8 @@ internal fun SkillsAndMcpSheet(
                                                 checked = skill.isEnabled,
                                                 onCheckedChange = { onToggleSkill(skill.id, it) },
                                                 colors = SwitchDefaults.colors(
-                                                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                                                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                                    checkedThumbColor = RuntimeTheme.colorScheme.onPrimary,
+                                                    checkedTrackColor = RuntimeTheme.colorScheme.primary,
                                                 ),
                                             )
                                         }
@@ -307,8 +256,8 @@ internal fun SkillsAndMcpSheet(
                         ) {
                             Text(
                                 stringResource(R.string.chat_no_mcp),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodyMedium,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             )
                         }
@@ -331,18 +280,18 @@ internal fun SkillsAndMcpSheet(
                                     toolCount = mcpToolCounts[server.id],
                                     bottomActions = {
                                         Surface(
-                                            shape = MaterialTheme.shapes.medium,
-                                            color = if (isPinned) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                            shape = RuntimeTheme.shapes.medium,
+                                            color = if (isPinned) RuntimeTheme.colorScheme.tertiaryContainer else RuntimeTheme.colorScheme.surfaceContainerHighest,
                                             modifier = Modifier
                                                 .minimumInteractiveComponentSize()
                                                 .clickable { onTogglePin(server.id) },
                                         ) {
                                             Text(
                                                 if (isPinned) stringResource(R.string.chat_pinned_on) else stringResource(R.string.chat_pinned_off),
-                                                style = MaterialTheme.typography.labelMedium.copy(
-                                                    fontWeight = if (isPinned) FontWeight.Bold else FontWeight.Normal,
+                                                style = RuntimeTheme.typography.labelMedium.copy(
+                                                    fontWeight = if (isPinned) FontWeight.Medium else FontWeight.Normal,
                                                 ),
-                                                color = if (isPinned) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                color = if (isPinned) RuntimeTheme.colorScheme.onTertiaryContainer else RuntimeTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                                             )
                                         }
@@ -351,8 +300,8 @@ internal fun SkillsAndMcpSheet(
                                             checked = server.isEnabled,
                                             onCheckedChange = { onToggleMcpServer(server.id, it) },
                                             colors = SwitchDefaults.colors(
-                                                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                                checkedThumbColor = RuntimeTheme.colorScheme.onPrimary,
+                                                checkedTrackColor = RuntimeTheme.colorScheme.primary,
                                             ),
                                         )
                                     },
@@ -365,8 +314,8 @@ internal fun SkillsAndMcpSheet(
 
             // 底部操作区：直达管理
             Surface(
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                shape = MaterialTheme.shapes.large,
+                color = RuntimeTheme.colorScheme.surfaceContainerHigh,
+                shape = RuntimeTheme.shapes.large,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(onClick = onNavigateToSettings),
@@ -383,18 +332,18 @@ internal fun SkillsAndMcpSheet(
                         RuntimeIcon(
                             name = RuntimeIconName.Settings,
                             modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = stringResource(R.string.chat_manage_capabilities),
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.primary,
+                            style = RuntimeTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                            color = RuntimeTheme.colorScheme.primary,
                         )
                     }
                     RuntimeIcon(
                         name = RuntimeIconName.ChevronRight,
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = RuntimeTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -406,7 +355,7 @@ internal fun SkillsAndMcpSheet(
  * ⚡ 思考/推理强度悬浮调节面板（ChatGPT 同款平滑胶囊滑块）
  */
 @Composable
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 internal fun ReasoningEffortSlider(
     currentMode: String?,
     currentEffort: String?,
@@ -431,17 +380,11 @@ internal fun ReasoningEffortSlider(
     }
 
     val haptics = LocalHapticFeedback.current
-    val sliderState = remember {
-        androidx.compose.material3.SliderState(
-            value = currentIndex.toFloat(),
-            trackRange = 0f..(levels.size - 1).toFloat(),
-            steps = levels.size - 2,
-        )
-    }
+    var sliderValue by remember { mutableFloatStateOf(currentIndex.toFloat()) }
     // 拖动过程中跟随滑块预览档位（英雄图/文案即时变化），松手后才提交
-    LaunchedEffect(currentIndex) { sliderState.value = currentIndex.toFloat() }
-    LaunchedEffect(sliderState) {
-        snapshotFlow { sliderState.value.roundToInt() }
+    LaunchedEffect(currentIndex) { sliderValue = currentIndex.toFloat() }
+    LaunchedEffect(Unit) {
+        snapshotFlow { sliderValue.roundToInt() }
             .drop(1)
             .collect { haptics.performHapticFeedback(HapticFeedbackType.SegmentTick) }
     }
@@ -462,18 +405,18 @@ internal fun ReasoningEffortSlider(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = "思考强度",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelLarge,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = activeLevel.first,
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = RuntimeTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Medium),
+                    color = RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = activeLevel.second,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             ReasoningHero(index = selectedIndex)
@@ -481,45 +424,34 @@ internal fun ReasoningEffortSlider(
                 onClick = onClose,
                 contentDescription = stringResource(R.string.chat_close),
             ) {
-                RuntimeIcon(RuntimeIconName.Close, Modifier.size(16.dp), MaterialTheme.colorScheme.outline)
+                RuntimeIcon(RuntimeIconName.Close, Modifier.size(16.dp), RuntimeTheme.colorScheme.outline)
             }
         }
 
         // 步进滑杆：粗短轨道 + 竖条拇指
         Slider(
-            state = sliderState,
+            value = sliderValue,
+            valueRange = 0f..(levels.size - 1).toFloat(),
+            steps = levels.size - 2,
             onValueChange = {
-                sliderState.value = it
+                sliderValue = it
                 selectedIndex = it.roundToInt().coerceIn(0, levels.size - 1)
             },
             onValueChangeFinished = {
-                val snapped = sliderState.value.roundToInt().coerceIn(0, levels.size - 1)
-                sliderState.value = snapped.toFloat()
+                val snapped = sliderValue.roundToInt().coerceIn(0, levels.size - 1)
+                sliderValue = snapped.toFloat()
                 selectedIndex = snapped
                 val (mode, effort) = levels[snapped].third
                 onSelect(mode, effort)
             },
             modifier = Modifier.fillMaxWidth(),
-            thumb = {
-                SliderDefaults.Thumb(
-                    interactionSource = remember { MutableInteractionSource() },
-                    isVertical = false,
-                    thumbSize = DpSize(4.dp, 52.dp),
-                )
-            },
-            track = { state ->
-                SliderDefaults.Track(
-                    sliderState = state,
-                    trackCornerSize = 12.dp,
-                    modifier = Modifier.height(40.dp),
-                )
-            },
+
         )
 
         // 💡 说明提示：必须模型支持才生效
         Surface(
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            shape = RoundedCornerShape(12.dp),
+            color = RuntimeTheme.colorScheme.surfaceContainer,
+            shape = RuntimeTheme.shapes.small,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
@@ -530,92 +462,32 @@ internal fun ReasoningEffortSlider(
                 RuntimeIcon(
                     name = RuntimeIconName.Info,
                     modifier = Modifier.size(15.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = stringResource(R.string.chat_reasoning_model_support_notice),
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
     }
 }
 
-/** 档位 → MaterialShapes 形状：档位越高形状越「激烈」，Morph 连续过渡。 */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
-private fun reasoningLevelShape(index: Int): androidx.graphics.shapes.RoundedPolygon = when (index) {
-    0 -> androidx.compose.material3.MaterialShapes.Circle
-    1 -> androidx.compose.material3.MaterialShapes.Cookie4Sided
-    2 -> androidx.compose.material3.MaterialShapes.Cookie6Sided
-    3 -> androidx.compose.material3.MaterialShapes.Cookie9Sided
-    else -> androidx.compose.material3.MaterialShapes.SoftBurst
-}
-
-@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ReasoningHero(index: Int, modifier: Modifier = Modifier) {
-    val shapes = remember { (0..4).map { reasoningLevelShape(it) } }
-    val morphs = remember(shapes) { shapes.zipWithNext { from, to -> Morph(from, to) } }
-    val position by animateFloatAsState(
-        targetValue = index.toFloat(),
-        animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
-    )
     val containerColor by animateColorAsState(
-        targetValue = when {
-            index == 0 -> MaterialTheme.colorScheme.surfaceContainerHighest
-            index <= 2 -> MaterialTheme.colorScheme.primaryContainer
-            else -> MaterialTheme.colorScheme.primary
-        },
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        targetValue = if (index == 0) RuntimeTheme.colorScheme.surfaceContainerHighest else RuntimeTheme.colorScheme.primaryContainer,
+        animationSpec = RuntimeTheme.motionScheme.defaultEffectsSpec(),
     )
-    val contentColor by animateColorAsState(
-        targetValue = when {
-            index == 0 -> MaterialTheme.colorScheme.onSurfaceVariant
-            index <= 2 -> MaterialTheme.colorScheme.onPrimaryContainer
-            else -> MaterialTheme.colorScheme.onPrimary
-        },
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-    )
-
-    Box(
-        modifier = modifier
-            .size(72.dp)
-            .drawBehind {
-                // 弹簧会过冲，position 可能略微越界
-                val segment = position.toInt().coerceIn(0, morphs.lastIndex)
-                val morphPath = Path()
-                morphs[segment].toPath(
-                    progress = (position - segment).coerceIn(0f, 1f),
-                    path = morphPath,
-                )
-                withTransform({
-                    rotate(position * 30f)
-                    // MaterialShapes 归一化到 1x1，按实际尺寸放大
-                    scale(size.width, size.height, pivot = Offset.Zero)
-                }) {
-                    drawPath(morphPath, containerColor)
-                }
-            },
-        contentAlignment = Alignment.Center,
+    top.yukonga.miuix.kmp.basic.Surface(
+        modifier = modifier.size(72.dp),
+        shape = RuntimeTheme.shapes.extraExtraLarge,
+        color = containerColor,
+        contentColor = RuntimeTheme.colorScheme.onPrimaryContainer,
     ) {
-        val iconEffectsSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-        val iconSpatialSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
-        AnimatedContent(
-            targetState = index == 0,
-            transitionSpec = {
-                (fadeIn(animationSpec = iconEffectsSpec) +
-                    scaleIn(animationSpec = iconSpatialSpec, initialScale = 0.6f)) togetherWith
-                    (fadeOut(animationSpec = iconEffectsSpec) +
-                        scaleOut(animationSpec = iconSpatialSpec, targetScale = 0.6f))
-            },
-            label = "reasoning-hero-icon",
-        ) { disabled ->
-            RuntimeIcon(
-                name = if (disabled) RuntimeIconName.Brain else RuntimeIconName.Sparkles,
-                modifier = Modifier.size(28.dp),
-                tint = contentColor,
-            )
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            RuntimeIcon(if (index == 0) RuntimeIconName.Brain else RuntimeIconName.Sparkles, Modifier.size(28.dp))
         }
     }
 }
@@ -623,7 +495,6 @@ private fun ReasoningHero(index: Int, modifier: Modifier = Modifier) {
 /**
  * 审批模式选择底部弹层（完全访问 / 询问 / 每次审批）。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ApprovalModeSheet(
     currentApprovalMode: ApprovalMode,
@@ -633,7 +504,7 @@ internal fun ApprovalModeSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -649,8 +520,8 @@ internal fun ApprovalModeSheet(
             ) {
                 Text(
                     text = stringResource(R.string.chat_menu_approval_mode),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = RuntimeTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
                 )
                 IconButton(
                     onClick = onDismiss,
@@ -662,8 +533,8 @@ internal fun ApprovalModeSheet(
 
             Text(
                 text = stringResource(R.string.chat_approval_mode_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
 
             listOf(
@@ -674,12 +545,12 @@ internal fun ApprovalModeSheet(
                 val isSelected = mode == currentApprovalMode
                 Surface(
                     onClick = { onSelect(mode) },
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = RuntimeTheme.shapes.medium,
+                    color = if (isSelected) RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                    else RuntimeTheme.colorScheme.surfaceContainerHigh,
                     border = BorderStroke(
                         1.dp,
-                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                        if (isSelected) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -691,18 +562,18 @@ internal fun ApprovalModeSheet(
                         RuntimeIcon(
                             name = if (isSelected) RuntimeIconName.Check else RuntimeIconName.Shield,
                             modifier = Modifier.size(22.dp),
-                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (isSelected) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
                                 text = title,
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = if (isSelected) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurface,
                             )
                             Text(
                                 text = desc,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -717,7 +588,6 @@ internal fun ApprovalModeSheet(
  *
  * 与审批权限模式正交：本层决定「这一轮动手还是只看」，审批模式决定「要不要问」。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun RunModeSheet(
     currentRunMode: RunMode,
@@ -727,7 +597,7 @@ internal fun RunModeSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
             modifier = Modifier
@@ -743,8 +613,8 @@ internal fun RunModeSheet(
             ) {
                 Text(
                     text = stringResource(R.string.chat_menu_run_mode),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = RuntimeTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
                 )
                 IconButton(
                     onClick = onDismiss,
@@ -756,8 +626,8 @@ internal fun RunModeSheet(
 
             Text(
                 text = stringResource(R.string.chat_run_mode_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
 
             listOf(
@@ -767,12 +637,12 @@ internal fun RunModeSheet(
                 val isSelected = mode == currentRunMode
                 Surface(
                     onClick = { onSelect(mode) },
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = RuntimeTheme.shapes.medium,
+                    color = if (isSelected) RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                    else RuntimeTheme.colorScheme.surfaceContainerHigh,
                     border = BorderStroke(
                         1.dp,
-                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                        if (isSelected) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -784,18 +654,18 @@ internal fun RunModeSheet(
                         RuntimeIcon(
                             name = if (isSelected) RuntimeIconName.Check else runModeIcon(mode),
                             modifier = Modifier.size(22.dp),
-                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (isSelected) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
                                 text = title,
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                color = if (isSelected) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurface,
                             )
                             Text(
                                 text = desc,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.bodySmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }

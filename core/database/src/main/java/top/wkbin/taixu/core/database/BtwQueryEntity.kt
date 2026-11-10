@@ -9,6 +9,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import top.wkbin.taixu.core.database.repository.BtwQueryRepository
 import top.wkbin.taixu.core.model.BtwQuery
 import top.wkbin.taixu.core.model.BtwStatus
 
@@ -74,7 +75,7 @@ interface BtwQueryDao {
     suspend fun put(row: BtwQueryEntity)
 }
 
-class RoomBtwQueryRepository(private val dao: BtwQueryDao) : top.wkbin.taixu.core.database.repository.BtwQueryRepository {
+class RoomBtwQueryRepository(private val dao: BtwQueryDao) : BtwQueryRepository {
     override fun observeForSession(sessionId: String, limit: Int): Flow<List<BtwQuery>> =
         dao.observeForSession(sessionId, limit).map { rows -> rows.map { it.toModel() } }
 

@@ -2,11 +2,11 @@ package top.wkbin.taixu.di.tools
 
 import android.content.Context
 import java.io.File
+import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.dsl.onClose
-import top.wkbin.taixu.core.tools.ProviderManager
-import top.wkbin.taixu.core.tools.AgentModelConnectionTester
 import top.wkbin.taixu.core.tools.AgentConnectionThreeWayProbe
+import top.wkbin.taixu.core.tools.AgentModelConnectionTester
 import top.wkbin.taixu.core.tools.AgentModelDiscovery
 import top.wkbin.taixu.core.tools.AgentProviderCatalog
 import top.wkbin.taixu.core.tools.AiProfileBackupCodec
@@ -17,26 +17,27 @@ import top.wkbin.taixu.core.tools.FlutterSdkDownloader
 import top.wkbin.taixu.core.tools.InstallLogRepository
 import top.wkbin.taixu.core.tools.InstallTaskRepository
 import top.wkbin.taixu.core.tools.InstallTransactionManager
+import top.wkbin.taixu.core.tools.InstalledPluginCatalog
 import top.wkbin.taixu.core.tools.LocalPluginPayloadManager
 import top.wkbin.taixu.core.tools.McpCatalogUpdater
+import top.wkbin.taixu.core.tools.ModelCredentialStore
+import top.wkbin.taixu.core.tools.PackagePluginInventory
+import top.wkbin.taixu.core.tools.PersistentToolServices
+import top.wkbin.taixu.core.tools.PluginReceiptStore
+import top.wkbin.taixu.core.tools.ProviderManager
 import top.wkbin.taixu.core.tools.ProviderRepository
+import top.wkbin.taixu.core.tools.RemotePluginLibrary
 import top.wkbin.taixu.core.tools.RuntimeManagerImpl
 import top.wkbin.taixu.core.tools.RuntimeRepository
+import top.wkbin.taixu.core.tools.ServiceNotificationSink
 import top.wkbin.taixu.core.tools.ToolManager
 import top.wkbin.taixu.core.tools.ToolManagerToolchainInstalls
-import top.wkbin.taixu.runtime.doctor.ToolchainInstalls
 import top.wkbin.taixu.core.tools.ToolNotificationNotifier
+import top.wkbin.taixu.core.tools.ToolPackageOperations
 import top.wkbin.taixu.core.tools.ToolRegistry
 import top.wkbin.taixu.core.tools.ToolRepository
 import top.wkbin.taixu.core.tools.ToolServiceController
-import top.wkbin.taixu.core.tools.ServiceNotificationSink
-import top.wkbin.taixu.runtime.tools.AuthUrlDetector
-import top.wkbin.taixu.runtime.tools.CodexToolInstaller
-import top.wkbin.taixu.runtime.tools.HelloToolInstaller
-import top.wkbin.taixu.runtime.tools.RemoteScriptRunner
-import top.wkbin.taixu.runtime.tools.RuntimeBinaryInstaller
-import top.wkbin.taixu.runtime.tools.ToolCommandLinker
-import top.wkbin.taixu.core.tools.ModelCredentialStore
+import top.wkbin.taixu.core.tools.WebPluginRepository
 import top.wkbin.taixu.core.tools.backup.BackupLocations
 import top.wkbin.taixu.core.tools.backup.LocalBackupService
 import top.wkbin.taixu.core.tools.skill.ClawHubClient
@@ -45,15 +46,22 @@ import top.wkbin.taixu.core.tools.skill.SkillInstallationManager
 import top.wkbin.taixu.core.tools.skill.SkillPackageInspector
 import top.wkbin.taixu.core.tools.skill.SkillPackageParser
 import top.wkbin.taixu.runtime.RuntimePathManager
-import org.koin.core.qualifier.named
+import top.wkbin.taixu.runtime.doctor.ToolchainInstalls
+import top.wkbin.taixu.runtime.environment.LocalBackendAccess
+import top.wkbin.taixu.runtime.tools.AuthUrlDetector
+import top.wkbin.taixu.runtime.tools.CodexToolInstaller
+import top.wkbin.taixu.runtime.tools.HelloToolInstaller
+import top.wkbin.taixu.runtime.tools.RemoteScriptRunner
+import top.wkbin.taixu.runtime.tools.RuntimeBinaryInstaller
+import top.wkbin.taixu.runtime.tools.ToolCommandLinker
 
 /** Dependency registrations owned by the tools module. */
 val toolsModule = module {
-    single { top.wkbin.taixu.core.tools.RemotePluginLibrary(get(), get()) }
-    single { val local = get<top.wkbin.taixu.runtime.environment.LocalBackendAccess>()
-        top.wkbin.taixu.core.tools.InstalledPluginCatalog(get(), get(), get(), local::requireLocal) }
+    single { RemotePluginLibrary(get(), get()) }
+    single { val local = get<LocalBackendAccess>()
+        InstalledPluginCatalog(get(), get(), get(), local::requireLocal) }
         .onClose { it?.close() }
-    single { top.wkbin.taixu.core.tools.WebPluginRepository(registry = get()) }
+    single { WebPluginRepository(registry = get()) }
     single<BackupLocations> {
         val context = get<Context>()
         val paths = get<RuntimePathManager>()
@@ -99,9 +107,9 @@ val toolsModule = module {
     single<InstallTaskRepository> { InstallTaskRepository(dao = get()) }
 
     single<InstallTransactionManager> { InstallTransactionManager(pathManager = get(), logger = get()) }
-    single { top.wkbin.taixu.core.tools.PluginReceiptStore(context = get()) }
-    single { top.wkbin.taixu.core.tools.PackagePluginInventory(repository = get(), runtime = get()) }
-    single { top.wkbin.taixu.core.tools.ToolPackageOperations(repository = get(), receipts = get(), hostGrants = get()) }
+    single { PluginReceiptStore(context = get()) }
+    single { PackagePluginInventory(repository = get(), runtime = get()) }
+    single { ToolPackageOperations(repository = get(), receipts = get(), hostGrants = get()) }
 
     single<LocalPluginPayloadManager> { LocalPluginPayloadManager(registry = get(), pathManager = get()) }
 
@@ -159,7 +167,7 @@ val toolsModule = module {
     single<ToolRepository> { ToolRepository(toolDao = get(), toolRegistry = get()) }
 
     single<ToolServiceController> { ToolServiceController(linuxRuntime = get(), notifier = get()) }
-    single { top.wkbin.taixu.core.tools.PersistentToolServices(get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { PersistentToolServices(get(), get(), get(), get(), get(), get(), get(), get()) }
 
     /** MCP 能力仓库的「检查更新 / 一键升级」执行器：只依赖 Linux 运行时，联网都在装配脚本里。 */
     single<McpCatalogUpdater> { McpCatalogUpdater(linuxRuntime = get()) }

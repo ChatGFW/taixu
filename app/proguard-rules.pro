@@ -44,7 +44,9 @@
 # 反序列化时 Class.forName 按原名找不到 → BadParcelableException(ClassNotFoundException)，
 # 接收端崩溃、虚拟屏永远起不来。接口的 AIDL DESCRIPTOR 同样依赖全限定名。
 -keep class com.ai.assistance.shower.** { *; }
--keep class com.ai.assistance.showerclient.ShowerBinderReceiver { *; }
+# Manifest 声明的是 runtime 包下的 Receiver（不是 showerclient 示例类名）；
+# AGP 通常会 keep 组件，这里显式保活，避免 release 下系统按原名实例化失败。
+-keep class top.wkbin.taixu.runtime.virtualdisplay.ShowerBinderReceiver { *; }
 
 # === JGit（feature:git 分支管理，release 必保） ===
 # JGit 内部按类名反射加载签名/传输实现，且引用了 Android 不存在的 OSGi/javax 可选类。

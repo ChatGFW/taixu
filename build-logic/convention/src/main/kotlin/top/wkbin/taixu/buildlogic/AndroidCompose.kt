@@ -7,6 +7,13 @@ import org.gradle.kotlin.dsl.dependencies
 internal fun Project.configureAndroidCompose(
     commonExtension: CommonExtension,
 ) {
+    // Miuix 0.9.3 publishes an unused window-size dependency, and preview tooling
+    // also brings in Material 3. Exclude these unused transitive artifacts.
+    configurations.configureEach {
+        exclude(mapOf("group" to "androidx.compose.material3"))
+        exclude(mapOf("group" to "org.jetbrains.compose.material3"))
+    }
+
     commonExtension.apply {
         buildFeatures.apply {
             compose = true

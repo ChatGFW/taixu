@@ -4,14 +4,15 @@ import java.util.Locale
 import kotlinx.coroutines.flow.collect
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import top.wkbin.taixu.core.network.FileDownloader
+import top.wkbin.taixu.harness.core.ToolBackend
+import top.wkbin.taixu.harness.environment.LocalExecutionDownloads
+import top.wkbin.taixu.harness.environment.SessionExecutionEnvironments
 import top.wkbin.taixu.runtime.environment.ExecutionDownloadEvent
 import top.wkbin.taixu.runtime.environment.ExecutionDownloadRequest
 import top.wkbin.taixu.runtime.environment.ExecutionDownloads
 import top.wkbin.taixu.runtime.environment.FileFingerprint
 import top.wkbin.taixu.runtime.environment.MAX_FILE_FINGERPRINT_BYTES
-import top.wkbin.taixu.harness.environment.LocalExecutionDownloads
-import top.wkbin.taixu.core.network.FileDownloader
-import top.wkbin.taixu.harness.core.ToolBackend
 
 data class DownloadToolRequest(
     val args: JsonObject,
@@ -32,7 +33,7 @@ class DownloadToolBackend(
     private val fileDownloader: FileDownloader,
     private val fileAccess: WorkspaceFileAccess,
     private val mutationSnapshots: WorkspaceMutationSnapshots,
-    private val environments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
+    private val environments: SessionExecutionEnvironments? = null,
 ) : ToolBackend<DownloadToolRequest, Pair<Boolean, String>> {
 
     override suspend fun execute(request: DownloadToolRequest): Pair<Boolean, String> {

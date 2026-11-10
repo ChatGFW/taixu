@@ -1,23 +1,24 @@
 package top.wkbin.taixu.ui.settings
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.FilterChip
+import top.wkbin.taixu.ui.miuix.FilterChipDefaults
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -38,6 +39,7 @@ import top.wkbin.taixu.ui.settings.LocalizedText as Text
 /**
  * CEL-lite 主机动作策略编辑：deny→allow，失败封闭；保存即时生效并写入 DataStore。
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
     val context = LocalContext.current
@@ -56,35 +58,36 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
     ) {
         Text(
             "主机动作策略（CEL-lite）",
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.primary,
+            style = RuntimeTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+            color = RuntimeTheme.colorScheme.primary,
         )
         Text(
             "Bot 浏览器工具在人机接管之后再评估 deny→allow；云元数据始终硬拒。保存后立即生效，无需重启。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
     }
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
                 "字段：tool.name / page.url / page.host / initiator.kind / intent；" +
                     "运算：== != && || ! contains matches。示例 deny：contains(page.host, 'evil')",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 "常用预设（填入草稿，仍需点保存）",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.labelMedium,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 HostActionPolicyPresets.ALL.forEach { preset ->
                     FilterChip(
@@ -104,19 +107,19 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
                     draft = it
                     error = null
                 },
-                label = { Text("策略 JSON") },
-                minLines = 6,
-                maxLines = 14,
-                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                labelText = resolveLegacyString("策略 JSON"),
+                minLines = 3,
+                maxLines = 10,
+                textStyle = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 isError = error != null,
                 supportingText = {
                     Text(
                         error ?: "出厂默认 deny:[] + allow:[\"true\"]；allow 不得为空",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = RuntimeTheme.typography.bodySmall,
                         color = if (error != null) {
-                            MaterialTheme.colorScheme.error
+                            RuntimeTheme.colorScheme.error
                         } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                            RuntimeTheme.colorScheme.onSurfaceVariant
                         },
                     )
                 },
@@ -125,7 +128,6 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
             ) {
                 OutlinedButton(
                     onClick = {
@@ -138,6 +140,7 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
                         }
                     },
                     enabled = !saving,
+                    modifier = Modifier.weight(1f),
                 ) { Text("校验") }
                 OutlinedButton(
                     onClick = {
@@ -146,8 +149,8 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
                         Toast.makeText(context, "已恢复出厂默认", Toast.LENGTH_SHORT).show()
                     },
                     enabled = viewModel != null && !saving,
-                ) { Text("恢复默认") }
-                Spacer(Modifier.weight(1f))
+                    modifier = Modifier.weight(1f),
+                ) { Text("默认") }
                 Button(
                     onClick = {
                         val vm = viewModel ?: return@Button
@@ -164,7 +167,8 @@ internal fun HostActionPolicyCard(viewModel: SettingsViewModel?) {
                         }
                     },
                     enabled = viewModel != null && !saving,
-                ) { Text(if (saving) "保存中…" else "保存") }
+                    modifier = Modifier.weight(1f),
+                ) { Text(if (saving) "…" else "保存") }
             }
         }
     }

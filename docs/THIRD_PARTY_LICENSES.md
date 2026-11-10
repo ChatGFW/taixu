@@ -4,7 +4,9 @@
 
 | 组件 | 用途 | 来源/版本 | 许可证与分发备注 |
 |---|---|---|---|
-| Material Symbols Rounded | 全局单色功能图标，300 字重 / 24px 光学尺寸，SVG 转 Android VectorDrawable | [Google 官方仓库](https://github.com/google/material-design-icons)，固定修订 `49d4db35df873165d6bd6ba09b063c7dafbac2f4`；映射与转换见 `tools/sync-material-symbols.py` | Apache-2.0；许可证随 APK 置于 `feature/components/src/main/assets/licenses/material-symbols-LICENSE`，每个矢量资源保留来源与转换说明 |
+| Material Symbols Rounded | 保留的矢量资源与品牌图标回退，SVG 转 Android VectorDrawable | [Google 官方仓库](https://github.com/google/material-design-icons)，固定修订 `49d4db35df873165d6bd6ba09b063c7dafbac2f4`；映射与转换见 `tools/sync-material-symbols.py` | Apache-2.0；许可证随 APK 置于 `feature/components/src/main/assets/licenses/material-symbols-LICENSE`，每个矢量资源保留来源与转换说明 |
+| Miuix | 应用主题、基础控件、Preference、导航和功能图标 | [上游仓库](https://github.com/compose-miuix-ui/miuix)，`0.9.3` | Apache-2.0，完整许可证随 APK 置于 `assets/licenses/miuix-LICENSE` |
+| AndroidX A2UI 目录适配源码 | 保留官方组件状态投影、无障碍、动作转发和 SVG 解析，将展示实现适配到 Miuix | Google Maven `material3-a2ui:1.0.0-alpha02` source JAR，源码位于 `feature/a2uipoc/.../miuix` | Copyright 2026 The Android Open Source Project，Apache-2.0。保留各文件版权头，并标明适配修改，完整许可证随 APK 置于 `assets/licenses/a2ui-LICENSE` |
 | Debian / Ubuntu ARM64 rootfs | Android Linux 用户态系统 | Kotlin 安装流程对齐 `proot-distro 5.10.0` OCI 机制从 Docker/OCI Registry 拉取 | 各发行版及其中的软件包分别遵循各自许可证；不内置 APK，发布前需要提供对应版权与许可证获取地址 |
 | Termux PRoot | Android ARM64 PRoot 启动器 | Termux 主仓库二进制包，版本和 SHA-256 见 `ProotInstaller` | 必须随对应二进制包核对许可证、NOTICE 和源码获取地址；APK 仅携带当前 ARM64 构建 |
 | `libandroid-shmem.so` / `libtalloc.so` | PRoot 动态库依赖 | 与 PRoot 构建匹配的 Termux 包 | 不能只因为文件是 `.so` 就假定可自由再分发；发布前核对上游包的许可证文本 |
@@ -14,7 +16,7 @@
 | lzhiyong Android SDK Tools | ARM64 `aapt`、`aapt2`、`aidl`、`zipalign` | `35.0.2` 静态 AArch64 归档，URL 与 SHA-256 固定在 `setup_android_core.sh` | 在线下载、不内置 APK；发布前核对上游 Apache/AOSP LICENSE、NOTICE 与再分发要求 |
 | lzhiyong/termux-ndk | 沙箱内 Android/Flutter 项目的 Linux AArch64 NDK 主机工具链 | r29 / NDK `29.0.14206865`，`android-ndk-r29-aarch64.tar.xz`，SHA-256 固定在 `setup_termux_ndk.sh` | 在线下载、不内置 APK；上游基于 AOSP LLVM/NDK，发布前随固定版本核对 LICENSE、NOTICE、源码与修改说明 |
 | OkHttp | HTTPS 下载与 Registry 请求 | Maven Central，`4.12.0` | Apache License 2.0；发布包应包含 Apache 版权与 NOTICE 要求的文本 |
-| AndroidX / Jetpack Compose Material 3 | Android UI 与系统集成 | Google Maven，版本见 `gradle/libs.versions.toml` | 按各 AndroidX/Jetpack 组件的许可证与 NOTICE 要求分发 |
+| AndroidX / Jetpack Compose Foundation | Android UI 与系统集成 | Google Maven，版本见 `gradle/libs.versions.toml` | 按各 AndroidX/Jetpack 组件的许可证与 NOTICE 要求分发 |
 | Ktor Client | HTTP 客户端（Agent 流式）与下载 | Maven Central，版本见 `gradle/libs.versions.toml` | Apache License 2.0 |
 | Kotlin / Kotlinx Serialization / Coroutines | 应用基础运行库 | Maven Central，版本见 `gradle/libs.versions.toml` | 按各组件上游许可证与 NOTICE 要求分发 |
 | Koin | 依赖注入 | Maven Central，版本见 `gradle/libs.versions.toml` | Apache-2.0 |

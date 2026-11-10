@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotRuntimeMode
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.GroupRoundSlot
 
@@ -96,5 +97,15 @@ class GroupRoundPromptsTest {
         val slots = mutableListOf(GroupRoundSlot("admin", "主管"))
         appendRoundMentions(slots, 0, "命令是：\n```\ngit @甲\n```\n按这个跑", members, emptyMap(), group)
         assertEquals(1, slots.size)
+    }
+
+    @Test fun `external mention is returned and not inserted into phone slots`() {
+        val local = member("admin", "主管")
+        val external = member("pc", "外援").copy(runtimeMode = BotRuntimeMode.EXTERNAL)
+        val group = GroupChat(id = "group", name = "Team", adminBotId = "admin", createdAt = 1)
+        val slots = mutableListOf(GroupRoundSlot("admin", "主管"))
+        val staged = appendRoundMentions(slots, 0, "@外援 请你接手", listOf(local, external), emptyMap(), group)
+        assertEquals(1, slots.size)
+        assertEquals(listOf("pc"), staged.map { it.id })
     }
 }

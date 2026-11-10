@@ -1,24 +1,18 @@
 package top.wkbin.taixu.ui.workspace
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import top.wkbin.taixu.ui.components.RuntimeCheckbox as Checkbox
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -30,15 +24,14 @@ import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.workspace.R
 import top.wkbin.taixu.template.ProjectTemplateInputType
 import top.wkbin.taixu.template.ProjectTemplateVariable
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeDropdownField
 
 @Composable
 private fun VariableLabel(label: String, required: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(label)
         if (required) {
-            Text(" *", color = MaterialTheme.colorScheme.error)
+            Text(" *", color = RuntimeTheme.colorScheme.error)
         }
     }
 }
@@ -67,48 +60,25 @@ internal fun TemplateVariableFields(
                 Column(Modifier.padding(start = 8.dp)) {
                     VariableLabel(variable.label, variable.required)
                     if (variable.description.isNotBlank()) {
-                        Text(variable.description, style = MaterialTheme.typography.bodySmall)
+                        Text(variable.description, style = RuntimeTheme.typography.bodySmall)
                     }
                 }
             }
 
             ProjectTemplateInputType.SELECT -> {
-                var expanded by remember(variable.name) { mutableStateOf(false) }
-                Column {
-                    RuntimeFilledTextField(
-                        value = variable.options.firstOrNull { it.value == value }?.label ?: value,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { VariableLabel(variable.label, variable.required) },
-                        supportingText = variable.description.takeIf(String::isNotBlank)?.let { description ->
-                            { Text(description) }
-                        },
-                        trailingIcon = {
-                            IconButton(
-                                onClick = { expanded = true },
-                                contentDescription = variable.label,
-                            ) {
-                                RuntimeIcon(
-                                    RuntimeIconName.ChevronDown,
-                                    Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        variable.options.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(option.label) },
-                                onClick = {
-                                    onValueChange(variable.name, option.value)
-                                    expanded = false
-                                },
-                            )
+                RuntimeDropdownField(
+                    title = if (variable.required) "${variable.label} *" else variable.label,
+                    items = variable.options.map { it.label }.ifEmpty { listOf(value) },
+                    selectedIndex = variable.options.indexOfFirst { it.value == value }.coerceAtLeast(0),
+                    onSelectedIndexChange = { index ->
+                        variable.options.getOrNull(index)?.let { option ->
+                            onValueChange(variable.name, option.value)
                         }
-                    }
-                }
+                    },
+                    summary = variable.description.takeIf(String::isNotBlank),
+                    enabled = variable.options.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             else -> RuntimeFilledTextField(

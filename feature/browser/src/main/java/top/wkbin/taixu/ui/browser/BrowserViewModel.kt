@@ -41,8 +41,9 @@ class BrowserViewModel(
     private val _canGoBack = MutableStateFlow(false)
     private val _canGoForward = MutableStateFlow(false)
 
-    // 浏览器活动信号：agent/用户导航、tab 切换时递增，供聊天页提示"浏览器有新动态"
+    // 浏览器活动信号：独立流出，避免并进 uiState 后 NavHost 订阅整包状态导致聊天页连环重组闪烁
     private val _activityTick = MutableStateFlow(0L)
+    val activityTick: StateFlow<Long> = _activityTick.asStateFlow()
     // 面板可见性：只有浏览器面板真正被展示时才确保/补建活跃 tab，避免 app 启动即常驻 WebView
     private val _paneVisible = MutableStateFlow(false)
     private val humanControl = BrowserHumanControlBinder(_toolMessage, _coBrowsingEnabled, browserPreferences, viewModelScope)
@@ -72,8 +73,7 @@ class BrowserViewModel(
         panelState,
         _canGoBack,
         _canGoForward,
-        _activityTick,
-    ) { core, panel, canGoBack, canGoForward, activityTick ->
+    ) { core, panel, canGoBack, canGoForward ->
         BrowserUiState(
             url = core.url,
             urlInput = panel.urlInput,
@@ -87,7 +87,6 @@ class BrowserViewModel(
             tabs = panel.tabs,
             canGoBack = canGoBack,
             canGoForward = canGoForward,
-            activityTick = activityTick,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, BrowserUiState.Empty)
 
@@ -146,7 +145,7 @@ class BrowserViewModel(
         }
         // 共浏览开关：从 DataStore 读取并保持同步（设置页等其他入口的修改也会生效）
         humanControl.start()
-        // 浏览器活动信号：活跃 tab URL 变化 / tab 切换时递增（聊天页据此显示"浏览器有新动态"）
+        // 浏览器活动信号：仅 URL / tabId 真正变化时递增（聊天页提示"有新动态"；勿跟每次 StateFlow 重放走）
         viewModelScope.launch {
             var lastUrl = ""
             eventBus.url.collect { url ->
@@ -157,8 +156,13 @@ class BrowserViewModel(
             }
         }
         viewModelScope.launch {
+            var lastTabId: String? = null
             eventBus.activeTab.collect { tab ->
-                if (tab != null) _activityTick.value++
+                val id = tab?.tabId
+                if (id != null && id != lastTabId) {
+                    lastTabId = id
+                    _activityTick.value++
+                }
             }
         }
         // 引擎异步注册的竞态修复：descriptors 出现健康的 IN_APP 引擎时（重新）确保活跃 tab 存在
@@ -368,8 +372,6 @@ data class BrowserUiState(
     val tabs: List<BrowserTabUi>,
     val canGoBack: Boolean,
     val canGoForward: Boolean,
-    /** 浏览器活动信号（单调递增）：供聊天页在浏览器面板隐藏时提示"有新动态"。 */
-    val activityTick: Long = 0L,
 ) {
     companion object {
         val Empty = BrowserUiState(
@@ -385,7 +387,6 @@ data class BrowserUiState(
             tabs = emptyList(),
             canGoBack = false,
             canGoForward = false,
-            activityTick = 0L,
         )
     }
 }

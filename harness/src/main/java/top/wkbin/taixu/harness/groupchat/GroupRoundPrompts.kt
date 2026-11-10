@@ -1,11 +1,16 @@
 package top.wkbin.taixu.harness.groupchat
 
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotRuntimeMode
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.GroupRoundSlot
 import top.wkbin.taixu.core.model.bot.GroupSlotStatus
 import top.wkbin.taixu.harness.MentionExtractor
 
+/**
+ * Insert local mention targets into the phone round.
+ * @return EXTERNAL members that were named but must not run on-device (caller stages claimable receipts).
+ */
 internal fun appendRoundMentions(
     slots: MutableList<GroupRoundSlot>,
     currentIndex: Int,
@@ -14,10 +19,10 @@ internal fun appendRoundMentions(
     turns: Map<String, Int>,
     group: GroupChat,
     delegatedBotIds: Set<String> = emptySet(),
-) {
-    if (text.isBlank()) return
+): List<Bot> {
+    if (text.isBlank()) return emptyList()
     val mentionedNames = MentionExtractor.parse(text, members.map { it.name })
-    if (mentionedNames.isEmpty()) return
+    if (mentionedNames.isEmpty()) return emptyList()
     val speakerId = slots.getOrNull(currentIndex)?.botId
     val mentioned = members.filter { member ->
         member.id != speakerId && mentionedNames.any { it.equals(member.name, ignoreCase = true) }
@@ -31,11 +36,16 @@ internal fun appendRoundMentions(
             targeted
         }
     }
-    if (mentioned.isEmpty()) return
+    if (mentioned.isEmpty()) return emptyList()
+    val external = mutableListOf<Bot>()
     var insertAt = currentIndex + 1
     for (member in mentioned) {
         // Only automatic Bot relays are suppressed; existing user-addressed slots stay intact.
         if (member.id in delegatedBotIds) continue
+        if (member.runtimeMode == BotRuntimeMode.EXTERNAL) {
+            external.add(member)
+            continue
+        }
         if ((turns[member.id] ?: 0) >= capFor(member, group)) continue
         val waiting = slots.withIndex().firstOrNull { (at, slot) ->
             at > currentIndex && slot.botId == member.id && slot.status == GroupSlotStatus.WAITING
@@ -50,6 +60,7 @@ internal fun appendRoundMentions(
         slots.add(insertAt.coerceAtMost(slots.size), slot)
         insertAt += 1
     }
+    return external
 }
 
 internal fun buildRoundTrigger(

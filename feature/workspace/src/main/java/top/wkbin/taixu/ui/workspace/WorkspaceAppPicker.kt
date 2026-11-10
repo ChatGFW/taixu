@@ -18,10 +18,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -68,20 +67,20 @@ internal fun AppPickerDialog(
     }
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.workspace_choose_installed_app), fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.workspace_choose_installed_app), fontWeight = FontWeight.Medium) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 if (apps.isEmpty()) {
                     Text(
                         stringResource(R.string.workspace_apps_unavailable),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodyMedium,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
                     Text(
                         stringResource(R.string.workspace_choose_app_description),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(6.dp))
                     LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
@@ -98,14 +97,14 @@ internal fun AppPickerDialog(
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                                        .clip(RuntimeTheme.shapes.chip)
+                                        .background(RuntimeTheme.colorScheme.surfaceContainerHighest),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     RuntimeIcon(
                                         RuntimeIconName.Package,
                                         Modifier.size(22.dp),
-                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                        RuntimeTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                                 Column(
@@ -114,23 +113,23 @@ internal fun AppPickerDialog(
                                 ) {
                                     Text(
                                         text = label,
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                        style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                     Text(
                                         text = app.packageName,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = RuntimeTheme.typography.labelSmall,
+                                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                 }
-                                RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(18.dp), MaterialTheme.colorScheme.onSurfaceVariant)
+                                RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
                             }
                             HorizontalDivider(
                                 modifier = Modifier.padding(start = 52.dp),
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                             )
                         }
                     }

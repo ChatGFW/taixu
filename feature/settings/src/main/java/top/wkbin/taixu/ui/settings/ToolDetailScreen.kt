@@ -1,12 +1,9 @@
 package top.wkbin.taixu.ui.settings
-import top.wkbin.taixu.ui.components.previewOrNull
-import top.wkbin.taixu.ui.components.previewStateOf
-import org.koin.compose.viewmodel.koinViewModel
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -20,27 +17,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
-import androidx.compose.material3.ButtonDefaults
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import androidx.compose.material3.MaterialTheme
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
-import androidx.compose.material3.Surface
-import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
-import top.wkbin.taixu.ui.settings.LocalizedText as Text
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
-import top.wkbin.taixu.ui.components.RuntimeCard
-import androidx.compose.ui.res.stringResource
-import top.wkbin.taixu.feature.settings.R as SettingsR
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,29 +30,42 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
+import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.database.AiModelEntity
+import top.wkbin.taixu.core.database.ToolEntity
+import top.wkbin.taixu.core.model.ToolManifest
 import top.wkbin.taixu.core.model.ToolState
+import top.wkbin.taixu.feature.settings.R as SettingsR
 import top.wkbin.taixu.ui.components.CodeBlockRow
 import top.wkbin.taixu.ui.components.InfoRow
 import top.wkbin.taixu.ui.components.NoticeBanner
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import top.wkbin.taixu.ui.components.RuntimeButton as Button
+import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton as FilledTonalButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
+import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
+import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.StatusBadge
-import kotlinx.coroutines.delay
-import top.wkbin.taixu.core.database.ToolEntity
-import top.wkbin.taixu.core.model.ToolManifest
-import top.wkbin.taixu.feature.components.R
+import top.wkbin.taixu.ui.components.previewOrNull
+import top.wkbin.taixu.ui.components.previewStateOf
+import top.wkbin.taixu.ui.miuix.*
+import top.wkbin.taixu.ui.settings.LocalizedText as Text
 /**
  * 太墟 · 插件配置详情页 (Tool Detail & Configuration Screen)
  *
@@ -132,10 +125,10 @@ internal fun LocalToolDetailContent(
                         // Wait for the catalog before showing a missing-tool state.
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
-                            Text("正在加载工具信息…", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                            Text("正在加载工具信息…", color = RuntimeTheme.colorScheme.onSurfaceVariant, style = RuntimeTheme.typography.bodySmall)
                         }
                     } else {
-                        Text("工具未找到", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("工具未找到", color = RuntimeTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -143,12 +136,12 @@ internal fun LocalToolDetailContent(
         }
 
         item {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // ── 错误提示 / AI 自愈入口 ──
                 if (tool.state == ToolState.FAILED.name || state.error != null) {
                     SettingsDetailCard(
                         modifier = Modifier.fillMaxWidth(),
-                        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+                        containerColor = RuntimeTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -163,18 +156,18 @@ internal fun LocalToolDetailContent(
                                 RuntimeIcon(
                                     name = RuntimeIconName.Brain,
                                     modifier = Modifier.size(24.dp),
-                                    tint = MaterialTheme.colorScheme.error,
+                                    tint = RuntimeTheme.colorScheme.error,
                                 )
                                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Text(
                                         text = "工具安装/环境自检未通过",
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.error,
+                                        style = RuntimeTheme.typography.titleSmall.copy(fontWeight = FontWeight.Medium),
+                                        color = RuntimeTheme.colorScheme.error,
                                     )
                                     Text(
                                         text = state.error ?: "可呼叫太墟 Agent 在 PRoot 沙箱内自主排查与自愈",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = RuntimeTheme.typography.bodySmall,
+                                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
                                     )
@@ -189,10 +182,10 @@ internal fun LocalToolDetailContent(
                                         state.error?.let { listOf(it) } ?: emptyList(),
                                     )
                                 },
-                                shape = RoundedCornerShape(8.dp),
+                                shape = RuntimeTheme.shapes.medium,
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             ) {
-                                Text("呼叫自愈", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                                Text("呼叫自愈", fontWeight = FontWeight.Medium, style = RuntimeTheme.typography.labelMedium)
                             }
                         }
                     }
@@ -265,7 +258,7 @@ internal fun LocalToolDetailContent(
                     if (!hasSelfManagedLoopbackPanel(manifest)) RuntimeCard(Modifier.fillMaxWidth()) {
                         Text(
                             stringResource(SettingsR.string.web_tool_service_scope),
-                            style = MaterialTheme.typography.bodySmall,
+                            style = RuntimeTheme.typography.bodySmall,
                         )
                         Spacer(Modifier.height(8.dp))
                         OutlinedButton(
@@ -336,8 +329,8 @@ private fun ToolOverviewCard(
                 ) {
                     Text(
                         text = tool.name,
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
+                        style = RuntimeTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Medium,
                             fontSize = 20.sp,
                         ),
                         maxLines = 1,
@@ -356,24 +349,24 @@ private fun ToolOverviewCard(
                                     else -> tool.category
                                 }
                             }",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false),
                         )
                         if (formattedVersion != null) {
                             Surface(
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                shape = RoundedCornerShape(4.dp),
+                                color = RuntimeTheme.colorScheme.surfaceContainerHighest,
+                                shape = RuntimeTheme.shapes.tiny,
                             ) {
                                 Text(
                                     text = formattedVersion,
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontSize = 10.sp,
+                                    style = RuntimeTheme.typography.labelSmall.copy(
+                                        fontSize = 11.sp,
                                         fontFamily = FontFamily.Monospace,
                                     ),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
@@ -399,8 +392,8 @@ private fun ToolOverviewCard(
                     gatewayOperating -> warningStatusColor()
                     gatewayRunning -> successStatusColor()
                     isInstalled -> successStatusColor()
-                    tool.state == ToolState.FAILED.name -> MaterialTheme.colorScheme.error
-                    else -> MaterialTheme.colorScheme.outline
+                    tool.state == ToolState.FAILED.name -> RuntimeTheme.colorScheme.error
+                    else -> RuntimeTheme.colorScheme.outline
                 },
                 pulsing = gatewayRunning || gatewayOperating,
             )
@@ -409,8 +402,8 @@ private fun ToolOverviewCard(
         Spacer(Modifier.height(8.dp))
         Text(
             text = tool.description,
-            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodyMedium.copy(lineHeight = 20.sp),
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -438,11 +431,11 @@ private fun GatewayManagementCard(
                     RuntimeIcon(
                         name = RuntimeIconName.Globe,
                         modifier = Modifier.size(18.dp),
-                        tint = if (running) successStatusColor() else MaterialTheme.colorScheme.outline,
+                        tint = if (running) successStatusColor() else RuntimeTheme.colorScheme.outline,
                     )
                     Text(
                         text = "网关服务",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = RuntimeTheme.typography.titleMedium,
                     )
                 }
                 Row(
@@ -452,7 +445,7 @@ private fun GatewayManagementCard(
                     val statusColor = when {
                         running -> successStatusColor()
                         operating -> warningStatusColor()
-                        else -> MaterialTheme.colorScheme.outline
+                        else -> RuntimeTheme.colorScheme.outline
                     }
                     val statusText = when {
                         running -> "运行中"
@@ -467,18 +460,18 @@ private fun GatewayManagementCard(
                     )
                     Text(
                         text = statusText,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = RuntimeTheme.typography.bodySmall,
                         color = when {
                             running -> successStatusColor()
                             operating -> warningStatusColor()
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            else -> RuntimeTheme.colorScheme.onSurfaceVariant
                         },
                     )
                     if (port != null) {
                         Text(
                             text = "· 端口 $port",
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -489,22 +482,22 @@ private fun GatewayManagementCard(
             } else if (running) {
                 OutlinedButton(
                     onClick = onStop,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RuntimeTheme.shapes.medium,
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                 ) {
                     RuntimeIcon(name = RuntimeIconName.Stop, modifier = Modifier.size(15.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("停止", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    Text("停止", style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
                 }
             } else {
                 Button(
                     onClick = onStart,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RuntimeTheme.shapes.medium,
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                 ) {
                     RuntimeIcon(name = RuntimeIconName.Play, modifier = Modifier.size(15.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("启动", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    Text("启动", style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -541,11 +534,11 @@ private fun ServiceLogsCard(
                 RuntimeIcon(
                     name = RuntimeIconName.Terminal,
                     modifier = Modifier.size(18.dp),
-                    tint = if (running) successStatusColor() else MaterialTheme.colorScheme.primary,
+                    tint = if (running) successStatusColor() else RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = "服务实时控制台日志",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = RuntimeTheme.typography.titleMedium,
                 )
             }
 
@@ -564,7 +557,7 @@ private fun ServiceLogsCard(
                         RuntimeIcon(
                             name = RuntimeIconName.Copy,
                             modifier = Modifier.size(15.dp),
-                            tint = MaterialTheme.colorScheme.outline,
+                            tint = RuntimeTheme.colorScheme.outline,
                         )
                     }
                     IconButton(
@@ -577,7 +570,7 @@ private fun ServiceLogsCard(
                         RuntimeIcon(
                             name = RuntimeIconName.Trash,
                             modifier = Modifier.size(15.dp),
-                            tint = MaterialTheme.colorScheme.outline,
+                            tint = RuntimeTheme.colorScheme.outline,
                         )
                     }
                 }
@@ -590,7 +583,7 @@ private fun ServiceLogsCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(180.dp),
-            shape = RoundedCornerShape(10.dp),
+            shape = RuntimeTheme.shapes.small,
             color = Color(0xFF14171A),
             border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2A2E33)),
         ) {
@@ -601,7 +594,7 @@ private fun ServiceLogsCard(
                 ) {
                     Text(
                         text = "暂无服务日志。点击【启动】网关后将在此实时输出控制台信息与异常报错。",
-                        style = MaterialTheme.typography.bodySmall.copy(
+                        style = RuntimeTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             fontSize = 11.sp,
                         ),
@@ -627,7 +620,7 @@ private fun ServiceLogsCard(
                         }
                         Text(
                             text = line,
-                            style = MaterialTheme.typography.bodySmall.copy(
+                            style = RuntimeTheme.typography.bodySmall.copy(
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 11.sp,
                                 lineHeight = 15.sp,
@@ -663,21 +656,21 @@ private fun ModelApplyCard(
                 RuntimeIcon(
                     name = RuntimeIconName.Chat,
                     modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = "模型配置",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = RuntimeTheme.typography.titleMedium,
                 )
             }
             Surface(
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                shape = RoundedCornerShape(6.dp),
+                color = RuntimeTheme.colorScheme.surfaceContainerHighest,
+                shape = RuntimeTheme.shapes.extraSmall,
             ) {
                 Text(
                     text = "AI 插件",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 )
             }
@@ -685,8 +678,8 @@ private fun ModelApplyCard(
         Spacer(Modifier.height(4.dp))
         Text(
             text = "一键将已配置的 AI 模型（API Key、Base URL 与 Model）注入至 $toolName，插件重启后生效。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
 
         if (models.isEmpty()) {
@@ -701,14 +694,14 @@ private fun ModelApplyCard(
 
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RuntimeTheme.shapes.small,
                         color = when {
-                            isApplied -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                            isActive -> MaterialTheme.colorScheme.surfaceContainerHigh
-                            else -> MaterialTheme.colorScheme.surfaceContainerLow
+                            isApplied -> RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                            isActive -> RuntimeTheme.colorScheme.surfaceContainerHigh
+                            else -> RuntimeTheme.colorScheme.surfaceContainerLow
                         },
                         border = if (isApplied) {
-                            androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+                            androidx.compose.foundation.BorderStroke(1.dp, RuntimeTheme.colorScheme.primary.copy(alpha = 0.4f))
                         } else null,
                     ) {
                         Row(
@@ -728,20 +721,20 @@ private fun ModelApplyCard(
                                 ) {
                                     Text(
                                         text = model.name,
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        style = RuntimeTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f, fill = false),
                                     )
                                     if (isActive) {
                                         Surface(
-                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                            shape = RoundedCornerShape(4.dp),
+                                            color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                            shape = RuntimeTheme.shapes.tiny,
                                         ) {
                                             Text(
                                                 text = "当前活跃",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                                color = MaterialTheme.colorScheme.primary,
+                                                style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                                                color = RuntimeTheme.colorScheme.primary,
                                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                                             )
                                         }
@@ -749,11 +742,11 @@ private fun ModelApplyCard(
                                     if (isApplied) {
                                         Surface(
                                             color = successStatusColor().copy(alpha = 0.12f),
-                                            shape = RoundedCornerShape(4.dp),
+                                            shape = RuntimeTheme.shapes.tiny,
                                         ) {
                                             Text(
                                                 text = "已应用",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                                                style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
                                                 color = successStatusColor(),
                                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                                             )
@@ -762,8 +755,8 @@ private fun ModelApplyCard(
                                 }
                                 Text(
                                     text = "${model.provider} · ${model.model.ifBlank { "默认模型" }}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.outline,
+                                    style = RuntimeTheme.typography.labelSmall,
+                                    color = RuntimeTheme.colorScheme.outline,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -774,12 +767,12 @@ private fun ModelApplyCard(
                             } else if (!isApplied) {
                                 FilledTonalButton(
                                     onClick = { onApply(model) },
-                                    shape = RoundedCornerShape(8.dp),
+                                    shape = RuntimeTheme.shapes.medium,
                                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                 ) {
                                     Text(
                                         "应用",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                        style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                                     )
                                 }
                             } else {
@@ -813,12 +806,12 @@ private fun AutoStartCard(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = stringResource(SettingsR.string.service_recovery_title),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = RuntimeTheme.typography.titleMedium,
                 )
                 Text(
                     text = stringResource(SettingsR.string.service_recovery_summary, toolName),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             Spacer(Modifier.width(12.dp))
@@ -860,22 +853,22 @@ private fun AccessLinkCard(
                 RuntimeIcon(
                     name = RuntimeIconName.Globe,
                     modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = "访问链接",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = RuntimeTheme.typography.titleMedium,
                 )
             }
 
             Surface(
-                color = if (running) successStatusColor().copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceContainerHighest,
-                shape = RoundedCornerShape(6.dp),
+                color = if (running) successStatusColor().copy(alpha = 0.12f) else RuntimeTheme.colorScheme.surfaceContainerHighest,
+                shape = RuntimeTheme.shapes.extraSmall,
             ) {
                 Text(
                     text = if (running) "已绑定 0.0.0.0" else "服务未启动",
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
-                    color = if (running) successStatusColor() else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                    color = if (running) successStatusColor() else RuntimeTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 )
             }
@@ -888,8 +881,8 @@ private fun AccessLinkCard(
             } else {
                 "服务尚未启动，请先在【网关服务】卡片中点击启动，启动成功后将在此展示可访问链接。Token 可提前生成，启动时自动注入。"
             },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
 
         Spacer(Modifier.height(10.dp))
@@ -907,17 +900,17 @@ private fun AccessLinkCard(
                 val isSelected = selectedMode == modeKey
                 Surface(
                     onClick = { selectedMode = modeKey },
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = RuntimeTheme.shapes.chip,
+                    color = if (isSelected) RuntimeTheme.colorScheme.primaryContainer else RuntimeTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(
                         text = label,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        style = RuntimeTheme.typography.labelSmall.copy(
+                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                             fontSize = 11.sp,
                         ),
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (isSelected) RuntimeTheme.colorScheme.onPrimaryContainer else RuntimeTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
                             .padding(vertical = 8.dp)
                             .align(Alignment.CenterVertically),
@@ -932,11 +925,11 @@ private fun AccessLinkCard(
             Spacer(Modifier.height(4.dp))
             Text(
                 text = "设备局域网 IP：${state.deviceLanIp}",
-                style = MaterialTheme.typography.labelSmall.copy(
+                style = RuntimeTheme.typography.labelSmall.copy(
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                 ),
-                color = MaterialTheme.colorScheme.primary,
+                color = RuntimeTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 2.dp),
             )
         }
@@ -946,8 +939,8 @@ private fun AccessLinkCard(
         if (running && currentUrl != null) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                shape = RuntimeTheme.shapes.small,
+                color = RuntimeTheme.colorScheme.surfaceContainerHighest,
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -956,11 +949,11 @@ private fun AccessLinkCard(
                 ) {
                     Text(
                         text = currentUrl,
-                        style = MaterialTheme.typography.bodySmall.copy(
+                        style = RuntimeTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             fontSize = 11.sp,
                         ),
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = RuntimeTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f),
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
@@ -975,7 +968,7 @@ private fun AccessLinkCard(
                         RuntimeIcon(
                             name = RuntimeIconName.Copy,
                             modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -983,16 +976,16 @@ private fun AccessLinkCard(
         } else if (!running) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                shape = RuntimeTheme.shapes.small,
+                color = RuntimeTheme.colorScheme.surfaceContainerHighest,
             ) {
                 Text(
                     text = "启动网关后此处将展示可访问链接",
-                    style = MaterialTheme.typography.bodySmall.copy(
+                    style = RuntimeTheme.typography.bodySmall.copy(
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp,
                     ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
                 )
             }
@@ -1000,26 +993,22 @@ private fun AccessLinkCard(
 
         Spacer(Modifier.height(8.dp))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        RuntimeActionRow() {
             FilledTonalButton(
                 onClick = onGenerate,
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                shape = RuntimeTheme.shapes.medium,
             ) {
                 Text(
                     text = if (state.accessToken != null) "重新生成 Token" else "生成安全 Token",
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                 )
             }
             if (state.accessToken != null) {
                 TextButton(
                     onClick = onClear,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                 ) {
                     Text(
                         "清除 Token",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.error,
+                        color = RuntimeTheme.colorScheme.error,
                     )
                 }
             }
@@ -1042,11 +1031,11 @@ private fun ToolMetadataCard(
             RuntimeIcon(
                 name = RuntimeIconName.Settings,
                 modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = RuntimeTheme.colorScheme.onSurface,
             )
             Text(
                 text = "工具信息",
-                style = MaterialTheme.typography.titleMedium,
+                style = RuntimeTheme.typography.titleMedium,
             )
         }
 
@@ -1078,11 +1067,10 @@ private fun ToolMetadataCard(
             CodeBlockRow(label = "数据目录", code = "/opt/taixu/data/${tool.id}")
 
             if (manifest.dependencies.isNotEmpty()) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerHighest)
                 Text(
                     text = "依赖项",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 androidx.compose.foundation.layout.FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1090,16 +1078,16 @@ private fun ToolMetadataCard(
                 ) {
                     manifest.dependencies.forEach { dep ->
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            shape = RuntimeTheme.shapes.extraSmall,
+                            color = RuntimeTheme.colorScheme.surfaceContainerHigh,
                         ) {
                             Text(
                                 text = dep,
-                                style = MaterialTheme.typography.labelSmall.copy(
+                                style = RuntimeTheme.typography.labelSmall.copy(
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 11.sp,
                                 ),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             )
                         }
@@ -1108,16 +1096,15 @@ private fun ToolMetadataCard(
             }
 
             if (manifest.environment.isNotEmpty()) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerHighest)
                 Text(
                     text = "环境变量",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = RuntimeTheme.shapes.chip,
+                    color = RuntimeTheme.colorScheme.surfaceContainerHigh,
                 ) {
                     Column(
                         modifier = Modifier.padding(10.dp),
@@ -1127,20 +1114,20 @@ private fun ToolMetadataCard(
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
                                     text = key,
-                                    style = MaterialTheme.typography.labelSmall.copy(
+                                    style = RuntimeTheme.typography.labelSmall.copy(
                                         fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 11.sp,
                                     ),
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = RuntimeTheme.colorScheme.primary,
                                 )
                                 Text(
                                     text = value,
-                                    style = MaterialTheme.typography.bodySmall.copy(
+                                    style = RuntimeTheme.typography.bodySmall.copy(
                                         fontFamily = FontFamily.Monospace,
                                         fontSize = 11.sp,
                                     ),
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    color = RuntimeTheme.colorScheme.onSurface,
                                 )
                             }
                         }
@@ -1149,11 +1136,10 @@ private fun ToolMetadataCard(
             }
 
             if (tool.permissions.isNotBlank()) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceContainerHighest)
                 Text(
                     text = "权限清单",
-                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 androidx.compose.foundation.layout.FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1161,13 +1147,13 @@ private fun ToolMetadataCard(
                 ) {
                     tool.permissions.split(",").filter { it.isNotBlank() }.forEach { perm ->
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            shape = RuntimeTheme.shapes.extraSmall,
+                            color = RuntimeTheme.colorScheme.surfaceContainerHigh,
                         ) {
                             Text(
                                 text = perm.trim(),
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Medium),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp),
                             )
                         }
@@ -1193,52 +1179,49 @@ private fun ToolActionsCard(
             RuntimeIcon(
                 name = RuntimeIconName.More,
                 modifier = Modifier.size(18.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = RuntimeTheme.colorScheme.onSurface,
             )
             Text(
                 text = "操作",
-                style = MaterialTheme.typography.titleMedium,
+                style = RuntimeTheme.typography.titleMedium,
             )
         }
 
         Spacer(Modifier.height(10.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            if (isInstalled) {
+                if (isInstalled) RuntimeActionRow {
                 FilledTonalButton(
                     onClick = onLaunchTerminal,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.weight(1f),
+                    shape = RuntimeTheme.shapes.medium,
+                    modifier = Modifier,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                 ) {
                     RuntimeIcon(name = RuntimeIconName.Terminal, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("打开终端", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    Text("打开终端", fontWeight = FontWeight.Medium)
                 }
 
                 OutlinedButton(
                     onClick = onUninstall,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.weight(1f),
+                    shape = RuntimeTheme.shapes.medium,
+                    modifier = Modifier,
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
+                        contentColor = RuntimeTheme.colorScheme.error,
                     ),
                 ) {
                     RuntimeIcon(name = RuntimeIconName.Trash, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("卸载工具", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    Text("卸载工具", fontWeight = FontWeight.Medium)
                 }
-            } else {
+
+        } else {
                 Text(
                     text = "工具尚未安装，请先在工具中心完成安装",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
-            }
+
         }
     }
 }
@@ -1264,20 +1247,20 @@ internal fun UninstallToolConfirmDialog(
         title = {
             Text(
                 text = "卸载 $toolName？",
-                style = MaterialTheme.typography.titleMedium,
+                style = RuntimeTheme.typography.titleMedium,
             )
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = "• 将移除该工具及其在沙箱内的数据目录",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = "• 卸载后可随时在工具中心重新安装",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.primary,
                 )
             }
         },
@@ -1286,13 +1269,13 @@ internal fun UninstallToolConfirmDialog(
                 onClick = onConfirm,
                 enabled = countdown == 0,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    disabledContainerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.3f),
+                    containerColor = RuntimeTheme.colorScheme.error,
+                    disabledContainerColor = RuntimeTheme.colorScheme.error.copy(alpha = 0.3f),
                 ),
             ) {
                 Text(
                     text = if (countdown > 0) "确认卸载 (${countdown}s)" else "确认卸载",
-                    color = if (countdown == 0) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onError.copy(alpha = 0.6f),
+                    color = if (countdown == 0) RuntimeTheme.colorScheme.onError else RuntimeTheme.colorScheme.onError.copy(alpha = 0.6f),
                 )
             }
         },

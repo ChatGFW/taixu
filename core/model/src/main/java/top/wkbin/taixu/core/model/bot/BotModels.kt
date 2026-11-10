@@ -24,11 +24,17 @@ data class Bot(
     /** 仅用户可开启；关闭时成员工具不能修改模型选择。 */
     val allowModelSelection: Boolean = false,
     /**
-     * Bot 级 MCP 能力白名单（服务名列表，大小写不敏感）；null = 不限制（团队共享库全量可用）。
-     * 借鉴 DS Bot 能力库：能力按 Bot 挂载、下一条消息生效；MCP 配置只有用户能改，
+     * Bot 级 MCP 能力白名单（服务名列表，大小写不敏感）；null = 允许全部服务。
+     * 能力按 Bot 挂载，执行前读取当前配置；MCP 配置只有用户能改，
      * "使用中锁定"由配置入口天然满足。
      */
     val capabilityServerNames: List<String>? = null,
+    /** 服务 ID → 允许的精确工具名；缺少服务条目表示该服务工具不限制，空列表表示全部禁用。 */
+    val capabilityToolNames: Map<String, List<String>> = emptyMap(),
+    /** MCP 授权的绝对截止时间；null 表示不限时。 */
+    val capabilityExpiresAt: Long? = null,
+    /** LOCAL 由手机内 Harness 领取群收件；EXTERNAL 仅外部运行时可领取。 */
+    val runtimeMode: BotRuntimeMode = BotRuntimeMode.LOCAL,
 )
 
 /** 群聊普通消息（无 @）由谁回应。 */

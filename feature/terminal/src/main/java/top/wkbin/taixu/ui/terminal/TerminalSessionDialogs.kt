@@ -3,8 +3,6 @@ package top.wkbin.taixu.ui.terminal
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,6 +18,9 @@ import top.wkbin.taixu.runtime.terminal.TerminalSessionHandle
 import top.wkbin.taixu.ui.components.*
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.miuix.ButtonDefaults
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 internal fun SessionListDialog(
@@ -36,35 +37,35 @@ internal fun SessionListDialog(
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.terminal_active_sessions, handles.size),
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 if (handles.size == 1) RuntimeCard(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer, shape = MaterialTheme.shapes.large,
+                    containerColor = RuntimeTheme.colorScheme.tertiaryContainer, shape = RuntimeTheme.shapes.large,
                 ) {
                     Text(stringResource(R.string.terminal_only_session_hint),
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                        style = RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onTertiaryContainer)
                 }
                 handles.forEach { handle ->
                     val active = handle.id == activeId
                     val distroName = runCatching { DistributionCatalog.require(handle.distributionId).displayName }
                         .getOrDefault(handle.distributionId)
-                    val contentColor = if (active) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                    val contentColor = if (active) RuntimeTheme.colorScheme.onSecondaryContainer else RuntimeTheme.colorScheme.onSurface
                     RuntimeCard(
                         modifier = Modifier.fillMaxWidth().semantics { selected = active },
-                        containerColor = if (active) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shape = MaterialTheme.shapes.large, contentPadding = PaddingValues(16.dp),
+                        containerColor = if (active) RuntimeTheme.colorScheme.secondaryContainer else RuntimeTheme.colorScheme.surfaceContainerHigh,
+                        shape = RuntimeTheme.shapes.large, contentPadding = PaddingValues(16.dp),
                         onClick = { onSwitch(handle.id) },
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(24.dp), contentColor)
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(handle.label, style = MaterialTheme.typography.titleMedium, color = contentColor,
+                                Text(handle.label, style = RuntimeTheme.typography.titleMedium, color = contentColor,
                                     maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                Text(distroName, style = MaterialTheme.typography.labelMedium, color = contentColor,
+                                Text(distroName, style = RuntimeTheme.typography.labelMedium, color = contentColor,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(handle.workingDirectory, style = MaterialTheme.typography.bodySmall,
+                                Text(handle.workingDirectory, style = RuntimeTheme.typography.bodySmall,
                                     color = contentColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 if (active) Text(stringResource(R.string.terminal_current),
-                                    style = MaterialTheme.typography.labelLarge, color = contentColor)
+                                    style = RuntimeTheme.typography.labelLarge, color = contentColor)
                             }
                             RuntimeIconButton(onClick = { onClose(handle.id) }, modifier = Modifier.size(48.dp),
                                 contentDescription = stringResource(if (handles.size == 1) R.string.terminal_reset_session_desc else R.string.terminal_close_session_desc)) {
@@ -106,29 +107,29 @@ internal fun CloseSessionConfirmDialog(
         title = {
             Text(
                 text = stringResource(R.string.terminal_close_confirm_title),
-                style = MaterialTheme.typography.titleMedium,
+                style = RuntimeTheme.typography.titleMedium,
             )
         },
         text = {
             Text(
                 text = stringResource(R.string.terminal_close_confirm_message),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodyMedium,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
         },
         confirmButton = {
             Button(
                 onClick = onConfirm,
                 enabled = countdown == 0,
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    disabledContainerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.3f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = RuntimeTheme.colorScheme.error,
+                    disabledContainerColor = RuntimeTheme.colorScheme.error.copy(alpha = 0.3f),
                 ),
             ) {
                 Text(
                     text = if (countdown > 0) stringResource(R.string.terminal_close_confirm_countdown, countdown)
                     else stringResource(R.string.terminal_close_confirm),
-                    color = if (countdown == 0) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onError.copy(alpha = 0.6f),
+                    color = if (countdown == 0) RuntimeTheme.colorScheme.onError else RuntimeTheme.colorScheme.onError.copy(alpha = 0.6f),
                 )
             }
         },

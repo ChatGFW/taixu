@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class AndroidHttpServer private constructor(
     private val address: InetSocketAddress,
     private val backlog: Int,
+    private val maxBodyBytes: Int,
 ) {
     private val contexts = ConcurrentHashMap<String, AndroidHttpHandler>()
 
@@ -130,6 +131,8 @@ internal class AndroidHttpServer private constructor(
         .apply { allowCoreThreadTimeOut(true) }
 
     private fun acceptConnections(socket: ServerSocket) {
+        // Throwable 也要兜住：未捕获的 Error 会让 accept 线程静默死亡，
+        // 监听 socket 仍在、isRunning 仍为 true，但 Recv-Q 持续堆积，局域网表现为「能连上却无 HTTP 响应」。
         while (running) {
             try {
                 val client = socket.accept()
@@ -145,9 +148,8 @@ internal class AndroidHttpServer private constructor(
                     runCatching { client.close() }
                 }
             } catch (_: SocketException) {
-                if (running) continue
-                break
-            } catch (_: Exception) {
+                if (!running) break
+            } catch (_: Throwable) {
                 if (!running) break
             }
         }
@@ -184,7 +186,7 @@ internal class AndroidHttpServer private constructor(
             }
 
             val contentLength = headers.getFirst("Content-Length")?.toIntOrNull() ?: 0
-            if (contentLength !in 0..MAX_BODY_BYTES) {
+            if (contentLength !in 0..maxBodyBytes) {
                 writeSimpleError(socket, 413, "Payload Too Large")
                 return
             }
@@ -274,8 +276,11 @@ internal class AndroidHttpServer private constructor(
         private const val MAX_WORKER_THREADS = 8
         private const val WORKER_KEEP_ALIVE_SECONDS = 30L
 
-        fun create(address: InetSocketAddress, backlog: Int): AndroidHttpServer =
-            AndroidHttpServer(address, backlog)
+        fun create(
+            address: InetSocketAddress,
+            backlog: Int,
+            maxBodyBytes: Int = MAX_BODY_BYTES,
+        ): AndroidHttpServer = AndroidHttpServer(address, backlog, maxBodyBytes)
     }
 }
 
@@ -317,6 +322,8 @@ internal class AndroidHttpExchange(
     val responseHeaders = AndroidHttpHeaders()
     private val output = BufferedOutputStream(socket.getOutputStream())
     val responseBody: OutputStream = output
+    val remoteAddress: InetSocketAddress?
+        get() = socket.remoteSocketAddress as? InetSocketAddress
 
     @Volatile
     private var responseStarted = false

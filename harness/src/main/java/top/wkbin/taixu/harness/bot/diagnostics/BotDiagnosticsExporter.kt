@@ -15,6 +15,7 @@ import top.wkbin.taixu.core.database.HarnessRuntimeRepository
 import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
 import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
+import top.wkbin.taixu.core.database.task.AgentTaskRepository
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.GroupMessage
 import top.wkbin.taixu.harness.AssistantText
@@ -36,7 +37,7 @@ class BotDiagnosticsExporter(
     private val runtimeRepository: HarnessRuntimeRepository,
     private val json: Json,
     private val logger: AppLogger,
-    private val nativeTasks: top.wkbin.taixu.core.database.task.AgentTaskRepository? = null,
+    private val nativeTasks: AgentTaskRepository? = null,
 ) {
     suspend fun exportGroup(groupId: String, destination: File): File {
         val group = requireNotNull(groupRepository.getGroup(groupId)) { "群聊不存在" }

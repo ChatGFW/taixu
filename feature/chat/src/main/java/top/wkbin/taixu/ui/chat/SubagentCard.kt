@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -18,26 +21,21 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -89,15 +87,15 @@ fun SubagentCard(
     val hasProgress = taskBranches.any { it != null }
 
     val cardBorderColor = if (isFinished) {
-        if (isSuccess) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-        else MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
+        if (isSuccess) RuntimeTheme.colorScheme.primary.copy(alpha = 0.4f)
+        else RuntimeTheme.colorScheme.error.copy(alpha = 0.4f)
     } else {
         semanticColors().warning.copy(alpha = 0.5f)
     }
 
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.5f),
+        shape = RuntimeTheme.shapes.small,
+        color = RuntimeTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.5f),
         border = androidx.compose.foundation.BorderStroke(0.6.dp, cardBorderColor.copy(alpha = 0.35f)),
         modifier = modifier.fillMaxWidth(),
     ) {
@@ -124,13 +122,13 @@ fun SubagentCard(
                         modifier = Modifier
                             .size(20.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                            .background(RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f)),
                         contentAlignment = Alignment.Center,
                     ) {
                         RuntimeIcon(
                             name = RuntimeIconName.Brain,
                             modifier = Modifier.size(12.dp),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = RuntimeTheme.colorScheme.onSurface,
                         )
                     }
 
@@ -141,19 +139,19 @@ fun SubagentCard(
                         ) {
                             Text(
                                 stringResource(R.string.chat_subagent_delegation),
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp),
-                                color = MaterialTheme.colorScheme.onSurface,
+                                style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium, fontSize = 12.sp),
+                                color = RuntimeTheme.colorScheme.onSurface,
                             )
                             Surface(
                                 color = if (isFinished) {
-                                    if (isSuccess) semanticColors().success.copy(alpha = 0.15f) else MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
+                                    if (isSuccess) semanticColors().success.copy(alpha = 0.15f) else RuntimeTheme.colorScheme.error.copy(alpha = 0.15f)
                                 } else semanticColors().warning.copy(alpha = 0.15f),
-                                shape = RoundedCornerShape(4.dp),
+                                shape = RuntimeTheme.shapes.tiny,
                             ) {
                                 Text(
                                     text = stringResource(if (isFinished) (if (isSuccess) R.string.chat_completed else R.string.chat_interrupted) else R.string.chat_parallel_running),
-                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
-                                    color = if (isFinished) (if (isSuccess) semanticColors().success else MaterialTheme.colorScheme.error) else semanticColors().warning,
+                                    style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                                    color = if (isFinished) (if (isSuccess) semanticColors().success else RuntimeTheme.colorScheme.error) else semanticColors().warning,
                                     modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
                                 )
                             }
@@ -171,10 +169,10 @@ fun SubagentCard(
                             } else {
                                 stringResource(R.string.chat_subtask_count, tasks.size)
                             },
-                            style = MaterialTheme.typography.bodySmall,
+                            style = RuntimeTheme.typography.bodySmall,
                             color = when {
-                                failedCount > 0 -> MaterialTheme.colorScheme.error
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                failedCount > 0 -> RuntimeTheme.colorScheme.error
+                                else -> RuntimeTheme.colorScheme.onSurfaceVariant
                             },
                         )
                     }
@@ -185,7 +183,7 @@ fun SubagentCard(
                     modifier = Modifier
                         .size(20.dp)
                         .rotate(rotationState),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -200,7 +198,7 @@ fun SubagentCard(
                         "researcher" -> semanticColors().info to RuntimeIconName.File
                         "coder" -> semanticColors().success to RuntimeIconName.Terminal
                         "tester" -> semanticColors().warning to RuntimeIconName.Code
-                        else -> MaterialTheme.colorScheme.primary to RuntimeIconName.Logs
+                        else -> RuntimeTheme.colorScheme.primary to RuntimeIconName.Logs
                     }
                     // 英文角色标识资源化为本地化标签；未识别角色保留原始值
                     val roleLabel = when (roleKey) {
@@ -215,8 +213,8 @@ fun SubagentCard(
                     val clickable = targetBranch != null && onOpenSubagent != null
 
                     val statusColor = when {
-                        targetBranch == null -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-                        targetBranch.faulted -> MaterialTheme.colorScheme.error
+                        targetBranch == null -> RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                        targetBranch.faulted -> RuntimeTheme.colorScheme.error
                         targetBranch.isBusy -> semanticColors().warning
                         else -> semanticColors().success
                     }
@@ -234,7 +232,7 @@ fun SubagentCard(
                     } else 1f
 
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
+                        shape = RuntimeTheme.shapes.extraSmall,
                         color = roleColor.copy(alpha = 0.1f),
                         border = androidx.compose.foundation.BorderStroke(0.5.dp, roleColor.copy(alpha = 0.3f)),
                         modifier = Modifier.clickable(enabled = clickable) {
@@ -249,7 +247,7 @@ fun SubagentCard(
                             RuntimeIcon(name = roleIcon, modifier = Modifier.size(12.dp), tint = roleColor)
                             Text(
                                 text = "$roleLabel: $taskName",
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                                style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
                                 color = roleColor,
                                 modifier = Modifier.weight(1f, fill = false),
                                 maxLines = 1,
@@ -283,28 +281,28 @@ fun SubagentCard(
                 ) {
                     if (result != null) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                            shape = RuntimeTheme.shapes.chip,
+                            color = RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     stringResource(R.string.chat_execution_summary),
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                    color = RuntimeTheme.colorScheme.onSurface,
                                 )
                                 Text(
                                     text = result.output,
-                                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
                     } else {
                         Text(
                             stringResource(R.string.chat_subagent_running),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 4.dp),
                         )
                     }
@@ -315,13 +313,12 @@ fun SubagentCard(
                             TextButton(onClick = onViewDetails) {
                                 Text(
                                     stringResource(R.string.chat_subagent_view_details),
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                                 )
                                 Spacer(Modifier.width(4.dp))
                                 RuntimeIcon(
                                     name = RuntimeIconName.ChevronRight,
                                     modifier = Modifier.size(14.dp),
-                                    tint = MaterialTheme.colorScheme.primary,
                                 )
                             }
                         }

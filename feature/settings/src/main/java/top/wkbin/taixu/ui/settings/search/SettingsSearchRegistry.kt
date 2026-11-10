@@ -528,23 +528,13 @@ object SettingsSearchRegistry {
         // ==================== 3. 外观、字号与终端定制 ====================
         SettingsSearchItem(
             id = "appearance_theme",
-            title = "主题模式与色彩风格",
-            subtitle = "切换浅色、曜石深色、跟随系统，支持 Material You 动态壁纸取色",
+            title = "主题明暗模式",
+            subtitle = "使用 Miuix 原生配色，支持浅色、深色与跟随系统",
             category = SettingsSearchCategory.APPEARANCE,
             target = SettingsSearchTarget.THEME_MODE,
             icon = RuntimeIconName.Palette,
             keywords = listOf("theme", "dark", "light", "color", "主题", "浅色", "深色", "曜石", "色彩", "外观与体验", "look and feel", "zhuti"),
-            breadcrumb = "外观与体验 > 主题色彩",
-        ),
-        SettingsSearchItem(
-            id = "appearance_dynamic_color",
-            title = "Material You 动态取色开关",
-            subtitle = "根据系统壁纸自动抽取主色调与强调色，保持系统级设计一致",
-            category = SettingsSearchCategory.APPEARANCE,
-            target = SettingsSearchTarget.DYNAMIC_COLOR,
-            icon = RuntimeIconName.Palette,
-            keywords = listOf("material you", "monet", "动态取色", "壁纸取色", "quse"),
-            breadcrumb = "外观与体验 > 主题色彩 > 动态壁纸取色",
+            breadcrumb = "外观与体验 > 主题模式",
         ),
         SettingsSearchItem(
             id = "appearance_font_scale",

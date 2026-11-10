@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.settings.stats.widgets
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,22 +12,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,7 +61,7 @@ fun StatsRankSection(
                     RuntimeIcon(
                         name = RuntimeIconName.OpenInNew,
                         modifier = Modifier.size(15.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        tint = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                     )
                 }
             }
@@ -80,14 +81,14 @@ fun StatsRankSection(
             title = {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = RuntimeTheme.typography.titleMedium,
                 )
             },
             text = {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(360.dp)
+                        .heightIn(max = 360.dp)
                         .verticalScroll(rememberScrollState()),
                 ) {
                     RankBody(
@@ -123,8 +124,8 @@ private fun RankBody(
         ) {
             Text(
                 text = "暂无统计数据",
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                style = RuntimeTheme.typography.bodySmall.copy(
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                 ),
             )
         }
@@ -147,18 +148,18 @@ private fun RankBody(
         ) {
             Text(
                 text = leftHeader,
-                style = MaterialTheme.typography.bodySmall.copy(
+                style = RuntimeTheme.typography.bodySmall.copy(
                     fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Medium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 ),
             )
             Text(
                 text = rightHeader,
-                style = MaterialTheme.typography.bodySmall.copy(
+                style = RuntimeTheme.typography.bodySmall.copy(
                     fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Medium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 ),
             )
         }
@@ -194,8 +195,8 @@ private fun RankRow(
                 modifier = Modifier
                     .fillMaxWidth(widthFactor)
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                    .clip(RuntimeTheme.shapes.medium)
+                    .background(RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f)),
             )
 
             // 内容展示
@@ -210,15 +211,15 @@ private fun RankRow(
                     RuntimeIcon(
                         name = icon,
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                        tint = RuntimeTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                     )
                 }
                 Text(
                     text = item.label,
-                    style = MaterialTheme.typography.bodySmall.copy(
+                    style = RuntimeTheme.typography.bodySmall.copy(
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = RuntimeTheme.colorScheme.onSurface,
                     ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -230,10 +231,10 @@ private fun RankRow(
 
         Text(
             text = item.value.toString(),
-            style = MaterialTheme.typography.bodySmall.copy(
+            style = RuntimeTheme.typography.bodySmall.copy(
                 fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             ),
             textAlign = TextAlign.End,
             modifier = Modifier.width(48.dp),

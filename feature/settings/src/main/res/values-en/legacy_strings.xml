@@ -158,7 +158,7 @@
     <string name="settings_text_0010" formatted="false">GGUF file path</string>
     <string name="settings_text_0011" formatted="false">JSON syntax parsing error</string>
     <string name="settings_text_0012" formatted="false">JSON configuration copied</string>
-    <string name="settings_text_0013" formatted="false">M3 Obsidian Velvet Dark, Immersive Focus</string>
+    <string name="settings_text_0013" formatted="false">Dark immersive focus</string>
     <string name="settings_text_0014" formatted="false">MCP JSON Configuration</string>
     <string name="settings_text_0015" formatted="false">MCP JSON Configuration (Cursor/Claude format)</string>
     <string name="settings_text_0016" formatted="false">MCP Plugin and Protocol Ecosystem</string>
@@ -388,7 +388,7 @@
     <string name="settings_text_0244" formatted="false">Click “Add Mount” above to map any Android directory to the Linux sandbox</string>
     <string name="settings_text_0245" formatted="false">Click in the top right corner + Add</string>
     <string name="settings_text_0246" formatted="false">Click Quick Insert Dynamic Macro Variable:</string>
-    <string name="settings_text_0247" formatted="false">Version: v0.3.0 (Material 3 Expressive)</string>
+    <string name="settings_text_0247" formatted="false">Version: v0.3.0</string>
     <string name="settings_text_0248" formatted="false">Generate security token</string>
     <string name="settings_text_0249" formatted="false">User Name</string>
     <string name="settings_text_0251" formatted="false">Claim an exemption for battery optimization</string>

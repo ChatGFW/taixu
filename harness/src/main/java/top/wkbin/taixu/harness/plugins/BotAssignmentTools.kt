@@ -16,6 +16,7 @@ import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import top.wkbin.taixu.core.model.bot.BotWorkBatch
 import top.wkbin.taixu.core.model.bot.BotWorkBatchStatus
 import top.wkbin.taixu.core.model.bot.GroupChat
+import top.wkbin.taixu.harness.bot.BotAssignmentRuntime
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
 import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
 
@@ -81,7 +82,7 @@ internal fun botAssignmentTools(
     botRepository: PersonaBotRepository,
     groupRepository: GroupChatRepository,
     assignments: BotAssignmentTracker,
-    runtime: (() -> top.wkbin.taixu.harness.bot.BotAssignmentRuntime)? = null,
+    runtime: (() -> BotAssignmentRuntime)? = null,
 ): List<PluginTool> {
     val listSchema = pluginObjectSchema(
         emptyList(),

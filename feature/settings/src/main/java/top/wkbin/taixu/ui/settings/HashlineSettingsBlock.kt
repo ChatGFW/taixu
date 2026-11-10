@@ -1,18 +1,19 @@
 package top.wkbin.taixu.ui.settings
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.getValue
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -23,6 +24,7 @@ import top.wkbin.taixu.harness.text.HashlineEditStats
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 
 /**
  * Hashline 编辑闸门与累计观测计数（自 [AgentSettingsScreen] 抽出）。
@@ -44,7 +46,6 @@ internal fun LazyListScope.hashlineSettingsItems(agentPrefs: AgentPreferences) {
                 checked = readAnchors,
                 onCheckedChange = { scope.launch { agentPrefs.setHashlineReadAnchorsDefault(it) } },
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             AgentToggleRow(
                 icon = RuntimeIconName.Edit,
                 title = "允许 Hashline ops 编辑",
@@ -52,7 +53,6 @@ internal fun LazyListScope.hashlineSettingsItems(agentPrefs: AgentPreferences) {
                 checked = opsEnabled,
                 onCheckedChange = { scope.launch { agentPrefs.setHashlineEditOpsEnabled(it) } },
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             AgentToggleRow(
                 icon = RuntimeIconName.History,
                 title = "允许 legacy oldText 编辑",
@@ -60,7 +60,6 @@ internal fun LazyListScope.hashlineSettingsItems(agentPrefs: AgentPreferences) {
                 checked = legacyEnabled,
                 onCheckedChange = { scope.launch { agentPrefs.setHashlineLegacyEditEnabled(it) } },
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             HashlineStatsRow(
                 legacyEnabled = legacyEnabled,
                 onDisableLegacy = { scope.launch { agentPrefs.setHashlineLegacyEditEnabled(false) } },
@@ -94,18 +93,18 @@ private fun HashlineStatsRow(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text("累计编辑计数（跨启动保留）", style = MaterialTheme.typography.titleSmall)
+        Text("累计编辑计数（跨启动保留）", style = RuntimeTheme.typography.titleSmall)
         Text(
             "ops 成功 $opsOk · 锚点过期 $opsStale · 其他失败 $opsFail\n" +
                 "legacy 成功 $legacyOk · legacy 失败 $legacyFail · legacy 被拒 $legacyRejected",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.bodySmall,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         if (suggestDisableLegacy) {
             Text(
                 "观测提示：ops 已较稳且 legacy 仍有失败，可考虑关闭「允许 legacy oldText 编辑」",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.tertiary,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.tertiary,
             )
             TextButton(onClick = onDisableLegacy) {
                 Text("一键关闭 legacy 编辑")
@@ -114,24 +113,20 @@ private fun HashlineStatsRow(
         if (suggestEnableLegacy) {
             Text(
                 "观测提示：模型仍大量提交 oldText 被拒，且 ops 尚未明显跑通，可临时开启「允许 legacy oldText 编辑」",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.tertiary,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.tertiary,
             )
             TextButton(onClick = onEnableLegacy) {
                 Text("一键临时开启 legacy 编辑")
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
             TextButton(onClick = {
                 HashlineEditStats.flush()
                 tick++
             }) { Text("刷新") }
             TextButton(onClick = { HashlineEditStats.reset(); tick++ }) {
-                Text("清零", color = MaterialTheme.colorScheme.error)
+                Text("清零", color = RuntimeTheme.colorScheme.error)
             }
         }
     }

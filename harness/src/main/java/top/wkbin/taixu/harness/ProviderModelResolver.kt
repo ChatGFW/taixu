@@ -3,13 +3,14 @@ package top.wkbin.taixu.harness
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.datastore.AgentPreferences
+import top.wkbin.taixu.core.model.FirstResponseTimeoutPolicy
 import top.wkbin.taixu.core.tools.ProviderRepository
 import top.wkbin.taixu.harness.ProviderClient.Companion.DEFAULT_BASE_URL
 import top.wkbin.taixu.harness.ProviderClient.Companion.DEFAULT_MODEL
 import top.wkbin.taixu.harness.ProviderClient.Companion.inferProtocol
-import top.wkbin.taixu.core.database.AiModelEntity
 
 /** Resolves catalogs, encrypted credentials and user preferences without sending requests. */
 internal class ProviderModelResolver(
@@ -147,7 +148,7 @@ internal class ProviderModelResolver(
     /** 全局「等待模型首个响应」写入本次请求。未配置时保持默认 90 秒。 */
     private suspend fun ModelConfig.withFirstResponseTimeout(): ModelConfig {
         val seconds = settingsDataStore.firstResponseTimeoutSeconds.first()
-        return copy(firstResponseTimeoutMs = top.wkbin.taixu.core.model.FirstResponseTimeoutPolicy.timeoutMs(seconds))
+        return copy(firstResponseTimeoutMs = FirstResponseTimeoutPolicy.timeoutMs(seconds))
     }
 
     /**

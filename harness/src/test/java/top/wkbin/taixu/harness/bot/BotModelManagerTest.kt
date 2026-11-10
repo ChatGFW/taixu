@@ -15,6 +15,7 @@ import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.database.*
 import top.wkbin.taixu.core.database.repository.*
 import top.wkbin.taixu.core.model.bot.*
+import top.wkbin.taixu.core.security.SecretManager
 import top.wkbin.taixu.harness.plugins.*
 
 @RunWith(RobolectricTestRunner::class)
@@ -117,6 +118,43 @@ class BotModelManagerTest {
         assertTrue(call("select-model", "task-session", mapOf("profile_id" to "two", "model" to "x")).success)
         assertEquals("x", sessions.findById("task-session")!!.modelVariant)
         assertEquals("one", bots.getBot("other")!!.modelId)
+    }
+
+    @Test fun `persisted tool restrictions apply to direct group and independent task sessions`() = runBlocking {
+        seed()
+        val member = bots.getBot("member")!!
+        bots.saveBot(member.copy(capabilityToolNames = mapOf("remote" to listOf("Read"))))
+        val scopedBots = RoomPersonaBotRepository(db.personaBotDao(), db.botGroupSessionDao())
+        val scope = RepositoryBotCapabilityScope(scopedBots,
+            McpServerRepository(db.mcpServerDao(), SecretManager()), tasks)
+        listOf("dm", "group-session", "task-session").forEach { session ->
+            assertEquals(setOf("Read"), scope.allowedMcpTools(session, "remote"))
+            assertTrue(scope.allowsTool(session, "remote", "Read"))
+            assertFalse(scope.allowsTool(session, "remote", "read"))
+        }
+        assertNull(scope.allowedMcpTools("other-dm", "remote"))
+        bots.saveBot(member.copy(capabilityToolNames = mapOf("remote" to emptyList())))
+        assertFalse(scope.allowsTool("task-session", "remote", "Read"))
+        bots.saveBot(member)
+        assertTrue(scope.allowsTool("task-session", "remote", "Read"))
+    }
+
+    @Test fun `authorization uses one policy snapshot during concurrent configuration changes`() = runBlocking {
+        seed()
+        val member = bots.getBot("member")!!
+        val snapshots = listOf(
+            member.copy(capabilityServerNames = listOf("remote"), capabilityToolNames = mapOf("remote" to emptyList())),
+            member.copy(capabilityServerNames = emptyList(), capabilityToolNames = emptyMap()),
+        )
+        var reads = 0
+        val changing = object : PersonaBotRepository by bots {
+            override suspend fun getBotBySessionId(sessionId: String) = snapshots[(reads++).coerceAtMost(1)]
+        }
+        val scope = RepositoryBotCapabilityScope(changing,
+            McpServerRepository(db.mcpServerDao(), SecretManager()), tasks)
+        assertFalse(scope.allowsTool("dm", "remote", "write"))
+        assertEquals(1, reads)
+        assertFalse(scope.allowsTool("dm", "remote", "write"))
     }
 
     @Test fun `members can page through every model of a large supplier without changing bindings`() = runBlocking {

@@ -1,47 +1,49 @@
 package top.wkbin.taixu
 
-import org.koin.android.ext.android.inject
-import org.koin.android.ext.koin.androidContext
-import org.koin.androidx.workmanager.factory.KoinWorkerFactory
-import org.koin.core.context.startKoin
-import top.wkbin.taixu.di.taiXuModule
 import android.annotation.SuppressLint
 import android.app.Application
 import android.database.CursorWindow
 import android.util.Log
 import androidx.work.Configuration
-import top.wkbin.taixu.core.common.logging.CrashReporter
-import top.wkbin.taixu.core.common.logging.AppLogger
-import top.wkbin.taixu.core.common.memory.MemoryWatchdog
-import top.wkbin.taixu.harness.HarnessLoop
-import top.wkbin.taixu.core.datastore.AppStatsPreferences
-import top.wkbin.taixu.core.database.AgentSkillRepository
-import top.wkbin.taixu.core.database.McpServerRepository
-import top.wkbin.taixu.service.AgentForegroundService
-import top.wkbin.taixu.service.NOTIFIABLE_AGENT_STATES
-import top.wkbin.taixu.service.WorkflowForegroundService
-import top.wkbin.taixu.runtime.privilege.PrivilegeManager
-import top.wkbin.taixu.harness.browser.BrowserMcpBootstrap
-import top.wkbin.taixu.bot.BotSchedulePlanner
-import top.wkbin.taixu.harness.agent.AgentMcpBootstrap
-import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
-import top.wkbin.taixu.harness.bot.BotAssignmentTracker
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import org.koin.android.ext.android.inject
+import org.koin.android.ext.koin.androidContext
+import org.koin.androidx.workmanager.factory.KoinWorkerFactory
+import org.koin.core.context.startKoin
+import top.wkbin.taixu.bot.BotSchedulePlanner
+import top.wkbin.taixu.core.common.logging.AppLogger
+import top.wkbin.taixu.core.common.logging.CrashReporter
+import top.wkbin.taixu.core.common.memory.MemoryWatchdog
+import top.wkbin.taixu.core.database.AgentSkillRepository
+import top.wkbin.taixu.core.database.McpServerRepository
+import top.wkbin.taixu.core.datastore.AppStatsPreferences
+import top.wkbin.taixu.di.taiXuModule
+import top.wkbin.taixu.harness.HarnessLoop
+import top.wkbin.taixu.harness.agent.AgentMcpBootstrap
+import top.wkbin.taixu.harness.bot.BotAssignmentRuntime
+import top.wkbin.taixu.harness.bot.BotAssignmentTracker
+import top.wkbin.taixu.harness.browser.BrowserMcpBootstrap
+import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
+import top.wkbin.taixu.harness.model.ModelsDevUpdater
 import top.wkbin.taixu.harness.workflow.WorkflowRunManager
 import top.wkbin.taixu.runtime.RuntimePathManager
+import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.runtime.virtualdisplay.VirtualDisplayCoordinator
+import top.wkbin.taixu.service.AgentForegroundService
+import top.wkbin.taixu.service.NOTIFIABLE_AGENT_STATES
+import top.wkbin.taixu.service.WorkflowForegroundService
 import top.wkbin.taixu.workflow.AppForegroundTracker
 import top.wkbin.taixu.workflow.WorkflowApprovalNotifier
 import top.wkbin.taixu.workflow.WorkflowRunUiController
-import java.io.File
 
 class TaiXuApplication : Application(), Configuration.Provider {
 
@@ -74,10 +76,10 @@ class TaiXuApplication : Application(), Configuration.Provider {
     val browserMcpBootstrap: BrowserMcpBootstrap by inject()
     val agentMcpBootstrap: AgentMcpBootstrap by inject()
     val botSchedulePlannerLazy: Lazy<BotSchedulePlanner> = inject()
-    private val botAssignmentRuntimeLazy: Lazy<top.wkbin.taixu.harness.bot.BotAssignmentRuntime> = inject()
+    private val botAssignmentRuntimeLazy: Lazy<BotAssignmentRuntime> = inject()
     private val groupChatDispatcherLazy: Lazy<GroupChatDispatcher> = inject()
     private val botAssignmentTrackerLazy: Lazy<BotAssignmentTracker> = inject()
-    private val modelsDevUpdaterLazy: Lazy<top.wkbin.taixu.harness.model.ModelsDevUpdater> = inject()
+    private val modelsDevUpdaterLazy: Lazy<ModelsDevUpdater> = inject()
 
     private val appLoggerLazy: Lazy<AppLogger> = inject()
     private val virtualDisplayCoordinatorLazy: Lazy<VirtualDisplayCoordinator> = inject()

@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.settings
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import android.content.Context
 import android.content.ClipboardManager
 import android.widget.Toast
@@ -7,25 +10,20 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -56,7 +54,7 @@ internal fun BatchImportKeysDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Key, Modifier.size(20.dp), MaterialTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Key, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurface)
                 Text("批量导入密钥")
             }
         },
@@ -69,16 +67,16 @@ internal fun BatchImportKeysDialog(
             ) {
                 Text(
                     "粘贴多个 API 密钥，一行一个，遇到换行即为下一个 Key：",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 RuntimeFilledTextField(
                     value = text,
                     onValueChange = { text = it },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 144.dp, max = 240.dp),
                     placeholder = { Text("sk-xxxxxxxxxxxxxxxx\nsk-yyyyyyyyyyyyyyyy\nsk-zzzzzzzzzzzzzzzz") },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                    shape = MaterialTheme.shapes.small,
+                    textStyle = RuntimeTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                    shape = RuntimeTheme.shapes.small,
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -96,20 +94,20 @@ internal fun BatchImportKeysDialog(
                             }
                         },
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        shape = MaterialTheme.shapes.small,
+                        shape = RuntimeTheme.shapes.medium,
                         contentPadding = PaddingValues(horizontal = 8.dp),
                     ) {
-                        Text("从剪贴板粘贴", style = MaterialTheme.typography.labelMedium)
+                        Text("从剪贴板粘贴", style = RuntimeTheme.typography.labelMedium)
                     }
                     if (parsedCount > 0) {
                         Surface(
-                            shape = MaterialTheme.shapes.extraSmall,
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            shape = RuntimeTheme.shapes.extraSmall,
+                            color = RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                         ) {
                             Text(
                                 text = "已识别 $parsedCount 个",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                color = RuntimeTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                             )
                         }
@@ -145,7 +143,7 @@ internal fun QuickImportJsonDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RuntimeIcon(RuntimeIconName.Code, Modifier.size(20.dp), MaterialTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Code, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurface)
                 Text("从 JSON 填入模型配置")
             }
         },
@@ -158,16 +156,16 @@ internal fun QuickImportJsonDialog(
             ) {
                 Text(
                     "粘贴太墟导出的模型配置或 OpenAI 兼容 JSON，将自动解析并填入当前表单：",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 RuntimeFilledTextField(
                     value = text,
                     onValueChange = { text = it },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 144.dp, max = 240.dp),
                     placeholder = { Text("{\n  \"name\": \"DeepSeek-V4\",\n  \"provider\": \"DeepSeek\",\n  \"baseUrl\": \"https://api.deepseek.com/v1\",\n  \"model\": \"deepseek-v4-flash\"\n}") },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                    shape = MaterialTheme.shapes.small,
+                    textStyle = RuntimeTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                    shape = RuntimeTheme.shapes.small,
                 )
                 RuntimeOutlinedButton(
                     onClick = {

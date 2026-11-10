@@ -1,14 +1,11 @@
 package top.wkbin.taixu.ui.chat
 
-import androidx.compose.ui.draw.shadow
-
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -17,6 +14,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.feature.chat.R
+import top.wkbin.taixu.feature.components.R as ComponentsR
 import top.wkbin.taixu.harness.events.HarnessEvent
 import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.ui.components.*
@@ -24,7 +22,6 @@ import top.wkbin.taixu.ui.chat.floating.rememberFloatingChatLauncher
 
 /** Floating navigation and actions; advanced controls unfold on demand. */
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
 internal fun ChatTopBar(
     runMode: RunMode, currentBranch: ConversationBranch?,
     runtimeEvents: List<HarnessEvent>, running: Boolean,
@@ -47,32 +44,26 @@ internal fun ChatTopBar(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         if (!LocalRuntimeWidthClass.current.hasPersistentNavigation) {
-            RuntimeCard(modifier = Modifier.shadow(4.dp, CircleShape, ambientColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.06f), spotColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.06f)), shape = CircleShape,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-            borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f), contentPadding = PaddingValues(0.dp)) {
-                RuntimeIconButton(onClick = onOpenSessions, modifier = Modifier.size(48.dp),
+            RuntimeFloatingToolbar {
+                RuntimeIconButton(onClick = onOpenSessions, modifier = Modifier.size(40.dp),
                     contentDescription = stringResource(R.string.chat_open_session_list)) {
                     RuntimeIcon(RuntimeIconName.Menu, Modifier.size(22.dp))
                 }
             }
         } else Spacer(Modifier.width(48.dp))
-        RuntimeCard(modifier = Modifier.shadow(4.dp, CircleShape, ambientColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.06f), spotColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.06f)), shape = CircleShape,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-            borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f), contentPadding = PaddingValues(0.dp)) {
+        RuntimeFloatingToolbar {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                RuntimeIconButton(onClick = onOpenBots, modifier = Modifier.size(48.dp),
+                RuntimeIconButton(onClick = onOpenBots, modifier = Modifier.size(40.dp),
                     contentDescription = stringResource(MainDestination.Bots.labelRes)) {
                     RuntimeIcon(MainDestination.Bots.icon, Modifier.size(22.dp))
                 }
-                RuntimeIconButton(onClick = onOpenWorkshop, modifier = Modifier.size(48.dp),
+                RuntimeIconButton(onClick = onOpenWorkshop, modifier = Modifier.size(40.dp),
                     contentDescription = stringResource(MainDestination.Workspace.labelRes)) {
                     RuntimeIcon(MainDestination.Workspace.icon, Modifier.size(22.dp))
                 }
-                RuntimeIconButton(onClick = { expanded = true }, modifier = Modifier.size(48.dp),
+                RuntimeIconButton(onClick = { expanded = true }, modifier = Modifier.size(40.dp),
                     contentDescription = stringResource(R.string.chat_workbench_controls)) {
-                    RuntimeIcon(RuntimeIconName.More, Modifier.size(22.dp),
-                        if (toolchainHighlight || repositoryHighlight || browserHighlight) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurface)
+                    RuntimeIcon(RuntimeIconName.More, Modifier.size(22.dp), RuntimeTheme.colorScheme.onSurface)
                 }
             }
         }
@@ -82,34 +73,25 @@ internal fun ChatTopBar(
         PlainBackdropModalBottomSheet(onDismissRequest = { expanded = false }) {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.chat_workbench_controls), style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.chat_workbench_controls), style = RuntimeTheme.typography.titleLarge)
                 Row {
                     companion?.let { toggle -> RuntimeIconButton(onClick = closeThen(toggle.onToggle),
-                        contentDescription = stringResource(if (toggle.open) top.wkbin.taixu.feature.components.R.string.components_companion_collapse
-                            else top.wkbin.taixu.feature.components.R.string.components_companion_open)) {
+                        contentDescription = stringResource(if (toggle.open) ComponentsR.string.components_companion_collapse
+                            else ComponentsR.string.components_companion_open)) {
                         RuntimeIcon(RuntimeIconName.PanelRightOpen, Modifier.size(24.dp))
                     } }
                 }
                 ChatWorkspaceBar(
                     onOpenBrowser = onOpenBrowser?.let(closeThen), browserHighlight = browserHighlight,
                     onOpenRepository = onOpenRepository?.let(closeThen), repositoryHighlight = repositoryHighlight)
-                Text(stringResource(R.string.chat_workbench_session), Modifier.padding(top = 8.dp),
-                    style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                RuntimeTextButton(onClick = closeThen(onOpenMemory)) {
-                    RuntimeIcon(RuntimeIconName.Brain, Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.chat_memory_sheet_title))
-                }
-                RuntimeTextButton(onClick = closeThen(onOpenOutline)) {
-                    RuntimeIcon(RuntimeIconName.List, Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.chat_outline_title))
-                }
-                onExportMarkdown?.let { handler ->
-                    RuntimeTextButton(onClick = closeThen(handler)) {
-                        RuntimeIcon(RuntimeIconName.Save, Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.chat_export_markdown))
+                Column {
+                    RuntimeSectionTitle(stringResource(R.string.chat_workbench_session))
+                    RuntimeCard(containerColor = RuntimeTheme.colorScheme.surfaceContainerHigh, contentPadding = PaddingValues(0.dp)) {
+                        WorkbenchRow(RuntimeIconName.Brain, stringResource(R.string.chat_memory_sheet_title), closeThen(onOpenMemory))
+                        WorkbenchRow(RuntimeIconName.List, stringResource(R.string.chat_outline_title), closeThen(onOpenOutline))
+                        onExportMarkdown?.let { handler ->
+                            WorkbenchRow(RuntimeIconName.Save, stringResource(R.string.chat_export_markdown), closeThen(handler))
+                        }
                     }
                 }
                 ChatWorkbenchControls(runMode, currentBranch, runtimeEvents, running,
@@ -120,4 +102,13 @@ internal fun ChatTopBar(
             }
         }
     }
+}
+
+@Composable
+private fun WorkbenchRow(icon: RuntimeIconName, title: String, onClick: () -> Unit) {
+    top.wkbin.taixu.ui.components.RuntimeArrowPreference(
+        title = title,
+        startAction = { RuntimeIcon(icon, Modifier.padding(end = 16.dp).size(24.dp), RuntimeTheme.colorScheme.onSurfaceVariant) },
+        onClick = onClick,
+    )
 }

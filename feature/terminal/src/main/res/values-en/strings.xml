@@ -22,6 +22,7 @@
     <string name="terminal_root_directory">System root directory (/root)</string>
     <string name="terminal_create">Create terminal</string>
     <string name="terminal_cancel">Cancel</string>
+    <string name="terminal_screen_title">Matrix terminal</string>
     <string name="terminal_sessions">Matrix terminal sessions</string>
     <string name="terminal_active_sessions">%1$d active sessions</string>
     <string name="terminal_only_session_hint">This is the only active terminal. Use the reset icon on the right to restart it.</string>

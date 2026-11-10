@@ -1,19 +1,20 @@
 package top.wkbin.taixu.ui.bot
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
@@ -35,14 +36,14 @@ internal fun GroupAssignmentContinueDialog(task: BotAssignment, onDismiss: () ->
         title = { Text(stringResource(R.string.fbot_assignment_continue)) },
         text = {
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                Text(task.title, style = MaterialTheme.typography.bodyMedium)
-                Text(stringResource(R.string.fbot_assignment_continue_hint), style = MaterialTheme.typography.bodySmall)
+                Text(task.title, style = RuntimeTheme.typography.bodyMedium)
+                Text(stringResource(R.string.fbot_assignment_continue_hint), style = RuntimeTheme.typography.bodySmall)
                 RuntimeFilledTextField(
                     value = instruction, onValueChange = { instruction = it }, enabled = !sending,
-                    label = { Text(stringResource(R.string.fbot_assignment_instruction)) }, minLines = 3,
+                    labelText = stringResource(R.string.fbot_assignment_instruction), minLines = 3,
                     modifier = Modifier.fillMaxWidth(), isError = error != null,
                 )
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
             }
         },
         confirmButton = {

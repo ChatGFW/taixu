@@ -1,6 +1,7 @@
 package top.wkbin.taixu.harness.checkpoint
 
 import top.wkbin.taixu.harness.WorkspaceFileAccess
+import top.wkbin.taixu.harness.environment.SessionExecutionEnvironments
 import top.wkbin.taixu.runtime.environment.ExecutionFiles
 
 /**
@@ -15,7 +16,7 @@ class RewindController(
     private val store: CheckpointStore,
     private val fileAccess: WorkspaceFileAccess,
     private val conversationRewinder: ConversationRewinder? = null,
-    private val environments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
+    private val environments: SessionExecutionEnvironments? = null,
 ) {
     fun checkpoints(sessionId: String): List<CheckpointMeta> = store.checkpoints(sessionId)
 

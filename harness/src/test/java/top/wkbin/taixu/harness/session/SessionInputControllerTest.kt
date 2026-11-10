@@ -5,6 +5,9 @@ import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Test
 import top.wkbin.taixu.harness.PendingMessage
+import top.wkbin.taixu.harness.approval.RunInitiator
+import top.wkbin.taixu.harness.approval.RunInitiatorContext
+import top.wkbin.taixu.harness.groupchat.GroupWorkContext
 import top.wkbin.taixu.harness.queue.PromptQueue
 import top.wkbin.taixu.harness.session.PromptSubmission.*
 
@@ -46,7 +49,7 @@ class SessionInputControllerTest {
     @Test fun `host business identity is captured before launch and survives queued serialization without leaking to next user input`() = runBlocking {
         val runtime = Runtime()
         runtime.onStart = { assertEquals("work", runtime.recorded.single().groupWorkId) }
-        withContext(top.wkbin.taixu.harness.groupchat.GroupWorkContext("work", "g")) {
+        withContext(GroupWorkContext("work", "g")) {
             controller(runtime).submit("s", "start", emptyList(), PromptQueue.NEXT_RUN)
             controller(runtime).submit("s", "next", emptyList(), PromptQueue.NEXT_RUN)
         }
@@ -63,8 +66,8 @@ class SessionInputControllerTest {
     @Test fun `run initiator is captured at admission and defaults to person without context`() = runBlocking {
         val runtime = Runtime()
         withContext(
-            top.wkbin.taixu.harness.approval.RunInitiatorContext(
-                top.wkbin.taixu.harness.approval.RunInitiator.schedule("sched-9"),
+            RunInitiatorContext(
+                RunInitiator.schedule("sched-9"),
             ),
         ) {
             controller(runtime).submit("s", "cron work", emptyList(), PromptQueue.NEXT_RUN)

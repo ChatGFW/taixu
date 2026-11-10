@@ -1,4 +1,7 @@
 package top.wkbin.taixu.ui.workspace
+
+import androidx.compose.runtime.*
+
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -15,18 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
+import top.wkbin.taixu.ui.miuix.*
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -52,6 +47,10 @@ import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SectionHeader
 import androidx.compose.ui.res.stringResource
 import java.util.UUID
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
+import top.wkbin.taixu.ui.components.runtimeScrollViewport
 /**
  * 工坊签名管理：创建 / 导入 / 删除 Android 签名（keystore）。
  * Release 构建时在构建类型选择弹窗中选用这里登记的签名。
@@ -65,34 +64,34 @@ fun WorkshopSigningScreen(onBack: () -> Unit, viewModel: WorkshopSigningViewMode
     var showImport by rememberSaveable { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<WorkshopKeystore?>(null) }
 
-    Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = { RuntimeTopBar(stringResource(R.string.workshop_signing_title), onBack, stringResource(R.string.workshop_signing_subtitle)) }) { padding ->
-        LazyColumn(Modifier.fillMaxSize().then(top.wkbin.taixu.ui.components.runtimeScrollViewport(padding)), contentPadding = top.wkbin.taixu.ui.components.runtimeScrollContentPadding(padding, PaddingValues(16.dp)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Scaffold(containerColor = RuntimeTheme.colorScheme.background, topBar = { RuntimeTopBar(stringResource(R.string.workshop_signing_title), onBack, stringResource(R.string.workshop_signing_subtitle)) }) { padding ->
+        LazyColumn(Modifier.fillMaxSize().then(runtimeScrollViewport(padding)), contentPadding = runtimeScrollContentPadding(padding, runtimeContentPadding(top = 12.dp, bottom = 24.dp)), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item { SectionHeader(stringResource(R.string.workshop_signing_section), stringResource(R.string.workshop_signing_section_description)) }
             item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    RuntimeOutlinedButton(onClick = { showImport = true }, enabled = !busy, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_signing_import)) }
-                    RuntimeButton(onClick = { showCreate = true }, enabled = !busy, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.workshop_signing_create)) }
+                RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
+                    RuntimeOutlinedButton(onClick = { showImport = true }, enabled = !busy, modifier = Modifier) { Text(stringResource(R.string.workshop_signing_import)) }
+                    RuntimeButton(onClick = { showCreate = true }, enabled = !busy, modifier = Modifier) { Text(stringResource(R.string.workshop_signing_create)) }
                 }
             }
             if (message != null) {
                 item {
-                    Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.small) {
-                        Text(message.orEmpty(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.fillMaxWidth().padding(10.dp))
+                    Surface(color = RuntimeTheme.colorScheme.secondaryContainer, shape = RuntimeTheme.shapes.small) {
+                        Text(message.orEmpty(), style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSecondaryContainer, modifier = Modifier.fillMaxWidth().padding(10.dp))
                     }
                 }
             }
             if (keystores.isEmpty()) {
                 item {
                     RuntimeCard { Column(Modifier.fillMaxWidth().padding(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(stringResource(R.string.workshop_signing_empty), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Text(stringResource(R.string.workshop_signing_empty_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.workshop_signing_empty), style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.workshop_signing_empty_hint), style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                     } }
                 }
             } else {
                 item { RuntimeCard(contentPadding = PaddingValues(0.dp)) {
                     keystores.forEachIndexed { index, keystore ->
                         KeystoreRow(keystore) { deleteTarget = keystore }
-                        if (index != keystores.lastIndex) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        if (index != keystores.lastIndex) HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant)
                     }
                 } }
             }
@@ -143,19 +142,19 @@ fun WorkshopSigningScreen(onBack: () -> Unit, viewModel: WorkshopSigningViewMode
 @Composable
 private fun KeystoreRow(keystore: WorkshopKeystore, onDelete: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.secondaryContainer) {
-            RuntimeIcon(RuntimeIconName.Key, Modifier.padding(9.dp).size(20.dp), MaterialTheme.colorScheme.onSecondaryContainer)
+        Surface(shape = RuntimeTheme.shapes.small, color = RuntimeTheme.colorScheme.secondaryContainer) {
+            RuntimeIcon(RuntimeIconName.Key, Modifier.padding(9.dp).size(20.dp), RuntimeTheme.colorScheme.onSecondaryContainer)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(keystore.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(keystore.name, style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 "alias ${keystore.alias} · ${keystore.validityYears}y · ${formatDate(keystore.createdAtMillis)}",
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(keystore.fileName, style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontSize = 10.sp), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(keystore.fileName, style = RuntimeTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp), color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         RuntimeOutlinedButton(onClick = onDelete) { Text(stringResource(R.string.workspace_delete)) }
     }
@@ -193,8 +192,8 @@ private fun CreateKeystoreDialog(
                     }
                     Text(
                         text = "（创建签名失败:$displayReason）",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.error,
+                        style = RuntimeTheme.typography.titleSmall,
+                        color = RuntimeTheme.colorScheme.error,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -206,7 +205,7 @@ private fun CreateKeystoreDialog(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(stringResource(R.string.workshop_signing_create_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.workshop_signing_create_hint), style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 SigningField(stringResource(R.string.workshop_signing_field_name), draft.name) {
                     createError = null
                     draft = draft.copy(name = it)
@@ -267,10 +266,7 @@ private fun CreateKeystoreDialog(
             }
         },
         dismissButton = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+
                 RuntimeOutlinedButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.workspace_cancel)) }
                 RuntimeOutlinedButton(
                     onClick = {
@@ -283,7 +279,7 @@ private fun CreateKeystoreDialog(
                 ) {
                     Text(stringResource(R.string.workshop_signing_default))
                 }
-            }
+
         },
     )
 }
@@ -351,8 +347,8 @@ private fun ImportKeystoreDialog(
                 if (!importError.isNullOrBlank()) {
                     Text(
                         text = "（导入失败：$importError）",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.error,
+                        style = RuntimeTheme.typography.titleSmall,
+                        color = RuntimeTheme.colorScheme.error,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -364,15 +360,15 @@ private fun ImportKeystoreDialog(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(stringResource(R.string.workshop_signing_import_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.workshop_signing_import_hint), style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 if (draft.uri.isBlank()) {
                     RuntimeOutlinedButton(onClick = { picker.launch(arrayOf("*/*")) }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                         Text(stringResource(R.string.workshop_signing_pick_file))
                     }
                 } else {
-                    Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, shape = MaterialTheme.shapes.small) {
+                    Surface(color = RuntimeTheme.colorScheme.surfaceContainerLow, shape = RuntimeTheme.shapes.small) {
                         Column(Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(draft.displayName.ifBlank { draft.uri.substringAfterLast('/') }, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(draft.displayName.ifBlank { draft.uri.substringAfterLast('/') }, style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), maxLines = 2, overflow = TextOverflow.Ellipsis)
                             RuntimeOutlinedButton(onClick = { picker.launch(arrayOf("*/*")) }, enabled = !busy) { Text(stringResource(R.string.workshop_signing_repick_file)) }
                         }
                     }
@@ -428,7 +424,7 @@ private fun SigningField(
     RuntimeFilledTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(if (optional) "$label（可选）" else label) },
+        labelText = if (optional) "$label（可选）" else label,
         singleLine = true,
         isError = isError,
         supportingText = supportingText?.let { hint -> { Text(hint) } },
@@ -436,12 +432,12 @@ private fun SigningField(
         trailingIcon = if (password) {
             {
                 RuntimeIconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    RuntimeIcon(name = if (passwordVisible) RuntimeIconName.VisibilityOff else RuntimeIconName.Visibility, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    RuntimeIcon(name = if (passwordVisible) RuntimeIconName.VisibilityOff else RuntimeIconName.Visibility, modifier = Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
             }
         } else null,
         modifier = Modifier.fillMaxWidth(),
-        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = if (password && !passwordVisible) FontFamily.Default else FontFamily.Monospace),
+        textStyle = RuntimeTheme.typography.bodySmall.copy(fontFamily = if (password && !passwordVisible) FontFamily.Default else FontFamily.Monospace),
     )
 }
 

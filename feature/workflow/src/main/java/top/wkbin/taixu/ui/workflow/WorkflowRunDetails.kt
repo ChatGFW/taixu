@@ -1,11 +1,10 @@
 package top.wkbin.taixu.ui.workflow
-
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
+import top.wkbin.taixu.ui.miuix.*
+import top.yukonga.miuix.kmp.basic.Text
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -19,6 +18,7 @@ import top.wkbin.taixu.ui.components.*
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.foundation.shape.CircleShape
 
 @Composable
 internal fun WorkflowElapsed(state: WorkflowRuntimeState) {
@@ -27,7 +27,7 @@ internal fun WorkflowElapsed(state: WorkflowRuntimeState) {
         while (state.finishedAt == null) { now = System.currentTimeMillis(); delay(1000) }
     }
     val elapsed = ((state.finishedAt ?: now) - (state.startedAt ?: now)).coerceAtLeast(0) / 1000
-    Text("运行耗时 ${elapsed / 60} 分 ${elapsed % 60} 秒", style = MaterialTheme.typography.labelSmall)
+    Text("运行耗时 ${elapsed / 60} 分 ${elapsed % 60} 秒", style = RuntimeTheme.typography.labelSmall)
 }
 
 @Composable
@@ -104,12 +104,12 @@ internal fun WorkflowStartDialog(
             ) {
                 Text(definition.description)
                 if (needsModel) {
-                    Text("执行模型（点选即可，避免 403 请换可用账号）", style = MaterialTheme.typography.labelLarge)
+                    Text("执行模型（点选即可，避免 403 请换可用账号）", style = RuntimeTheme.typography.labelLarge)
                     if (models.isEmpty()) {
                         Text(
                             "尚未配置可用模型。请先到设置 → 模型管理添加账号，再回来运行含智能体节点的工作流。",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.error,
+                            style = RuntimeTheme.typography.bodySmall,
                         )
                     } else {
                         models.forEach { model ->
@@ -122,18 +122,18 @@ internal fun WorkflowStartDialog(
                                         .filter { it.isNotEmpty() }
                                     selectedVariant = nextVariants.firstOrNull().orEmpty()
                                 },
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RuntimeTheme.shapes.small,
                                 color = if (selected) {
-                                    MaterialTheme.colorScheme.primaryContainer
+                                    RuntimeTheme.colorScheme.primaryContainer
                                 } else {
-                                    MaterialTheme.colorScheme.surfaceContainerHigh
+                                    RuntimeTheme.colorScheme.surfaceContainerHigh
                                 },
                                 border = BorderStroke(
                                     width = 1.dp,
                                     color = if (selected) {
-                                        MaterialTheme.colorScheme.primary
+                                        RuntimeTheme.colorScheme.primary
                                     } else {
-                                        MaterialTheme.colorScheme.outlineVariant
+                                        RuntimeTheme.colorScheme.outlineVariant
                                     },
                                 ),
                                 modifier = Modifier.fillMaxWidth(),
@@ -145,52 +145,52 @@ internal fun WorkflowStartDialog(
                                             append(model.name)
                                             if (model.isActive) append("（当前默认）")
                                         },
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                        style = RuntimeTheme.typography.bodyMedium,
+                                        fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
                                     )
                                     Text(
                                         text = "${model.provider} · ${model.model.substringBefore(',').ifBlank { model.model }}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        style = RuntimeTheme.typography.labelSmall,
+                                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                     )
                                     if (model.pureChatMode) {
                                         Text(
                                             "纯聊天模式：可能无法调用 host 工具",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.error,
+                                            style = RuntimeTheme.typography.labelSmall,
+                                            color = RuntimeTheme.colorScheme.error,
                                         )
                                     }
                                 }
                             }
                         }
                         if (variants.size > 1) {
-                            Text("模型变体", style = MaterialTheme.typography.labelMedium)
+                            Text("模型变体", style = RuntimeTheme.typography.labelMedium)
                             variants.forEach { variant ->
                                 val selected = variant == selectedVariant
                                 Surface(
                                     onClick = { selectedVariant = variant },
-                                    shape = RoundedCornerShape(50),
+                                    shape = CircleShape,
                                     color = if (selected) {
-                                        MaterialTheme.colorScheme.secondaryContainer
+                                        RuntimeTheme.colorScheme.secondaryContainer
                                     } else {
-                                        MaterialTheme.colorScheme.surfaceContainerHighest
+                                        RuntimeTheme.colorScheme.surfaceContainerHighest
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
                                     Text(
                                         text = if (selected) "✓ $variant" else variant,
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                        style = MaterialTheme.typography.bodySmall,
+                                        style = RuntimeTheme.typography.bodySmall,
                                     )
                                 }
                             }
                         } else if (variants.size == 1) {
-                            Text("变体：${variants.first()}", style = MaterialTheme.typography.bodySmall)
+                            Text("变体：${variants.first()}", style = RuntimeTheme.typography.bodySmall)
                         }
                         Text(
                             "此处选择只影响本次工作流，不会改全局默认模型。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -206,7 +206,7 @@ internal fun WorkflowStartDialog(
                     RuntimeFilledTextField(
                         value = values[key].orEmpty(),
                         onValueChange = { values[key] = it },
-                        label = { Text("$key（必填）") },
+                        labelText = "$key（必填）",
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -214,7 +214,7 @@ internal fun WorkflowStartDialog(
                     RuntimeFilledTextField(
                         value = values[key].orEmpty(),
                         onValueChange = { values[key] = it },
-                        label = { Text(key) },
+                        labelText = key,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -254,9 +254,9 @@ private fun ApkSelectorSection(
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         ) {
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                RuntimeIcon(RuntimeIconName.Android, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Android, Modifier.size(18.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Spacer(Modifier.width(6.dp))
-                Text("选择安装 APK", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Text("选择安装 APK", style = RuntimeTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
             }
             if (onRefresh != null) {
                 TextButton(
@@ -265,7 +265,7 @@ private fun ApkSelectorSection(
                 ) {
                     RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(14.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("重新扫描", style = MaterialTheme.typography.labelSmall)
+                    Text("重新扫描", style = RuntimeTheme.typography.labelSmall)
                 }
             }
         }
@@ -277,13 +277,13 @@ private fun ApkSelectorSection(
                     selectedPath == apk.relativePath
                 Surface(
                     onClick = { onSelectApk(apk.sandboxPath) },
-                    shape = RoundedCornerShape(10.dp),
-                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                        else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = RuntimeTheme.shapes.small,
+                    color = if (isSelected) RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                        else RuntimeTheme.colorScheme.surfaceContainerHigh,
                     border = BorderStroke(
                         width = if (isSelected) 1.5.dp else 1.dp,
-                        color = if (isSelected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.outlineVariant,
+                        color = if (isSelected) RuntimeTheme.colorScheme.primary
+                            else RuntimeTheme.colorScheme.outlineVariant,
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -293,25 +293,25 @@ private fun ApkSelectorSection(
                             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                         ) {
                             if (isSelected) {
-                                RuntimeIcon(RuntimeIconName.Check, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                                RuntimeIcon(RuntimeIconName.Check, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.onSurface)
                                 Spacer(Modifier.width(6.dp))
                             }
                             Text(
                                 text = apk.name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                style = RuntimeTheme.typography.bodyMedium,
+                                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Medium,
                                 modifier = Modifier.weight(1f),
                                 maxLines = 1,
                             )
                             if (index == 0) {
                                 Surface(
-                                    shape = RoundedCornerShape(4.dp),
-                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = RuntimeTheme.shapes.tiny,
+                                    color = RuntimeTheme.colorScheme.primary,
                                 ) {
                                     Text(
                                         text = "✨ 最新生成",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        style = RuntimeTheme.typography.labelSmall,
+                                        color = RuntimeTheme.colorScheme.onPrimary,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                     )
                                 }
@@ -319,8 +319,8 @@ private fun ApkSelectorSection(
                         }
                         Text(
                             text = apk.relativePath,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             fontFamily = FontFamily.Monospace,
                             maxLines = 2,
                         )
@@ -330,13 +330,13 @@ private fun ApkSelectorSection(
                         ) {
                             Text(
                                 text = formatApkSize(apk.sizeBytes),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                             Text(
                                 text = formatApkTime(apk.lastModified),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
@@ -354,26 +354,26 @@ private fun ApkSelectorSection(
                 Spacer(Modifier.width(4.dp))
                 Text(
                     if (showManualInput) "收起手动输入" else "手动指定其他 APK 路径...",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = RuntimeTheme.typography.labelSmall,
                 )
             }
         } else {
             Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                shape = RuntimeTheme.shapes.small,
+                color = RuntimeTheme.colorScheme.surfaceContainerHigh,
+                border = BorderStroke(1.dp, RuntimeTheme.colorScheme.outlineVariant),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        RuntimeIcon(RuntimeIconName.Info, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                        RuntimeIcon(RuntimeIconName.Info, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.onSurface)
                         Spacer(Modifier.width(6.dp))
-                        Text("未在工程中扫描到 APK", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                        Text("未在工程中扫描到 APK", style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
                     }
                     Text(
                         "若您已在终端完成编译构建，可点击右上角「重新扫描」；或在下方直接输入 APK 文件路径。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -383,7 +383,7 @@ private fun ApkSelectorSection(
             RuntimeFilledTextField(
                 value = selectedPath,
                 onValueChange = onSelectApk,
-                label = { Text("APK 路径 (绝对路径或相对路径)") },
+                labelText = "APK 路径 (绝对路径或相对路径)",
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )

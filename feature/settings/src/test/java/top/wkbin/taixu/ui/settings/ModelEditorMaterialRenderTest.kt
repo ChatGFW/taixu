@@ -9,16 +9,14 @@ import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewRootForTest
 import androidx.compose.ui.semantics.*
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.unit.dp
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -48,8 +46,12 @@ abstract class ModelEditorRenderSupport {
         controller.setup()
         try {
             activity.setContent {
-                TaiXuTheme(darkTheme = dark, dynamicColor = false) {
-                    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { content() }
+                androidx.compose.runtime.CompositionLocalProvider(
+                    top.yukonga.miuix.kmp.squircle.LocalSquircleEnabled provides false,
+                ) {
+                    TaiXuTheme(darkTheme = dark, dynamicColor = false) {
+                        Surface(Modifier.fillMaxSize(), color = RuntimeTheme.colorScheme.background) { content() }
+                    }
                 }
             }
             layout(activity.window.decorView, width, height)
@@ -105,7 +107,8 @@ abstract class ModelEditorRenderSupport {
 
     protected fun click(root: View, label: String) {
         val node = nodes(root).single {
-            it.config.getOrNull(SemanticsProperties.Text).orEmpty().any { text -> text.text == label } &&
+            (it.config.getOrNull(SemanticsProperties.Text).orEmpty().any { text -> text.text == label } ||
+                it.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty().contains(label)) &&
                 it.config.getOrNull(SemanticsActions.OnClick) != null
         }
         assertTrue(requireNotNull(node.config.getOrNull(SemanticsActions.OnClick)?.action).invoke())

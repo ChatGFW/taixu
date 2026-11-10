@@ -1,7 +1,7 @@
 package top.wkbin.taixu.ui.workspace
 
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.workspace.R
@@ -17,7 +17,7 @@ internal fun DiscardEditsDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
         text = { Text(stringResource(R.string.workspace_discard_edits_message)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.workspace_discard_edits_confirm), color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.workspace_discard_edits_confirm))
             }
         },
         dismissButton = {
@@ -41,7 +41,7 @@ internal fun SaveConflictDialog(
         text = { Text(stringResource(R.string.workspace_save_conflict_message)) },
         confirmButton = {
             TextButton(onClick = onOverwrite, enabled = !isSaving) {
-                Text(stringResource(R.string.workspace_save_conflict_overwrite), color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.workspace_save_conflict_overwrite))
             }
         },
         dismissButton = {

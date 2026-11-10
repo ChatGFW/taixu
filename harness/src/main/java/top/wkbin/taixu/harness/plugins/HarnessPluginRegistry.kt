@@ -8,10 +8,11 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import okhttp3.OkHttpClient
-import top.wkbin.taixu.harness.core.LlmApi
-import top.wkbin.taixu.harness.core.ToolCheckpoints
+import top.wkbin.taixu.harness.LlmApiAdapter
 import top.wkbin.taixu.harness.ToolExecutionRequest
 import top.wkbin.taixu.harness.ToolResult
+import top.wkbin.taixu.harness.core.LlmApi
+import top.wkbin.taixu.harness.core.ToolCheckpoints
 import top.wkbin.taixu.harness.workflow.NodeExecutor
 import top.wkbin.taixu.plugin.api.*
 
@@ -68,9 +69,9 @@ class HarnessPluginRegistry(plugins: List<HarnessPlugin>, private val external: 
         val tool = owner(server)?.tools?.singleOrNull { it.id == toolId } ?: return listOf("插件工具不存在")
         return if (PluginSchemas.valid(tool.schema, arguments)) emptyList() else listOf("插件参数不符合 Schema")
     }
-    fun providers(client: OkHttpClient, json: Json): List<top.wkbin.taixu.harness.LlmApiAdapter> =
+    fun providers(client: OkHttpClient, json: Json): List<LlmApiAdapter> =
         entries.flatMap { it.providers }.filter { it.providerId == null }.map { provider -> provider.create(client, json).also { require(it.api == provider.api) { "Provider 实现与声明不一致" } } }
-    fun providerOverrides(client: OkHttpClient, json: Json): Map<Pair<LlmApi, String>, top.wkbin.taixu.harness.LlmApiAdapter> =
+    fun providerOverrides(client: OkHttpClient, json: Json): Map<Pair<LlmApi, String>, LlmApiAdapter> =
         entries.flatMap { it.providers }.filter { it.providerId != null }.associate { provider ->
             (provider.api to provider.providerId!!) to provider.create(client, json).also { require(it.api == provider.api) { "Provider 实现与声明不一致" } }
         }

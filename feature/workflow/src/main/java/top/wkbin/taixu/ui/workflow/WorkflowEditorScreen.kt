@@ -1,5 +1,9 @@
 package top.wkbin.taixu.ui.workflow
 
+import top.wkbin.taixu.ui.miuix.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import android.content.ClipData
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -8,7 +12,6 @@ import kotlinx.serialization.json.Json
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -41,27 +44,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.ui.components.RuntimeIconButton
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.VerticalDivider
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
@@ -70,7 +63,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import top.wkbin.taixu.core.model.workflow.FailurePolicy
 import top.wkbin.taixu.core.model.workflow.HostWorkflowActions
 import top.wkbin.taixu.core.model.workflow.HostWorkflowPrivilege
 import top.wkbin.taixu.core.model.workflow.NodeRunStatus
@@ -82,9 +74,15 @@ import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeDropdownField
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.RuntimeWidthClass
+import top.wkbin.taixu.ui.components.runtimeContentPadding
+import top.wkbin.taixu.ui.components.widthClassOf
+import top.wkbin.taixu.ui.theme.semanticColors
 
 /** 共享的 pretty Json：构建实例开销大，不在 remember/重组中反复创建。 */
 private val PrettyJson = Json { prettyPrint = true }
@@ -123,7 +121,7 @@ fun WorkflowEditorView(
 
     BoxWithConstraints(modifier) {
         val editorHeight = maxHeight
-        val isWideScreen = top.wkbin.taixu.ui.components.widthClassOf(maxWidth.value) == top.wkbin.taixu.ui.components.RuntimeWidthClass.Expanded
+        val isWideScreen = widthClassOf(maxWidth.value) == RuntimeWidthClass.Expanded
         val selectedNode = state.definition.nodes.firstOrNull { it.id == state.selectedNodeId }
         val isInspectorOpen = !isWideScreen && sheetExpanded && selectedNode != null
 
@@ -131,19 +129,19 @@ fun WorkflowEditorView(
             state.message?.let { message ->
                 Surface(
                     color = if (message == "已保存" || message == "请选择目标节点") {
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                        RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
                     } else {
-                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
+                        RuntimeTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = message,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = RuntimeTheme.typography.labelSmall,
                         color = if (message == "已保存" || message == "请选择目标节点") {
-                            MaterialTheme.colorScheme.primary
+                            RuntimeTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.error
+                            RuntimeTheme.colorScheme.error
                         },
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     )
@@ -219,20 +217,20 @@ fun WorkflowEditorView(
                                         val theme = selectedNode.type.visualTheme()
                                         Surface(
                                             color = theme.accentColor.copy(alpha = 0.16f),
-                                            shape = RoundedCornerShape(6.dp),
+                                            shape = RuntimeTheme.shapes.extraSmall,
                                         ) {
                                             Text(
                                                 text = theme.tag,
-                                                style = MaterialTheme.typography.labelSmall,
+                                                style = RuntimeTheme.typography.labelSmall,
                                                 color = theme.accentColor,
-                                                fontWeight = FontWeight.Bold,
+                                                fontWeight = FontWeight.Medium,
                                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                             )
                                         }
                                         Text(
                                             text = selectedNode.title,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
+                                            style = RuntimeTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Medium,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                             modifier = Modifier.weight(1f),
@@ -308,14 +306,14 @@ fun WorkflowEditorView(
             onDismissRequest = { nodePendingDelete = null },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RuntimeIcon(RuntimeIconName.Trash, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.error)
-                    Text("确认删除节点", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    RuntimeIcon(RuntimeIconName.Trash, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.error)
+                    Text("确认删除节点", style = RuntimeTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                 }
             },
             text = {
                 Text(
                     text = "是否确定删除「${target.title}」？\n与该节点相连的所有输入和输出连线也将被一并断开移除。",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = RuntimeTheme.typography.bodyMedium,
                 )
             },
             confirmButton = {
@@ -375,18 +373,12 @@ private fun EditorBottomSheetLayout(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(maxHeight * 0.62f)
-                        .shadow(
-                            elevation = 16.dp,
-                            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                        )
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                         ) {},
-                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
-                    tonalElevation = 4.dp,
+                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                    color = RuntimeTheme.colorScheme.surfaceContainerHigh,
                 ) {
                     Column(
                         Modifier
@@ -404,7 +396,7 @@ private fun EditorBottomSheetLayout(
                                 modifier = Modifier
                                     .size(width = 36.dp, height = 4.dp)
                                     .background(
-                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
+                                        RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
                                         CircleShape,
                                     ),
                             )
@@ -420,20 +412,20 @@ private fun EditorBottomSheetLayout(
                         ) {
                             Surface(
                                 color = theme.accentColor.copy(alpha = 0.16f),
-                                shape = RoundedCornerShape(6.dp),
+                                shape = RuntimeTheme.shapes.extraSmall,
                             ) {
                                 Text(
                                     text = theme.tag,
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = RuntimeTheme.typography.labelSmall,
                                     color = theme.accentColor,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                                 )
                             }
                             Text(
                                 text = selectedNode.title,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
+                                style = RuntimeTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f),
@@ -443,7 +435,7 @@ private fun EditorBottomSheetLayout(
                                 modifier = Modifier.size(32.dp),
                                 contentDescription = "收起面板",
                             ) {
-                                RuntimeIcon(RuntimeIconName.Close, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                RuntimeIcon(RuntimeIconName.Close, Modifier.size(18.dp), tint = RuntimeTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                         HorizontalDivider()
@@ -477,7 +469,7 @@ private fun EditorBottomDock(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(0.dp), // 去除圆角，平铺沉底贴边
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = RuntimeTheme.colorScheme.surfaceContainer,
         tonalElevation = 3.dp,
     ) {
         Column(
@@ -486,23 +478,23 @@ private fun EditorBottomDock(
                 .navigationBarsPadding(),
         ) {
             HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
                 thickness = 1.dp,
             )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .weight(1f)
                     .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-            // 添加节点
             DockActionButton(
                 icon = RuntimeIconName.Plus,
                 label = "添加",
                 onClick = { addDialogVisible = true },
-                tint = MaterialTheme.colorScheme.primary,
+                tint = RuntimeTheme.colorScheme.onSurface,
             )
 
             // 运行 / 停止调试
@@ -511,14 +503,14 @@ private fun EditorBottomDock(
                     icon = RuntimeIconName.Stop,
                     label = "停止",
                     onClick = onCancelRun,
-                    tint = MaterialTheme.colorScheme.error,
+                    tint = RuntimeTheme.colorScheme.error,
                 )
             } else {
                 DockActionButton(
                     icon = RuntimeIconName.Play,
                     label = "运行",
                     onClick = onRun,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
             }
 
@@ -528,13 +520,13 @@ private fun EditorBottomDock(
                     icon = RuntimeIconName.Terminal,
                     label = if (isRunning) "运行中" else "日志",
                     onClick = onToggleConsole,
-                    tint = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = if (isRunning) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant,
                     badge = if (isRunning) {
                         {
                             Box(
                                 modifier = Modifier
                                     .size(7.dp)
-                                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                    .background(RuntimeTheme.colorScheme.primary, CircleShape)
                                     .align(Alignment.TopEnd)
                             )
                         }
@@ -548,18 +540,16 @@ private fun EditorBottomDock(
                     icon = RuntimeIconName.Trash,
                     label = "删除",
                     onClick = onDeleteSelectedNode,
-                    tint = MaterialTheme.colorScheme.error,
+                    tint = RuntimeTheme.colorScheme.error,
                 )
             }
 
-            // 自动排版
             DockActionButton(
                 icon = RuntimeIconName.Tune,
                 label = "排版",
                 onClick = onAutoLayout,
             )
 
-            // 撤销
             DockActionButton(
                 icon = RuntimeIconName.Back,
                 label = "撤销",
@@ -567,7 +557,6 @@ private fun EditorBottomDock(
                 onClick = onUndo,
             )
 
-            // 重做
             DockActionButton(
                 icon = RuntimeIconName.Reverse,
                 label = "重做",
@@ -575,7 +564,7 @@ private fun EditorBottomDock(
                 onClick = onRedo,
             )
 
-            // 保存
+            }
             DockActionButton(
                 icon = RuntimeIconName.Save,
                 label = when {
@@ -584,7 +573,7 @@ private fun EditorBottomDock(
                     else -> "已保存"
                 },
                 enabled = !state.isSaving && state.isDirty && !isRunning,
-                tint = if (state.isDirty) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = if (state.isDirty) RuntimeTheme.colorScheme.tertiary else RuntimeTheme.colorScheme.onSurfaceVariant,
                 onClick = onSave,
             )
         }
@@ -609,7 +598,7 @@ private fun DockActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    tint: Color = RuntimeTheme.colorScheme.onSurfaceVariant,
     badge: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     Surface(
@@ -633,7 +622,7 @@ private fun DockActionButton(
             Spacer(Modifier.height(3.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                style = RuntimeTheme.typography.labelSmall.copy(fontSize = 11.sp),
                 color = tint,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -706,15 +695,15 @@ private fun RunConsoleModal(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-                Text("运行调试控制台", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurface)
+                Text("运行调试控制台", style = RuntimeTheme.typography.titleMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 Surface(
                     color = runStatusColor(activeRunState.status).copy(alpha = 0.16f),
-                    shape = RoundedCornerShape(50),
+                    shape = CircleShape,
                 ) {
                     Text(
                         text = runStatusLabel(activeRunState.status),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = RuntimeTheme.typography.labelSmall,
                         color = runStatusColor(activeRunState.status),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                     )
@@ -734,7 +723,7 @@ private fun RunConsoleModal(
                         val nodeRun = activeRunState.nodeStates[node.id]
                         val st = nodeRun?.status ?: NodeRunStatus.PENDING
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RuntimeTheme.shapes.chip,
                             color = statusColor(st).copy(alpha = 0.14f),
                         ) {
                             Row(
@@ -744,12 +733,12 @@ private fun RunConsoleModal(
                             ) {
                                 Text(
                                     text = statusIconText(st),
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = RuntimeTheme.typography.labelSmall,
                                     color = statusColor(st),
                                 )
                                 Text(
                                     text = node.title,
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = RuntimeTheme.typography.labelSmall,
                                     color = statusColor(st),
                                     maxLines = 1,
                                 )
@@ -760,7 +749,7 @@ private fun RunConsoleModal(
 
                 Surface(
                     color = Color(0xFF0F172A),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RuntimeTheme.shapes.chip,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(300.dp),
@@ -769,7 +758,7 @@ private fun RunConsoleModal(
                         Text(
                             text = consoleOutput,
                             color = Color(0xFFE2E8F0),
-                            style = MaterialTheme.typography.bodySmall.copy(
+                            style = RuntimeTheme.typography.bodySmall.copy(
                                 fontFamily = FontFamily.Monospace,
                             ),
                             modifier = Modifier.verticalScroll(scrollState),
@@ -779,7 +768,7 @@ private fun RunConsoleModal(
             }
         },
         confirmButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
                 RuntimeOutlinedButton(onClick = {
                     clipboardScope.launch {
                         clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("workflow_console", consoleOutput)))
@@ -789,14 +778,14 @@ private fun RunConsoleModal(
                 }
                 if (isRunning) {
                     RuntimeOutlinedButton(onClick = onCancelRun) {
-                        Text("停止运行", color = MaterialTheme.colorScheme.error)
+                        Text("停止运行", color = RuntimeTheme.colorScheme.error)
                     }
                 } else {
                     RuntimeButton(onClick = onRerun) {
                         Text("重新运行")
                     }
                 }
-            }
+
         },
         dismissButton = {
             RuntimeOutlinedButton(onClick = onDismiss) { Text("关闭") }
@@ -817,9 +806,9 @@ private fun statusIconText(status: NodeRunStatus) = when (status) {
 @Composable
 private fun runStatusColor(status: WorkflowRunStatus): Color = when (status) {
     WorkflowRunStatus.SUCCESS -> Color(0xFF2E7D32)
-    WorkflowRunStatus.FAILED, WorkflowRunStatus.CANCELLED -> MaterialTheme.colorScheme.error
-    WorkflowRunStatus.RUNNING, WorkflowRunStatus.WAITING_APPROVAL -> MaterialTheme.colorScheme.primary
-    WorkflowRunStatus.IDLE -> MaterialTheme.colorScheme.outline
+    WorkflowRunStatus.FAILED, WorkflowRunStatus.CANCELLED -> RuntimeTheme.colorScheme.error
+    WorkflowRunStatus.RUNNING, WorkflowRunStatus.WAITING_APPROVAL -> RuntimeTheme.colorScheme.primary
+    WorkflowRunStatus.IDLE -> RuntimeTheme.colorScheme.outline
 }
 
 private fun runStatusLabel(status: WorkflowRunStatus): String = when (status) {
@@ -840,7 +829,7 @@ private fun NodePickerModal(
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("添加工作流节点", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("添加工作流节点", style = RuntimeTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
         },
         text = {
             Column(
@@ -851,15 +840,15 @@ private fun NodePickerModal(
             ) {
                 Text(
                     text = "选择要加入画布的节点类型，创建后可在检查面板配置参数：",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 WorkflowNodeType.entries.forEach { type ->
                     val meta = type.metadata()
                     Surface(
                         onClick = { onSelect(type) },
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = RuntimeTheme.shapes.small,
+                        color = RuntimeTheme.colorScheme.surfaceContainerHigh,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
@@ -868,20 +857,20 @@ private fun NodePickerModal(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             Surface(
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                shape = RoundedCornerShape(8.dp),
+                                color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                shape = RuntimeTheme.shapes.chip,
                                 modifier = Modifier.size(36.dp),
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    RuntimeIcon(meta.icon, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                                    RuntimeIcon(meta.icon, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurface)
                                 }
                             }
                             Column(Modifier.weight(1f)) {
-                                Text(meta.label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text(meta.label, style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
                                 Text(
                                     meta.summary,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.bodySmall,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
@@ -914,14 +903,14 @@ private fun EditorInspector(
 ) {
     val selected = state.definition.nodes.firstOrNull { it.id == state.selectedNodeId }
     Column(
-        modifier = modifier.verticalScroll(rememberScrollState()).padding(14.dp),
+        modifier = modifier.verticalScroll(rememberScrollState()).padding(runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom)),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         WorkflowMetadataCard(state, onUpdateMetadata)
 
         if (selected == null) {
             RuntimeCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
-                Text("请点击画布中的节点以配置参数、管理连线或查看执行日志", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("请点击画布中的节点以配置参数、管理连线或查看执行日志", color = RuntimeTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             val nodeRun = activeRunState?.nodeStates?.get(selected.id)
@@ -929,18 +918,18 @@ private fun EditorInspector(
                 RuntimeCard(
                     modifier = Modifier.fillMaxWidth(),
                     borderColor = statusColor(nodeRun.status).copy(alpha = 0.5f),
-                    contentPadding = PaddingValues(14.dp),
+                    contentPadding = PaddingValues(16.dp),
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("调试运行状态", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            Text("调试运行状态", style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                             Surface(
                                 color = statusColor(nodeRun.status).copy(alpha = 0.16f),
-                                shape = RoundedCornerShape(50),
+                                shape = CircleShape,
                             ) {
                                 Text(
                                     text = statusLabel(nodeRun.status),
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = RuntimeTheme.typography.labelSmall,
                                     color = statusColor(nodeRun.status),
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                 )
@@ -1009,26 +998,26 @@ private fun NodeInspectorCard(
         runCatching { PrettyJson.decodeFromString<Map<String, String>>(rawJsonText) }.getOrNull()
     }
 
-    RuntimeCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+    RuntimeCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                    shape = RoundedCornerShape(50),
+                    color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    shape = CircleShape,
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        RuntimeIcon(meta.icon, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-                        Text(meta.label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                        RuntimeIcon(meta.icon, Modifier.size(14.dp), tint = RuntimeTheme.colorScheme.onSurface)
+                        Text(meta.label, style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
                     }
                 }
                 Text(
                     text = node.id,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
@@ -1037,27 +1026,27 @@ private fun NodeInspectorCard(
                     onClick = onRemove,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                 ) {
-                    RuntimeIcon(RuntimeIconName.Trash, Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
-                    Text("删除", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                    RuntimeIcon(RuntimeIconName.Trash, Modifier.size(14.dp), tint = RuntimeTheme.colorScheme.error)
+                    Text("删除", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.error)
                 }
             }
 
             Surface(
-                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
-                shape = RoundedCornerShape(10.dp),
+                color = RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
+                shape = RuntimeTheme.shapes.small,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = "💡 节点作用：${meta.summary}",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
+                        style = RuntimeTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = RuntimeTheme.colorScheme.primary,
                     )
                     Text(
                         text = meta.guide,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -1065,45 +1054,45 @@ private fun NodeInspectorCard(
             RuntimeFilledTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("节点标题") },
+                labelText = "节点标题",
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
             RuntimeFilledTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("节点备注 / 说明") },
+                labelText = "节点备注 / 说明",
                 minLines = 1,
                 maxLines = 2,
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Text("核心参数配置", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text("核心参数配置", style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
 
             when (node.type) {
                 WorkflowNodeType.BASH_COMMAND -> {
                     Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, top.wkbin.taixu.ui.theme.semanticColors().info.copy(alpha = 0.4f)),
+                        color = RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
+                        shape = RuntimeTheme.shapes.small,
+                        border = BorderStroke(1.dp, semanticColors().info.copy(alpha = 0.4f)),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(16.dp), tint = top.wkbin.taixu.ui.theme.semanticColors().info)
-                                Text("终端 Shell 命令行（在沙箱环境中执行）", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = top.wkbin.taixu.ui.theme.semanticColors().info)
+                                RuntimeIcon(RuntimeIconName.Terminal, Modifier.size(16.dp), tint = semanticColors().info)
+                                Text("终端 Shell 命令行（在沙箱环境中执行）", style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium, color = semanticColors().info)
                             }
                             RuntimeFilledTextField(
                                 value = configMap["command"].orEmpty(),
                                 onValueChange = { configMap["command"] = it },
-                                label = { Text("Bash 命令（在此输入执行的命令）") },
+                                labelText = "Bash 命令（在此输入执行的命令）",
                                 placeholder = { Text("例如：git status --short && git diff") },
                                 supportingText = { Text("支持引用上游输出：\${previous.output}、工作区：\${WORKSPACE_PATH}") },
                                 minLines = 3,
                                 maxLines = 6,
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            Text("常用命令预设（点击直接填入）：", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("常用命令预设（点击直接填入）：", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                             Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 listOf(
                                     "系统内核" to "echo '=== 系统内核 ===' && uname -a && cat /etc/os-release | head -n 8",
@@ -1114,13 +1103,13 @@ private fun NodeInspectorCard(
                                 ).forEach { (name, cmd) ->
                                     Surface(
                                         onClick = { configMap["command"] = cmd },
-                                        shape = RoundedCornerShape(50),
-                                        color = top.wkbin.taixu.ui.theme.semanticColors().info.copy(alpha = 0.14f),
+                                        shape = CircleShape,
+                                        color = semanticColors().info.copy(alpha = 0.14f),
                                     ) {
                                         Text(
                                             text = "+ $name",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = top.wkbin.taixu.ui.theme.semanticColors().info,
+                                            style = RuntimeTheme.typography.labelSmall,
+                                            color = semanticColors().info,
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                         )
                                     }
@@ -1129,7 +1118,7 @@ private fun NodeInspectorCard(
                             RuntimeFilledTextField(
                                 value = configMap["workingDirectory"].orEmpty(),
                                 onValueChange = { configMap["workingDirectory"] = it },
-                                label = { Text("工作目录（可选）") },
+                                labelText = "工作目录（可选）",
                                 placeholder = { Text("留空默认为当前工程根目录") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
@@ -1145,7 +1134,7 @@ private fun NodeInspectorCard(
                             configMap["expression"] = it
                             configMap.remove("condition")
                         },
-                        label = { Text("条件表达式") },
+                        labelText = "条件表达式",
                         placeholder = { Text("exitCode == 0  或  \${HOST_PRIVILEGED} == true") },
                         supportingText = {
                             Text("支持 exitCode / output contains / \${VAR} 比较，以及 && ||。成立→exit 0，否则 exit 1。")
@@ -1166,7 +1155,7 @@ private fun NodeInspectorCard(
                     RuntimeFilledTextField(
                         value = configMap["command"].orEmpty(),
                         onValueChange = { configMap["command"] = it },
-                        label = { Text("后台服务启动命令（必填）") },
+                        labelText = "后台服务启动命令（必填）",
                         placeholder = { Text("例如：python3 -m http.server 8080") },
                         supportingText = { Text("将在沙箱后台常驻运行，进程 ID 保存于 \${PROCESS_ID}") },
                         minLines = 2,
@@ -1176,7 +1165,7 @@ private fun NodeInspectorCard(
                     RuntimeFilledTextField(
                         value = configMap["workingDirectory"].orEmpty(),
                         onValueChange = { configMap["workingDirectory"] = it },
-                        label = { Text("工作目录（可选）") },
+                        labelText = "工作目录（可选）",
                         placeholder = { Text("留空默认为工程根目录") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -1187,37 +1176,31 @@ private fun NodeInspectorCard(
                 WorkflowNodeType.SUBAGENT_DELEGATE -> WorkflowAgentFields(configMap, delegate = true)
 
                 WorkflowNodeType.TAIXU_BUILD -> {
-                    var modeExpanded by remember { mutableStateOf(false) }
-                    var typeExpanded by remember { mutableStateOf(false) }
                     val currentMode = configMap["mode"] ?: "build"
                     val currentType = configMap["projectType"] ?: "android"
+                    val modeOptions = listOf("build" to "标准构建 (build)", "doctor" to "环境体检 (doctor)", "analyze" to "静态分析 (analyze)")
+                    val typeOptions = listOf("android", "cmake", "cargo", "gradle")
 
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Column(Modifier.weight(1f)) {
-                            RuntimeOutlinedButton(onClick = { modeExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text("模式：$currentMode", maxLines = 1)
-                            }
-                            DropdownMenu(expanded = modeExpanded, onDismissRequest = { modeExpanded = false }) {
-                                listOf("build" to "标准构建", "doctor" to "环境体检", "analyze" to "静态分析").forEach { (m, l) ->
-                                    DropdownMenuItem(text = { Text("$l ($m)") }, onClick = { configMap["mode"] = m; modeExpanded = false })
-                                }
-                            }
-                        }
-                        Column(Modifier.weight(1f)) {
-                            RuntimeOutlinedButton(onClick = { typeExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text("类型：$currentType", maxLines = 1)
-                            }
-                            DropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
-                                listOf("android", "cmake", "cargo", "gradle").forEach { t ->
-                                    DropdownMenuItem(text = { Text(t) }, onClick = { configMap["projectType"] = t; typeExpanded = false })
-                                }
-                            }
-                        }
+                        RuntimeDropdownField(
+                            title = "模式",
+                            items = modeOptions.map { it.second },
+                            selectedIndex = modeOptions.indexOfFirst { it.first == currentMode }.coerceAtLeast(0),
+                            onSelectedIndexChange = { index -> modeOptions.getOrNull(index)?.let { configMap["mode"] = it.first } },
+                            modifier = Modifier.weight(1f),
+                        )
+                        RuntimeDropdownField(
+                            title = "类型",
+                            items = typeOptions,
+                            selectedIndex = typeOptions.indexOf(currentType).coerceAtLeast(0),
+                            onSelectedIndexChange = { index -> typeOptions.getOrNull(index)?.let { configMap["projectType"] = it } },
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                     RuntimeFilledTextField(
                         value = configMap["task"] ?: "assembleDebug",
                         onValueChange = { configMap["task"] = it },
-                        label = { Text("构建 Task 任务") },
+                        labelText = "构建 Task 任务",
                         placeholder = { Text("例如：assembleDebug 或 build") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -1236,7 +1219,7 @@ private fun NodeInspectorCard(
                     RuntimeFilledTextField(
                         value = configMap["variables"].orEmpty(),
                         onValueChange = { configMap["variables"] = it },
-                        label = { Text("变量赋值（每行 KEY=value）") },
+                        labelText = "变量赋值（每行 KEY=value）",
                         placeholder = { Text("FOO=bar\nPATH=\${WORKSPACE_PATH}") },
                         supportingText = { Text("支持 \${VAR} / \${previous.output} / \${nodeId.output}") },
                         minLines = 3,
@@ -1252,8 +1235,8 @@ private fun NodeInspectorCard(
                 WorkflowNodeType.TRIGGER -> {
                     Text(
                         text = "工作流启动入口。在顶部点击“运行调试”即可从此处触发整个 DAG 流程。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -1261,8 +1244,8 @@ private fun NodeInspectorCard(
                 WorkflowNodeType.TERMINAL_OUTPUT -> {
                     Text(
                         text = "工作流终点节点。将自动收集并归档上游所有步骤的标准输出、错误日志与产物文件。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RuntimeTheme.typography.bodySmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -1276,14 +1259,14 @@ private fun NodeInspectorCard(
             ) {
                 Text(
                     text = if (showAdvancedJson) "收起高级配置 (JSON)" else "展开高级配置 (JSON)",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    style = RuntimeTheme.typography.labelMedium,
+                    color = RuntimeTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f),
                 )
                 RuntimeIcon(
                     name = if (showAdvancedJson) RuntimeIconName.ChevronUp else RuntimeIconName.ChevronDown,
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = RuntimeTheme.colorScheme.onSurface,
                 )
             }
             if (showAdvancedJson) {
@@ -1296,7 +1279,7 @@ private fun NodeInspectorCard(
                             configMap.putAll(parsed)
                         }
                     },
-                    label = { Text("原始 JSON 配置") },
+                    labelText = "原始 JSON 配置",
                     isError = parsedConfig == null,
                     minLines = 3,
                     maxLines = 6,
@@ -1306,10 +1289,10 @@ private fun NodeInspectorCard(
 
             WorkflowNodePolicyFields(node.type, timeout, { timeout = it }, policy, { policy = it })
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RuntimeActionRow(modifier = Modifier.fillMaxWidth()) {
                 RuntimeOutlinedButton(
                     onClick = if (isConnecting) onCancelConnection else onBeginConnection,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier,
                 ) {
                     Text(if (isConnecting) "取消连线" else "在画布连线…", maxLines = 1)
                 }
@@ -1330,7 +1313,7 @@ private fun NodeInspectorCard(
                     },
                     enabled = (node.type == WorkflowNodeType.HUMAN_APPROVAL || timeout.toIntOrNull()?.let { it in 1..3600 } == true) &&
                         (!showAdvancedJson || parsedConfig != null),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier,
                 ) {
                     Text("应用参数更改", maxLines = 1)
                 }
@@ -1341,55 +1324,39 @@ private fun NodeInspectorCard(
 
 @Composable
 private fun HostActionConfigFields(configMap: MutableMap<String, String>) {
-    var categoryExpanded by remember { mutableStateOf(false) }
-    var actionExpanded by remember { mutableStateOf(false) }
     val grouped = remember { HostWorkflowActions.grouped() }
     val currentActionId = configMap["action"] ?: "status"
     val currentDef = HostWorkflowActions.find(currentActionId)
     val currentCategory = currentDef?.category ?: grouped.keys.firstOrNull().orEmpty()
+    val categories = grouped.keys.toList()
+    val actions = grouped[currentCategory].orEmpty()
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Column(modifier = Modifier.weight(1f)) {
-                RuntimeOutlinedButton(onClick = { categoryExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text("分类：$currentCategory", maxLines = 1)
-                }
-                DropdownMenu(expanded = categoryExpanded, onDismissRequest = { categoryExpanded = false }) {
-                    grouped.keys.forEach { category ->
-                        DropdownMenuItem(
-                            text = { Text(category) },
-                            onClick = {
-                                categoryExpanded = false
-                                val first = grouped[category]?.firstOrNull() ?: return@DropdownMenuItem
-                                configMap["action"] = first.id
-                            },
-                        )
+            RuntimeDropdownField(
+                title = "分类",
+                items = categories,
+                selectedIndex = categories.indexOf(currentCategory).coerceAtLeast(0),
+                onSelectedIndexChange = { index ->
+                    categories.getOrNull(index)?.let { category ->
+                        grouped[category]?.firstOrNull()?.let { first -> configMap["action"] = first.id }
                     }
-                }
-            }
-            Column(modifier = Modifier.weight(1.4f)) {
-                RuntimeOutlinedButton(onClick = { actionExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text(currentDef?.label ?: currentActionId, maxLines = 1)
-                }
-                DropdownMenu(expanded = actionExpanded, onDismissRequest = { actionExpanded = false }) {
-                    grouped[currentCategory].orEmpty().forEach { action ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    buildString {
-                                        append(action.label)
-                                        if (action.privilege == HostWorkflowPrivilege.PRIVILEGED) append(" · 需特权")
-                                    },
-                                )
-                            },
-                            onClick = {
-                                configMap["action"] = action.id
-                                actionExpanded = false
-                            },
-                        )
+                },
+                modifier = Modifier.weight(1f),
+            )
+            RuntimeDropdownField(
+                title = "动作",
+                items = actions.map { action ->
+                    buildString {
+                        append(action.label)
+                        if (action.privilege == HostWorkflowPrivilege.PRIVILEGED) append(" · 需特权")
                     }
-                }
-            }
+                },
+                selectedIndex = actions.indexOfFirst { it.id == currentActionId }.coerceAtLeast(0),
+                onSelectedIndexChange = { index -> actions.getOrNull(index)?.let { configMap["action"] = it.id } },
+                enabled = actions.isNotEmpty(),
+                modifier = Modifier.weight(1.4f),
+            )
         }
 
         currentDef?.let { def ->
@@ -1397,14 +1364,14 @@ private fun HostActionConfigFields(configMap: MutableMap<String, String>) {
                 text = def.description + if (def.privilege == HostWorkflowPrivilege.PRIVILEGED) {
                     "\n⚠ 需要 Shizuku 或 Root 生效。"
                 } else "",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )
             def.fields.forEach { field ->
                 RuntimeFilledTextField(
                     value = configMap[field.key].orEmpty(),
                     onValueChange = { configMap[field.key] = it },
-                    label = { Text(if (field.required) "${field.label} *" else field.label) },
+                    labelText = if (field.required) "${field.label} *" else field.label,
                     placeholder = { Text(field.hint) },
                     singleLine = !field.multiline,
                     minLines = if (field.multiline) 3 else 1,
@@ -1415,7 +1382,7 @@ private fun HostActionConfigFields(configMap: MutableMap<String, String>) {
         } ?: RuntimeFilledTextField(
             value = configMap["command"].orEmpty(),
             onValueChange = { configMap["command"] = it },
-            label = { Text("自定义宿主命令（逃逸舱）") },
+            labelText = "自定义宿主命令（逃逸舱）",
             supportingText = { Text("未知 action 时将按特权 shell 执行此命令") },
             minLines = 2,
             maxLines = 4,
@@ -1439,70 +1406,62 @@ private fun BranchRouterCard(
 
     var successTargetId by remember(otherNodes) { mutableStateOf(otherNodes.firstOrNull()?.id.orEmpty()) }
     var failureTargetId by remember(otherNodes) { mutableStateOf(otherNodes.getOrNull(1)?.id ?: otherNodes.firstOrNull()?.id.orEmpty()) }
-    var successExpanded by remember { mutableStateOf(false) }
-    var failureExpanded by remember { mutableStateOf(false) }
 
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
-        shape = RoundedCornerShape(12.dp),
+        color = RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
+        shape = RuntimeTheme.shapes.small,
         border = BorderStroke(1.dp, Color(0xFFEAB308).copy(alpha = 0.4f)),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 RuntimeIcon(RuntimeIconName.Link, Modifier.size(16.dp), tint = Color(0xFFEAB308))
-                Text("可视化条件分支路由器", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = Color(0xFFEAB308))
+                Text("可视化条件分支路由器", style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium, color = Color(0xFFEAB308))
             }
 
             Surface(
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(8.dp),
+                color = RuntimeTheme.colorScheme.surfaceContainerLow,
+                shape = RuntimeTheme.shapes.chip,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
                     text = "💡 节点会求值上方表达式：成立 exitCode=0，不成立 exitCode=1（节点本身仍成功，便于分流）。\n" +
                         "下面可快速把成功/失败分支连到目标节点。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodySmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(8.dp),
                 )
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Surface(shape = RoundedCornerShape(50), color = top.wkbin.taixu.ui.theme.semanticColors().success.copy(alpha = 0.18f)) {
-                    Text("✔ 成功分支 (exitCode == 0)", style = MaterialTheme.typography.labelSmall, color = top.wkbin.taixu.ui.theme.semanticColors().success, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                Surface(shape = CircleShape, color = semanticColors().success.copy(alpha = 0.18f)) {
+                    Text("✔ 成功分支 (exitCode == 0)", style = RuntimeTheme.typography.labelSmall, color = semanticColors().success, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                 }
                 if (successEdge != null) {
                     val target = state.definition.nodes.firstOrNull { it.id == successEdge.toNodeId }
                     Row(
-                        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(8.dp)).padding(8.dp),
+                        modifier = Modifier.fillMaxWidth().background(RuntimeTheme.colorScheme.surfaceContainerHigh, RuntimeTheme.shapes.chip).padding(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text("已连接至: ${target?.title ?: successEdge.toNodeId}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text("已连接至: ${target?.title ?: successEdge.toNodeId}", style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                         RuntimeOutlinedButton(
                             onClick = { onRemoveEdge(successEdge.id) },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         ) {
-                            Text("断开", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                            Text("断开", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.error)
                         }
                     }
                 } else if (otherNodes.isNotEmpty()) {
                     val currentSuccessNode = otherNodes.firstOrNull { it.id == successTargetId } ?: otherNodes.first()
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Box(Modifier.weight(1f)) {
-                            RuntimeOutlinedButton(onClick = { successExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text("目标: ${currentSuccessNode.title}", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                            DropdownMenu(expanded = successExpanded, onDismissRequest = { successExpanded = false }) {
-                                otherNodes.forEach { target ->
-                                    DropdownMenuItem(
-                                        text = { Text(target.title) },
-                                        onClick = { successTargetId = target.id; successExpanded = false },
-                                    )
-                                }
-                            }
-                        }
+                        RuntimeDropdownField(
+                            title = "成功目标",
+                            items = otherNodes.map { it.title },
+                            selectedIndex = otherNodes.indexOfFirst { it.id == currentSuccessNode.id }.coerceAtLeast(0),
+                            onSelectedIndexChange = { index -> otherNodes.getOrNull(index)?.let { successTargetId = it.id } },
+                            modifier = Modifier.weight(1f),
+                        )
                         RuntimeButton(
                             onClick = { onConnectNodes(node.id, currentSuccessNode.id, "output", "exitCode == 0") },
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
@@ -1514,40 +1473,34 @@ private fun BranchRouterCard(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Surface(shape = RoundedCornerShape(50), color = Color(0xFFF43F5E).copy(alpha = 0.18f)) {
-                    Text("✘ 失败分支 (exitCode != 0)", style = MaterialTheme.typography.labelSmall, color = Color(0xFFF43F5E), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                Surface(shape = CircleShape, color = Color(0xFFF43F5E).copy(alpha = 0.18f)) {
+                    Text("✘ 失败分支 (exitCode != 0)", style = RuntimeTheme.typography.labelSmall, color = Color(0xFFF43F5E), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                 }
                 if (failureEdge != null) {
                     val target = state.definition.nodes.firstOrNull { it.id == failureEdge.toNodeId }
                     Row(
-                        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(8.dp)).padding(8.dp),
+                        modifier = Modifier.fillMaxWidth().background(RuntimeTheme.colorScheme.surfaceContainerHigh, RuntimeTheme.shapes.chip).padding(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text("已连接至: ${target?.title ?: failureEdge.toNodeId}", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text("已连接至: ${target?.title ?: failureEdge.toNodeId}", style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                         RuntimeOutlinedButton(
                             onClick = { onRemoveEdge(failureEdge.id) },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         ) {
-                            Text("断开", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                            Text("断开", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.error)
                         }
                     }
                 } else if (otherNodes.isNotEmpty()) {
                     val currentFailureNode = otherNodes.firstOrNull { it.id == failureTargetId } ?: otherNodes.first()
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Box(Modifier.weight(1f)) {
-                            RuntimeOutlinedButton(onClick = { failureExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text("目标: ${currentFailureNode.title}", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                            DropdownMenu(expanded = failureExpanded, onDismissRequest = { failureExpanded = false }) {
-                                otherNodes.forEach { target ->
-                                    DropdownMenuItem(
-                                        text = { Text(target.title) },
-                                        onClick = { failureTargetId = target.id; failureExpanded = false },
-                                    )
-                                }
-                            }
-                        }
+                        RuntimeDropdownField(
+                            title = "失败目标",
+                            items = otherNodes.map { it.title },
+                            selectedIndex = otherNodes.indexOfFirst { it.id == currentFailureNode.id }.coerceAtLeast(0),
+                            onSelectedIndexChange = { index -> otherNodes.getOrNull(index)?.let { failureTargetId = it.id } },
+                            modifier = Modifier.weight(1f),
+                        )
                         RuntimeButton(
                             onClick = { onConnectNodes(node.id, currentFailureNode.id, "output", "exitCode != 0") },
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
@@ -1581,40 +1534,38 @@ private fun NodeConnectionsCard(
     var selectedTargetId by remember(otherNodes) { mutableStateOf(otherNodes.firstOrNull()?.id.orEmpty()) }
     var selectedPort by remember { mutableStateOf("output") }
     var conditionText by remember { mutableStateOf("") }
-    var targetExpanded by remember { mutableStateOf(false) }
-    var portExpanded by remember { mutableStateOf(false) }
 
-    RuntimeCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+    RuntimeCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                RuntimeIcon(RuntimeIconName.Link, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                RuntimeIcon(RuntimeIconName.Link, Modifier.size(16.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Spacer(Modifier.width(6.dp))
-                Text("节点连线与拓扑 (${allConnected.size})", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("节点连线与拓扑 (${allConnected.size})", style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                 if (allConnected.isNotEmpty()) {
                     Surface(
                         onClick = { onDisconnectAll(node.id) },
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
+                        shape = CircleShape,
+                        color = RuntimeTheme.colorScheme.error.copy(alpha = 0.14f),
                     ) {
                         Text(
                             text = "一键断开全部",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error,
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = RuntimeTheme.colorScheme.error,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                         )
                     }
                 }
             }
 
-            Text("传出连线（连向后续节点）：", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            Text("传出连线（连向后续节点）：", style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
             if (outgoingEdges.isEmpty()) {
-                Text("暂无传出连线", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("暂无传出连线", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             } else {
                 outgoingEdges.forEach { edge ->
                     val targetNode = state.definition.nodes.firstOrNull { it.id == edge.toNodeId }
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                        shape = RuntimeTheme.shapes.chip,
+                        color = RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
@@ -1625,21 +1576,21 @@ private fun NodeConnectionsCard(
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Surface(
-                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                        shape = RoundedCornerShape(50),
+                                        color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                        shape = CircleShape,
                                     ) {
                                         Text(
                                             text = edge.fromPort.portLabel(),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary,
+                                            style = RuntimeTheme.typography.labelSmall,
+                                            color = RuntimeTheme.colorScheme.primary,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                         )
                                     }
-                                    Text("──►", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("──►", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                                     Text(
                                         text = targetNode?.title ?: edge.toNodeId,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.SemiBold,
+                                        style = RuntimeTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Medium,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
@@ -1647,8 +1598,8 @@ private fun NodeConnectionsCard(
                                 if (!edge.conditionExpression.isNullOrBlank()) {
                                     Text(
                                         text = "条件: ${edge.conditionExpression}",
-                                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                        color = MaterialTheme.colorScheme.tertiary,
+                                        style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                        color = RuntimeTheme.colorScheme.tertiary,
                                         maxLines = 1,
                                     )
                                 }
@@ -1657,23 +1608,23 @@ private fun NodeConnectionsCard(
                                 onClick = { onRemoveEdge(edge.id) },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                             ) {
-                                RuntimeIcon(RuntimeIconName.Close, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.error)
-                                Text("断开", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                                RuntimeIcon(RuntimeIconName.Close, Modifier.size(12.dp), tint = RuntimeTheme.colorScheme.error)
+                                Text("断开", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.error)
                             }
                         }
                     }
                 }
             }
 
-            Text("传入连线（来自前序节点）：", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            Text("传入连线（来自前序节点）：", style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
             if (incomingEdges.isEmpty()) {
-                Text("暂无传入连线", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("暂无传入连线", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             } else {
                 incomingEdges.forEach { edge ->
                     val sourceNode = state.definition.nodes.firstOrNull { it.id == edge.fromNodeId }
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                        shape = RuntimeTheme.shapes.chip,
+                        color = RuntimeTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
@@ -1685,19 +1636,19 @@ private fun NodeConnectionsCard(
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text(
                                         text = sourceNode?.title ?: edge.fromNodeId,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.SemiBold,
+                                        style = RuntimeTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Medium,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
-                                    Text("──►", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("本节点", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                    Text("──►", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                                    Text("本节点", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.primary)
                                 }
                                 if (!edge.conditionExpression.isNullOrBlank()) {
                                     Text(
                                         text = "条件: ${edge.conditionExpression}",
-                                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                                        color = MaterialTheme.colorScheme.tertiary,
+                                        style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                        color = RuntimeTheme.colorScheme.tertiary,
                                         maxLines = 1,
                                     )
                                 }
@@ -1706,8 +1657,8 @@ private fun NodeConnectionsCard(
                                 onClick = { onRemoveEdge(edge.id) },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                             ) {
-                                RuntimeIcon(RuntimeIconName.Close, Modifier.size(12.dp), tint = MaterialTheme.colorScheme.error)
-                                Text("断开", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                                RuntimeIcon(RuntimeIconName.Close, Modifier.size(12.dp), tint = RuntimeTheme.colorScheme.error)
+                                Text("断开", style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.error)
                             }
                         }
                     }
@@ -1716,56 +1667,32 @@ private fun NodeConnectionsCard(
 
             HorizontalDivider()
 
-            Text("➕ 添加连线到其他节点：", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            Text("➕ 添加连线到其他节点：", style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.Medium)
             if (otherNodes.isEmpty()) {
-                Text("画布中尚无其他可用节点", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("画布中尚无其他可用节点", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
             } else {
                 val currentTargetNode = otherNodes.firstOrNull { it.id == selectedTargetId } ?: otherNodes.first()
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box {
-                        RuntimeOutlinedButton(
-                            onClick = { targetExpanded = true },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("目标: ${currentTargetNode.title}", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                        DropdownMenu(expanded = targetExpanded, onDismissRequest = { targetExpanded = false }) {
-                            otherNodes.forEach { target ->
-                                DropdownMenuItem(
-                                    text = { Text("${target.title} (${target.type.editorLabel()})") },
-                                    onClick = {
-                                        selectedTargetId = target.id
-                                        targetExpanded = false
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    RuntimeDropdownField(
+                        title = "目标节点",
+                        items = otherNodes.map { "${it.title} (${it.type.editorLabel()})" },
+                        selectedIndex = otherNodes.indexOfFirst { it.id == currentTargetNode.id }.coerceAtLeast(0),
+                        onSelectedIndexChange = { index -> otherNodes.getOrNull(index)?.let { selectedTargetId = it.id } },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
 
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(Modifier.weight(1f)) {
-                            RuntimeOutlinedButton(
-                                onClick = { portExpanded = true },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text("端口: ${selectedPort.portLabel()}", maxLines = 1)
-                            }
-                            DropdownMenu(expanded = portExpanded, onDismissRequest = { portExpanded = false }) {
-                                EdgePorts.forEach { port ->
-                                    DropdownMenuItem(
-                                        text = { Text(port.portLabel()) },
-                                        onClick = {
-                                            selectedPort = port
-                                            portExpanded = false
-                                        },
-                                    )
-                                }
-                            }
-                        }
+                        RuntimeDropdownField(
+                            title = "端口",
+                            items = EdgePorts.map { it.portLabel() },
+                            selectedIndex = EdgePorts.indexOf(selectedPort).coerceAtLeast(0),
+                            onSelectedIndexChange = { index -> EdgePorts.getOrNull(index)?.let { selectedPort = it } },
+                            modifier = Modifier.weight(1f),
+                        )
                         RuntimeFilledTextField(
                             value = conditionText,
                             onValueChange = { conditionText = it },
-                            label = { Text("条件（可选）") },
+                            labelText = "条件（可选）",
                             placeholder = { Text("如 exitCode == 0") },
                             singleLine = true,
                             modifier = Modifier.weight(1.5f),

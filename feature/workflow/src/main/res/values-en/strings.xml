@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workflow_sentinel_title">Morning Sentinel</string>
+    <string name="workflow_sentinel_subtitle">Daily read-only workspace inspection with an AI-generated morning report notification</string>
+    <string name="workflow_sentinel_schedule">Runs daily at %1$s</string>
+    <string name="workflow_sentinel_next_run">Next run: %1$s</string>
+    <string name="workflow_sentinel_time_edit">Time</string>
+    <string name="workflow_sentinel_dialog_title">Inspection time</string>
+    <string name="workflow_sentinel_hour_label">Hour (0–23)</string>
+    <string name="workflow_sentinel_minute_label">Minute (0–59)</string>
+    <string name="workflow_sentinel_confirm">Save</string>
+    <string name="workflow_sentinel_cancel">Cancel</string>
+</resources>

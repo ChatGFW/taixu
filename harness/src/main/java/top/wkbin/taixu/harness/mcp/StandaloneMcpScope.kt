@@ -1,12 +1,13 @@
 package top.wkbin.taixu.harness.mcp
 
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.flow.*
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
-import top.wkbin.taixu.core.model.McpServerConfig
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.*
 import top.wkbin.taixu.core.datastore.RemoteServerRepository
+import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext
+import top.wkbin.taixu.runtime.remote.remoteConnectionScope
 
 /** Settings checks have no session owner: scope them to the selected profile instead. */
 class StandaloneMcpScope(private val servers: RemoteServerRepository, private val localDistribution: (() -> String)? = null,
@@ -17,7 +18,7 @@ class StandaloneMcpScope(private val servers: RemoteServerRepository, private va
     fun key(): String? {
         val id = servers.activeId.value ?: return localDistribution?.invoke()?.let { "local:$it" }
         val profile = servers.servers.value.singleOrNull { it.id == id } ?: error("当前连接档案不可用")
-        return top.wkbin.taixu.runtime.remote.remoteConnectionScope(profile)
+        return remoteConnectionScope(profile)
     }
     suspend fun captureKey(): String? {
         if (servers.activeId.value != null) return key()

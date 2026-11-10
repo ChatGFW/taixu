@@ -48,9 +48,10 @@ class GroupDeliveryPersistenceTest {
         groups.stageMessage(message().copy(content = "changed"), listOf("chief"))
         assertEquals("work", groups.deliverySource("source")!!.content)
         assertEquals(2, groups.pendingDeliveries().first().size)
-        assertTrue(groups.claimDelivery("source:member"))
-        assertFalse(groups.claimDelivery("source:member"))
-        assertTrue(groups.prepareDelivery("source:member", "native-session"))
+        val nonce = groups.claimDelivery("source:member")
+        assertNotNull(nonce)
+        assertNull(groups.claimDelivery("source:member"))
+        assertTrue(groups.prepareDelivery("source:member", "native-session", nonce!!))
         assertEquals("native-session", dao.findGroupDelivery("source:member")!!.sessionId)
         assertEquals(listOf("chief"), groups.pendingDeliveries().first().map { it.botId })
     }
@@ -58,15 +59,16 @@ class GroupDeliveryPersistenceTest {
     @Test fun `claim and admission survive repository recreation but are never replayed after restart`() = runBlocking {
         seed()
         groups.stageMessage(message(), listOf("chief", "member"))
-        assertTrue(groups.claimDelivery("source:member"))
-        assertTrue(groups.admitDelivery("source:member", "session", "native-task"))
+        val nonce = groups.claimDelivery("source:member")
+        assertNotNull(nonce)
+        assertTrue(groups.admitDelivery("source:member", "session", "native-task", nonce!!))
         val restarted = RoomGroupChatRepository(dao, Json)
         restarted.recoverDeliveries()
         restarted.recoverDeliveries()
         val receipt = dao.findGroupDelivery("source:member")!!
         assertEquals(GroupDelivery.UNKNOWN, receipt.status)
         assertEquals("native-task", receipt.taskId)
-        assertFalse(restarted.claimDelivery(receipt.id))
+        assertNull(restarted.claimDelivery(receipt.id))
         assertEquals(listOf("chief"), restarted.pendingDeliveries().first().map { it.botId })
         assertEquals(1, groups.observeMessages("group").first().count { it.id.startsWith("delivery-status:") })
     }
@@ -74,7 +76,7 @@ class GroupDeliveryPersistenceTest {
     @Test fun `restart settles streaming projection without erasing partial output or reasoning`() = runBlocking {
         seed()
         groups.stageMessage(message(), listOf("chief"))
-        groups.claimDelivery("source:chief")
+        assertNotNull(groups.claimDelivery("source:chief"))
         groups.postMessage(message("delivery-reply:source:chief").copy(
             senderType = GroupSenderType.BOT, content = "partial", isStreaming = true, reasoning = "reasoning",
         ))
@@ -91,17 +93,18 @@ class GroupDeliveryPersistenceTest {
         groups.stageMessage(message(), listOf("member"))
         groups.removeMember("group", "member")
         groups.addMember("group", "member", 1)
-        assertFalse(groups.claimDelivery("source:member"))
-        assertFalse(groups.prepareDelivery("source:member", "native-session"))
+        assertNull(groups.claimDelivery("source:member"))
+        assertFalse(groups.prepareDelivery("source:member", "native-session", "stale"))
         assertEquals(GroupDelivery.CANCELLED, dao.findGroupDelivery("source:member")!!.status)
     }
 
     @Test fun `clear cascades receipts and late outcomes cannot recreate cleared messages`() = runBlocking {
         seed()
         groups.stageMessage(message(), listOf("chief"))
-        groups.claimDelivery("source:chief")
+        val nonce = groups.claimDelivery("source:chief")
+        assertNotNull(nonce)
         groups.clearMessages("group")
-        groups.finishDelivery("source:chief", GroupDelivery.UNKNOWN, "late")
+        groups.finishDelivery("source:chief", GroupDelivery.UNKNOWN, "late", nonce)
         assertNull(dao.findGroupDelivery("source:chief"))
         assertTrue(groups.observeMessages("group").first().isEmpty())
     }
@@ -133,6 +136,20 @@ class GroupDeliveryPersistenceTest {
         assignments.failRunning()
         assertEquals(listOf("assignment-report:task"), groups.pendingDeliveries().first().map { it.sourceMessageId })
         assertEquals(2, groups.observeMessages("group").first().size)
+    }
+
+    @Test fun `stale claim nonce cannot prepare admit or finish an active lease`() = runBlocking {
+        seed()
+        groups.stageMessage(message(), listOf("member"))
+        val nonce = groups.claimDelivery("source:member")!!
+        assertFalse(groups.prepareDelivery("source:member", "native-session", "wrong"))
+        assertFalse(groups.admitDelivery("source:member", "session", "task", "wrong"))
+        groups.finishDelivery("source:member", GroupDelivery.COMPLETED, null, "wrong")
+        assertEquals(GroupDelivery.SUBMITTING, dao.findGroupDelivery("source:member")!!.status)
+        assertTrue(groups.prepareDelivery("source:member", "native-session", nonce))
+        assertTrue(groups.admitDelivery("source:member", "session", "task", nonce))
+        groups.finishDelivery("source:member", GroupDelivery.COMPLETED, null, nonce)
+        assertEquals(GroupDelivery.COMPLETED, dao.findGroupDelivery("source:member")!!.status)
     }
 
     @Test fun `report failure rolls back task settlement`() = runBlocking {

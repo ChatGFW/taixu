@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,9 +15,12 @@ import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotMemberGroup
 import top.wkbin.taixu.feature.bot.R
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeCheckbox
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 
 /** 建群与分组编辑共用的成员选择：分组快捷全选 + 逐个勾选。 */
 @Composable
@@ -36,8 +37,8 @@ internal fun MemberSelection(
     if (memberGroups.isNotEmpty() && bots.isNotEmpty()) {
         Text(
             stringResource(R.string.fbot_select_group_hint),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.labelMedium,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -62,10 +63,10 @@ internal fun MemberSelection(
     ) {
         Text(
             stringResource(R.string.fbot_members_label),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.labelMedium,
+            color = RuntimeTheme.colorScheme.onSurfaceVariant,
         )
-        Row {
+        RuntimeActionRow(modifier = Modifier.weight(1f).padding(start = 12.dp)) {
             RuntimeTextButton(onClick = { apply(bots.mapTo(mutableSetOf()) { it.id }) }) {
                 Text(stringResource(R.string.fbot_select_all))
             }
@@ -89,20 +90,20 @@ internal fun MemberSelection(
             BotAvatar(bot, 28.dp)
             Column(Modifier.padding(start = 10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(bot.name, style = MaterialTheme.typography.bodyMedium)
+                    Text(bot.name, style = RuntimeTheme.typography.bodyMedium)
                     if (bot.id == lockedBotId) {
                         Text(
                             stringResource(R.string.fbot_admin_member),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = RuntimeTheme.colorScheme.primary,
                             modifier = Modifier.padding(start = 6.dp),
                         )
                     }
                 }
                 Text(
                     bot.role,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

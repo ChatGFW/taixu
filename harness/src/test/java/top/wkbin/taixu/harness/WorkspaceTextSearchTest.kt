@@ -1,10 +1,10 @@
 package top.wkbin.taixu.harness
 
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.FileVisitResult
-import java.nio.file.attribute.BasicFileAttributes
 import java.io.IOException
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.attribute.BasicFileAttributes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
@@ -16,6 +16,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import top.wkbin.taixu.core.common.result.AppResult
+import top.wkbin.taixu.runtime.environment.HashlineAnchors
 
 class WorkspaceTextSearchTest {
     @get:Rule val temporary = TemporaryFolder()
@@ -28,12 +29,12 @@ class WorkspaceTextSearchTest {
         root.put("src/a.kt", "first\n中文 a.* \$(touch injected)\nlast\n")
         val operations = WorkspaceFileAccess(root)
         val result = operations.search("/workspace/src", "a.*", 50).text()
-        val line2 = top.wkbin.taixu.runtime.environment.HashlineAnchors.anchorOf(2, "中文 a.* \$(touch injected)")
+        val line2 = HashlineAnchors.anchorOf(2, "中文 a.* \$(touch injected)")
         assertTrue(result.contains("a.kt:$line2|") && result.contains("中文 a.*"))
         assertFalse(result.contains(root.absolutePath))
         assertFalse(File(root, "injected").exists())
         val lastHit = operations.search("src/a.kt", "last", 50).text()
-        val line3 = top.wkbin.taixu.runtime.environment.HashlineAnchors.anchorOf(3, "last")
+        val line3 = HashlineAnchors.anchorOf(3, "last")
         assertTrue(lastHit.contains("a.kt:$line3|last"))
     }
 
@@ -113,8 +114,8 @@ class WorkspaceTextSearchTest {
         assertTrue(output.contains("命中 2"))
         assertTrue(output.contains("跳过 1 项"))
         assertTrue(output.contains("结果不完整"))
-        val firstAnchor = top.wkbin.taixu.runtime.environment.HashlineAnchors.anchorOf(1, "needle first")
-        val secondAnchor = top.wkbin.taixu.runtime.environment.HashlineAnchors.anchorOf(1, "needle second")
+        val firstAnchor = HashlineAnchors.anchorOf(1, "needle first")
+        val secondAnchor = HashlineAnchors.anchorOf(1, "needle second")
         assertTrue(output.contains("first.txt:$firstAnchor|needle first"))
         assertTrue(output.contains("second.txt:$secondAnchor|needle second"))
     }
@@ -125,7 +126,7 @@ class WorkspaceTextSearchTest {
         val args = Json.parseToJsonElement("""{"path":"image.png","query":"needle","max_results":1}""").jsonObject
         val result = backend.execute(WorkspaceToolRequest(HarnessTool.READ, args, "session", "/workspace"))
         assertTrue(result.success)
-        val hit = top.wkbin.taixu.runtime.environment.HashlineAnchors.anchorOf(1, "literal text needle")
+        val hit = HashlineAnchors.anchorOf(1, "literal text needle")
         assertTrue(result.output.contains("image.png:$hit|"))
         assertFalse(result.metadata.containsKey("image_payload"))
         try {

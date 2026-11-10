@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,15 +13,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -33,6 +33,7 @@ import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeSearchBar
 
 private data class OutlineEntry(val id: String, val fromUser: Boolean, val summary: String, val createdAt: Long)
 
@@ -41,7 +42,6 @@ private data class OutlineEntry(val id: String, val fromUser: Boolean, val summa
  * 支持即时过滤与点击定位回主列表。长会话导航入口，纯 UI，不改数据。
  */
 @Composable
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 internal fun ChatOutlineSheet(
     messages: List<HarnessMessage>,
     onJump: (String) -> Unit,
@@ -53,19 +53,18 @@ internal fun ChatOutlineSheet(
     val timeFormat = remember { SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()) }
     PlainBackdropModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(stringResource(R.string.chat_outline_title), style = MaterialTheme.typography.titleLarge)
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
+            Text(stringResource(R.string.chat_outline_title), style = RuntimeTheme.typography.titleLarge)
+            RuntimeSearchBar(
+                query = query,
+                onQueryChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.chat_outline_search_hint)) },
+                placeholder = stringResource(R.string.chat_outline_search_hint),
             )
             if (filtered.isEmpty()) {
                 Text(
                     stringResource(R.string.chat_outline_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RuntimeTheme.typography.bodyMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             LazyColumn(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -77,11 +76,11 @@ internal fun ChatOutlineSheet(
                         RuntimeIcon(if (entry.fromUser) RuntimeIconName.Chat else RuntimeIconName.Bot, Modifier.width(28.dp))
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(entry.summary, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(entry.summary, style = RuntimeTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             Text(
                                 timeFormat.format(Date(entry.createdAt)),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = RuntimeTheme.typography.labelSmall,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }

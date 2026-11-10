@@ -10,22 +10,18 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.NavigationRailItemDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.icon.extended.Info
+import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 val RuntimeNavigationRailWidth = 80.dp
@@ -50,7 +46,7 @@ fun RuntimeNavigationRail(
 ) {
     Surface(
         modifier = modifier.width(RuntimeNavigationRailWidth).fillMaxHeight(),
-        color = MaterialTheme.colorScheme.surface,
+        color = RuntimeTheme.colorScheme.surface,
     ) {
         Column(
             Modifier.fillMaxHeight().windowInsetsPadding(
@@ -82,20 +78,10 @@ fun RuntimeNavigationRail(
 
 @Composable
 private fun RailItem(item: RuntimeRailItem) {
-    NavigationRailItem(
+    top.yukonga.miuix.kmp.basic.NavigationRailItem(
         selected = item.selected,
         onClick = item.onClick,
-        icon = { RuntimeIcon(item.icon, Modifier.size(22.dp)) },
-        label = {
-            Text(item.label, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        },
-        alwaysShowLabel = true,
-        colors = NavigationRailItemDefaults.colors(
-            selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            selectedTextColor = MaterialTheme.colorScheme.onSurface,
-            indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
-            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
+        icon = runtimeIconImageVector(item.icon),
+        label = item.label,
     )
 }

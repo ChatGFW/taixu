@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import okhttp3.OkHttpClient
 import org.junit.After
@@ -20,20 +21,27 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.common.logging.SensitiveDataRedactor
-import top.wkbin.taixu.core.datastore.AgentPreferences
-import top.wkbin.taixu.core.datastore.SettingsDataStore
-import top.wkbin.taixu.core.model.RunMode
+import top.wkbin.taixu.core.database.AgencyAgentCatalogLoader
 import top.wkbin.taixu.core.database.AgentApprovalRepository
+import top.wkbin.taixu.core.database.AgentMemoryEntity
+import top.wkbin.taixu.core.database.AgentPlanEntity
+import top.wkbin.taixu.core.database.AgentSkillEntity
 import top.wkbin.taixu.core.database.AgentSkillRepository
 import top.wkbin.taixu.core.database.AgentSubagentRepository
-import top.wkbin.taixu.core.database.AgencyAgentCatalogLoader
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.McpServerRepository
 import top.wkbin.taixu.core.database.RoomAgentContextRepository
 import top.wkbin.taixu.core.database.RoomHarnessRuntimeRepository
+import top.wkbin.taixu.core.datastore.AgentPreferences
+import top.wkbin.taixu.core.datastore.SettingsDataStore
+import top.wkbin.taixu.core.model.AgentDepartments
+import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.core.security.SecretManager
+import top.wkbin.taixu.core.tools.ToolRegistry
+import top.wkbin.taixu.core.tools.ToolRepository
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.CapabilityEvent
+import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.ModelConfig
 import top.wkbin.taixu.harness.ToolCall
@@ -41,23 +49,17 @@ import top.wkbin.taixu.harness.ToolCallMode
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.WorkspaceFileAccess
-import top.wkbin.taixu.core.tools.ToolRegistry
-import top.wkbin.taixu.core.tools.ToolRepository
 import top.wkbin.taixu.harness.compaction.CompactionManager
+import top.wkbin.taixu.harness.diagnostics.ContextGovernanceTrace
+import top.wkbin.taixu.harness.events.HarnessEventBus
+import top.wkbin.taixu.harness.operation.OperationCoordinator
+import top.wkbin.taixu.harness.operation.ReplayPolicy
 import top.wkbin.taixu.harness.prompt.MemoryRecallSelector
 import top.wkbin.taixu.harness.prompt.PrivilegeSectionRenderer
 import top.wkbin.taixu.harness.prompt.PromptAssetLoader
 import top.wkbin.taixu.harness.prompt.PromptRouter
 import top.wkbin.taixu.harness.prompt.SystemPromptBuilder
-import kotlinx.serialization.json.JsonPrimitive
-import top.wkbin.taixu.core.database.AgentMemoryEntity
-import top.wkbin.taixu.core.database.AgentPlanEntity
-import top.wkbin.taixu.core.database.AgentSkillEntity
-import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.session.SessionTreeStore
-import top.wkbin.taixu.harness.operation.OperationCoordinator
-import top.wkbin.taixu.harness.operation.ReplayPolicy
-import top.wkbin.taixu.harness.events.HarnessEventBus
 
 /**
  * API 上下文组装器全栈集成测试：真实 Room（会话树 + 压缩树）+ 真实 DataStore 偏好 +
@@ -183,8 +185,8 @@ class ApiContextAssemblerTest {
 
         assertEquals("system", out[0].role)
         val systemPrompt = out[0].content!!
-        assertTrue(top.wkbin.taixu.core.model.AgentDepartments.agency.all { systemPrompt.contains(it.localizedName) })
-        assertEquals(top.wkbin.taixu.core.model.AgentDepartments.agency.size, Regex("department=\\\"").findAll(systemPrompt).count())
+        assertTrue(AgentDepartments.agency.all { systemPrompt.contains(it.localizedName) })
+        assertEquals(AgentDepartments.agency.size, Regex("department=\\\"").findAll(systemPrompt).count())
         assertFalse(systemPrompt.contains("agency_engineering_frontend_developer"))
         assertFalse(systemPrompt.contains("Frontend Developer"))
         assertEquals(2, out.size - 1)
@@ -381,7 +383,7 @@ class ApiContextAssemblerTest {
         push(session, UserMessage("budget-user", 1, text))
         assertTrue(store.appendRecallBlock(session, "budget-user", recall))
         for (mode in listOf(ToolCallMode.NATIVE, ToolCallMode.JSON_TEXT)) {
-            val trace = top.wkbin.taixu.harness.diagnostics.ContextGovernanceTrace()
+            val trace = ContextGovernanceTrace()
             val messages = assembler.assemble(session, nativeModel(tokens = 32_000).copy(toolCallMode = mode),
                 "/ws", trace = trace)
             assertEquals(text, messages.last { it.role == "user" }.content)

@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.bundles.compose.ui)
+    api(libs.miuix.ui)
     implementation(libs.material.color.utilities)
     implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit)

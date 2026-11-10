@@ -1,15 +1,16 @@
 package top.wkbin.taixu.ui.terminal
 
+import androidx.compose.ui.res.stringResource
+import top.wkbin.taixu.feature.terminal.R
 import top.wkbin.taixu.plugin.api.PluginDescriptor
 import top.wkbin.taixu.plugin.api.PluginExtension
 import top.wkbin.taixu.plugin.api.PluginExtensionPoint
 import top.wkbin.taixu.plugin.api.PluginExtensionRef
 import top.wkbin.taixu.plugin.ui.NativePagePlugin
-import top.wkbin.taixu.plugin.ui.NativePluginPage
 import top.wkbin.taixu.plugin.ui.NativePluginEntry
+import top.wkbin.taixu.plugin.ui.NativePluginPage
 import top.wkbin.taixu.plugin.ui.PluginEntryLocation
-import androidx.compose.ui.res.stringResource
-import top.wkbin.taixu.feature.terminal.R
+import top.wkbin.taixu.ui.components.RuntimeIconName
 
 /** Compiled-in page contribution. PTY resources remain owned by the existing runtime. */
 object TerminalPlugin {
@@ -23,7 +24,7 @@ object TerminalPlugin {
             extensions = listOf(PluginExtension(page.extensionId, PluginExtensionPoint.PAGE)),
         ),
         title = { stringResource(R.string.terminal_plugin_title) },
-        icon = top.wkbin.taixu.ui.components.RuntimeIconName.Terminal,
+        icon = RuntimeIconName.Terminal,
         description = { stringResource(R.string.terminal_plugin_description) },
         entries = listOf(
             NativePluginEntry("open", "main", PluginEntryLocation.MENU) { stringResource(R.string.terminal_plugin_title) },

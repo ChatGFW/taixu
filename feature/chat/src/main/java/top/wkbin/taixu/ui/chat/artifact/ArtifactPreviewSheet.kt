@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat.artifact
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -12,35 +15,26 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.minimumInteractiveComponentSize
+import top.wkbin.taixu.ui.miuix.*
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import top.wkbin.taixu.ui.theme.semanticColors
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,6 +62,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.SyntaxHighlighter
+import top.wkbin.taixu.ui.components.RuntimeActionRow
 enum class ArtifactViewMode {
     PREVIEW,
     CODE,
@@ -82,7 +77,6 @@ enum class ArtifactViewMode {
  * 3. 支持无缝切换即时就地编辑（Edit Mode）；
  * 4. 提供一键复制、Android 原生系统分享与导出通道。
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtifactPreviewSheet(
     title: String,
@@ -147,17 +141,17 @@ fun ArtifactPreviewSheet(
     }
 
     val contentBg = when {
-        viewMode == ArtifactViewMode.PREVIEW -> MaterialTheme.colorScheme.surface
+        viewMode == ArtifactViewMode.PREVIEW -> RuntimeTheme.colorScheme.surface
         isDark -> Color(0xFF090D14)
-        else -> MaterialTheme.colorScheme.surfaceContainerLowest
+        else -> RuntimeTheme.colorScheme.surfaceContainerLowest
     }
-    val codeTextColor = if (isDark) Color(0xFFDCE6F5) else MaterialTheme.colorScheme.onSurface
-    val lineNumColor = if (isDark) Color.White.copy(alpha = 0.35f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    val codeTextColor = if (isDark) Color(0xFFDCE6F5) else RuntimeTheme.colorScheme.onSurface
+    val lineNumColor = if (isDark) Color.White.copy(alpha = 0.35f) else RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = RuntimeTheme.colorScheme.surface,
         dragHandle = null,
         modifier = modifier,
     ) {
@@ -170,7 +164,7 @@ fun ArtifactPreviewSheet(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                color = RuntimeTheme.colorScheme.surfaceContainerLow,
             ) {
                 Row(
                     modifier = Modifier
@@ -186,8 +180,8 @@ fun ArtifactPreviewSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RuntimeTheme.shapes.chip,
+                            color = RuntimeTheme.colorScheme.primaryContainer,
                             modifier = Modifier.size(32.dp),
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -198,7 +192,7 @@ fun ArtifactPreviewSheet(
                                         else -> RuntimeIconName.File
                                     },
                                     modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    tint = RuntimeTheme.colorScheme.onPrimaryContainer,
                                 )
                             }
                         }
@@ -207,15 +201,15 @@ fun ArtifactPreviewSheet(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = title.ifEmpty { relativePath.substringAfterLast('/') },
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = RuntimeTheme.typography.titleMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 if (isDirty) {
                                     Text(
                                         text = " *",
-                                        color = Color(0xFFFF9800),
-                                        fontWeight = FontWeight.Bold,
+                                        color = semanticColors().warning,
+                                        fontWeight = FontWeight.Medium,
                                         fontSize = 16.sp,
                                     )
                                 }
@@ -223,8 +217,8 @@ fun ArtifactPreviewSheet(
                             if (relativePath.isNotEmpty()) {
                                 Text(
                                     text = if (workspace.isNotEmpty()) "$workspace/$relativePath" else relativePath,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = RuntimeTheme.typography.bodySmall,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -266,7 +260,7 @@ fun ArtifactPreviewSheet(
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             // 2. 主体内容区（支持双指捏合手势 Pinch-to-zoom 缩放）
             Box(
@@ -364,26 +358,22 @@ fun ArtifactPreviewSheet(
                                 lineHeight = editLineHeight,
                                 color = codeTextColor,
                             ),
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            cursorBrush = SolidColor(RuntimeTheme.colorScheme.primary),
                         )
                     }
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             // 3. 底栏操作通道与缩放微调
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                RuntimeActionRow {
                     // 复制全文
                     RuntimeOutlinedButton(
                         onClick = {
@@ -394,7 +384,7 @@ fun ArtifactPreviewSheet(
                     ) {
                         RuntimeIcon(RuntimeIconName.Copy, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.chat_artifact_copy), fontSize = 12.sp)
+                        Text(stringResource(R.string.chat_artifact_copy))
                     }
 
                     // 系统分享
@@ -413,7 +403,7 @@ fun ArtifactPreviewSheet(
                     ) {
                         RuntimeIcon(RuntimeIconName.OpenInNew, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.chat_artifact_share), fontSize = 12.sp)
+                        Text(stringResource(R.string.chat_artifact_share))
                     }
 
                     // 导出到外部目录 (SAF)
@@ -424,59 +414,7 @@ fun ArtifactPreviewSheet(
                     ) {
                         RuntimeIcon(RuntimeIconName.Download, modifier = Modifier.size(15.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.chat_artifact_export), fontSize = 12.sp)
-                    }
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // 手动缩放微调控制器
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.clip(RoundedCornerShape(8.dp)),
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(26.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .clickable { zoomScale = (zoomScale - 0.15f).coerceIn(0.7f, 2.5f) },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text("-", style = MaterialTheme.typography.titleMedium)
-                            }
-
-                            Text(
-                                text = "${(zoomScale * 100).toInt()}%",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 11.sp,
-                                ),
-                                color = if (zoomScale != 1f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .clickable { zoomScale = 1f }
-                                    .padding(horizontal = 4.dp, vertical = 2.dp),
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .size(26.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .clickable { zoomScale = (zoomScale + 0.15f).coerceIn(0.7f, 2.5f) },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text("+", style = MaterialTheme.typography.titleMedium)
-                            }
-                        }
+                        Text(stringResource(R.string.chat_artifact_export))
                     }
 
                     // 保存/保存修改
@@ -491,7 +429,62 @@ fun ArtifactPreviewSheet(
                         ) {
                             RuntimeIcon(RuntimeIconName.Check, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(4.dp))
-                            Text(stringResource(R.string.chat_artifact_save), fontSize = 12.sp)
+                            Text(stringResource(R.string.chat_artifact_save))
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // 手动缩放微调控制器
+                    Surface(
+                        shape = RuntimeTheme.shapes.chip,
+                        color = RuntimeTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.clip(RuntimeTheme.shapes.chip),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RuntimeTheme.shapes.tiny)
+                                    .clickable { zoomScale = (zoomScale - 0.15f).coerceIn(0.7f, 2.5f) },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text("-", style = RuntimeTheme.typography.titleMedium)
+                            }
+
+                            Text(
+                                text = "${(zoomScale * 100).toInt()}%",
+                                style = RuntimeTheme.typography.labelSmall.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 11.sp,
+                                ),
+                                color = if (zoomScale != 1f) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .clip(RuntimeTheme.shapes.tiny)
+                                    .clickable { zoomScale = 1f }
+                                    .heightIn(min = 48.dp)
+                                    .wrapContentHeight()
+                                    .padding(horizontal = 12.dp),
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RuntimeTheme.shapes.tiny)
+                                    .clickable { zoomScale = (zoomScale + 0.15f).coerceIn(0.7f, 2.5f) },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text("+", style = RuntimeTheme.typography.titleMedium)
+                            }
                         }
                     }
                 }
@@ -507,19 +500,19 @@ private fun ModeChip(
     onClick: () -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-        border = if (selected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
+        shape = RuntimeTheme.shapes.small,
+        color = if (selected) RuntimeTheme.colorScheme.primaryContainer else Color.Transparent,
+        border = if (selected) androidx.compose.foundation.BorderStroke(1.dp, RuntimeTheme.colorScheme.primary) else null,
         modifier = Modifier
             .minimumInteractiveComponentSize()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RuntimeTheme.shapes.small)
             .clickable(onClick = onClick),
     ) {
         Text(
             text = label,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal),
-            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+            style = RuntimeTheme.typography.labelSmall.copy(fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal),
+            color = if (selected) RuntimeTheme.colorScheme.onPrimaryContainer else RuntimeTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

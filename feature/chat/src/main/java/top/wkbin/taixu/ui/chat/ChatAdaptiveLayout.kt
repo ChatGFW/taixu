@@ -1,5 +1,8 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -10,7 +13,6 @@ import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -21,12 +23,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,7 +34,6 @@ import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -150,7 +149,13 @@ internal fun ChatAdaptiveLayout(
                 }
             }
         }
-        Box(Modifier.fillMaxWidth().then(if (browserPage || overlayProgress > 0.5f) Modifier.clearAndSetSemantics {} else Modifier)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .then(if (browserPage || overlayProgress > 0.5f) Modifier.clearAndSetSemantics {} else Modifier),
+        ) {
+            // 独立窄带渐隐，不绑在顶栏按钮容器上，避免整块硬切。
+            ChatTopEdgeFade()
             topBar(openBrowser, browserActivityTick > lastSeenBrowserTick, toggle)
         }
         if (mode == CompanionMode.Overlay && (overlayOpen || overlayProgress > 0f)) {
@@ -159,7 +164,7 @@ internal fun ChatAdaptiveLayout(
         }
         if (browserPage) {
             // Full-page browser keeps only its own slim status bar; the URL bar sits on the navigation bar.
-            Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Surface(Modifier.fillMaxSize(), color = RuntimeTheme.colorScheme.background) {
                 Box(Modifier.fillMaxSize().statusBarsPadding().windowInsetsPadding(bottomInsets)) {
                     browser { companionShown = false }
                 }
@@ -181,8 +186,8 @@ private fun CompanionResizeHandle(innerWidth: Dp, onDragFraction: (Float) -> Uni
         contentAlignment = Alignment.Center,
     ) {
         Box(
-            Modifier.width(4.dp).height(40.dp).clip(RoundedCornerShape(2.dp))
-                .background(MaterialTheme.colorScheme.outlineVariant),
+            Modifier.width(4.dp).height(40.dp).clip(RuntimeTheme.shapes.hairline)
+                .background(RuntimeTheme.colorScheme.outlineVariant),
         )
     }
 }
@@ -197,7 +202,7 @@ private fun CompanionOverlay(
 ) {
     val widthPx = with(LocalDensity.current) { width.toPx() }
     val direction = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1f else 1f
-    val scrim = MaterialTheme.colorScheme.scrim
+    val scrim = RuntimeTheme.colorScheme.scrim
     Box(Modifier.fillMaxSize()) {
         Box(
             Modifier.fillMaxSize()
@@ -212,7 +217,7 @@ private fun CompanionOverlay(
         Surface(
             modifier = Modifier.align(Alignment.CenterEnd).width(width).fillMaxHeight()
                 .graphicsLayer { translationX = (1f - progress) * widthPx * direction },
-            color = MaterialTheme.colorScheme.background,
+            color = RuntimeTheme.colorScheme.background,
             shadowElevation = 6.dp,
         ) {
             Box(Modifier.fillMaxSize().statusBarsPadding().windowInsetsPadding(bottomInsets).padding(8.dp)) {

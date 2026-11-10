@@ -6,8 +6,9 @@ import top.wkbin.taixu.plugin.api.PluginDescriptor
 import top.wkbin.taixu.plugin.api.PluginExtension
 import top.wkbin.taixu.plugin.api.PluginExtensionPoint
 import top.wkbin.taixu.plugin.runtime.PluginCapability
-import top.wkbin.taixu.plugin.runtime.PluginCapabilityIdentity
 import top.wkbin.taixu.plugin.runtime.PluginCapabilityCall
+import top.wkbin.taixu.plugin.runtime.PluginCapabilityIdentity
+import top.wkbin.taixu.plugin.runtime.PluginCapabilityInput
 import top.wkbin.taixu.plugin.ui.*
 import top.wkbin.taixu.ui.components.RuntimeIconName
 
@@ -24,7 +25,7 @@ class WebPluginCapability(
         require(execute != null || stream != null) { "A capability needs a single-shot or stream executor" }
     }
 
-    val allowSession = allowSession && capability !in top.wkbin.taixu.plugin.runtime.PluginCapabilityInput.ONE_SHOT
+    val allowSession = allowSession && capability !in PluginCapabilityInput.ONE_SHOT
 }
 
 /** Trusted static Web adapter using the existing PAGE lifecycle, independent of .txplugin. */

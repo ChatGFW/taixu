@@ -8,10 +8,10 @@ import android.os.Build
 import com.ai.assistance.shower.IShowerService
 import com.ai.assistance.shower.ShowerBinderContainer
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
 
 /**
  * Helper to manage the lifecycle of the Shower server (shower-server.jar) on the device.
@@ -52,7 +52,7 @@ object ShowerServerManager {
      * Returns true if the start command was issued successfully and a Binder
      * was received within the timeout window.
      */
-    suspend fun ensureServerStarted(context: Context): Boolean {
+    suspend fun ensureServerStarted(context: Context, onFailure: (String) -> Unit = {}): Boolean {
         // 0) If we already have an alive Binder from the handoff broadcast, just reuse it.
         if (ShowerBinderRegistry.hasAliveService()) {
             ShowerLog.d(TAG, "Shower Binder already cached and alive, skipping start")
@@ -62,17 +62,11 @@ object ShowerServerManager {
         val runner = ShowerEnvironment.shellRunner
         if (runner == null) {
             ShowerLog.e(TAG, "No ShellRunner configured in ShowerEnvironment; cannot start server")
+            onFailure("未配置 Shower ShellRunner")
             return false
         }
 
         val appContext = context.applicationContext
-        val jarFile = try {
-            copyJarToExternalDir(appContext)
-        } catch (e: Exception) {
-            ShowerLog.e(TAG, "Failed to copy shower-server.jar from assets", e)
-            return false
-        }
-
         // 1) Kill existing server (ignore errors about missing process).
         val killCmd = KILL_SERVER_CMD
         ShowerLog.d(TAG, "Stopping existing Shower server (if any) with command: $killCmd")
@@ -83,6 +77,7 @@ object ShowerServerManager {
         //    旧实现硬编码单目录，缺失时 cp 必败、虚拟屏完全不可用。
         val workDir = resolveWorkDir(runner)
         if (workDir == null) {
+            onFailure("Shower 工作目录不可写，已尝试 ${ShowerEnvironment.workDirCandidates}")
             ShowerLog.e(
                 TAG,
                 "无可用工作目录（已尝试 ${ShowerEnvironment.workDirCandidates}）：检查 Shizuku/Root 授权与 SELinux 限制"
@@ -105,10 +100,23 @@ object ShowerServerManager {
 
         // 4) Copy the jar into the work dir using shell identity, so that the resulting
         //    file is owned by the shell user.
-        val copyCmd = "cp ${jarFile.absolutePath} $remoteJarPath"
+        val jarFile = try {
+            copyJarToExternalDir(appContext)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ShowerLog.e(TAG, "Failed to copy shower-server.jar from assets", e)
+            onFailure("无法准备 shower-server.jar（${e.message}）")
+            return false
+        }
+        val copyCmd = "cp \"${jarFile.absolutePath}\" $remoteJarPath"
         ShowerLog.d(TAG, "Copying Shower jar with shell identity using command: $copyCmd")
-        val copyResult = runner.run(copyCmd, ShellIdentity.SHELL)
+        val copyResult = try {
+            runner.run(copyCmd, ShellIdentity.SHELL)
+        } finally {
+            jarFile.delete()
+        }
         if (!copyResult.success) {
+            onFailure("无法复制 Shower 服务文件（exit=${copyResult.exitCode}）：${copyResult.stderr.take(500)}")
             ShowerLog.e(
                 TAG,
                 "Failed to copy Shower jar to $remoteJarPath (exitCode=${copyResult.exitCode}). stdout='${copyResult.stdout}', stderr='${copyResult.stderr}'"
@@ -139,6 +147,7 @@ object ShowerServerManager {
             ShowerLog.d(TAG, "Starting Shower server with command: $startCmd")
             val startResult = runner.run(startCmd, ShellIdentity.SHELL)
             if (!startResult.success && !startResult.stdout.contains(START_OK_MARK)) {
+                onFailure("Shower 启动命令失败（exit=${startResult.exitCode}）：${startResult.stderr.take(500)}")
                 ShowerLog.e(
                     TAG,
                     "Failed to start Shower server (exitCode=${startResult.exitCode}). stdout='${startResult.stdout}', stderr='${startResult.stderr}'"
@@ -158,10 +167,12 @@ object ShowerServerManager {
                 }
             }
 
+            val serverLog = readServerLog(runner, remoteLogPath)
+            onFailure("Shower 启动后 10 秒内未收到 Binder。服务日志：\n$serverLog")
             ShowerLog.e(
                 TAG,
                 "Shower Binder was not received within the expected time。\n" +
-                    "--- $remoteLogPath ---\n${readServerLog(runner, remoteLogPath)}"
+                    "--- $remoteLogPath ---\n$serverLog"
             )
             return false
         } finally {
@@ -274,48 +285,15 @@ object ShowerServerManager {
         return null
     }
 
-    /**
-     * Copy shower-server.jar from assets to an external directory.
-     * Host apps can override this behaviour by providing a different wrapper
-     * around [ShellRunner] if needed.
-     */
+    /** Use app-owned external storage first, then fall back after an actual write failure. */
     private suspend fun copyJarToExternalDir(context: Context): File = withContext(Dispatchers.IO) {
-        val baseDir = resolveStagingDir(context)
-        val outFile = File(baseDir, LOCAL_JAR_NAME)
-        context.assets.open(ASSET_JAR_NAME).use { input ->
-            FileOutputStream(outFile).use { output ->
-                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                while (true) {
-                    val read = input.read(buffer)
-                    if (read <= 0) break
-                    output.write(buffer, 0, read)
-                }
-                output.flush()
-            }
-        }
-        // shell uid 要能 cp 走这个文件。Download 目录在未授予「所有文件」权限时
-        // 往往只有创建者可读，显式放开其它用户的读位。
-        outFile.setReadable(true, false)
-        ShowerLog.d(TAG, "Copied $ASSET_JAR_NAME to ${outFile.absolutePath}")
-        outFile
-    }
-
-    /**
-     * jar 的过渡目录：shell 随后会 `cp` 它。优先公共 Download（与 Operit 相同，shell 可读），
-     * 没存储权限时退到本应用外部目录，最后才是 cache（多数设备上 shell 读不到，仅作最后尝试）。
-     */
-    private fun resolveStagingDir(context: Context): File {
         val candidates = listOfNotNull(
-            File("/sdcard/Download/TaiXu"),
             context.getExternalFilesDir(null)?.let { File(it, "shower") },
+            File("/sdcard/Download/TaiXu"),
             File(context.cacheDir, "shower"),
         )
-        val failures = mutableListOf<String>()
-        for (dir in candidates) {
-            val ready = (dir.exists() || dir.mkdirs()) && dir.exists() && dir.canWrite()
-            if (ready) return dir
-            failures += dir.absolutePath
+        stageShowerJar(candidates) { context.assets.open(ASSET_JAR_NAME) }.also {
+            ShowerLog.d(TAG, "Copied $ASSET_JAR_NAME to ${it.absolutePath}")
         }
-        throw java.io.IOException("无法创建 shower-server.jar 过渡目录，已尝试：$failures")
     }
 }

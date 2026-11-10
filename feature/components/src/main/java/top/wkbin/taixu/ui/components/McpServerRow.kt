@@ -1,16 +1,17 @@
 package top.wkbin.taixu.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import androidx.compose.ui.text.font.FontWeight
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,48 +43,48 @@ fun McpServerRow(
 ) {
     val stateLabel = mcpStateLabel(enabled, connectionState)
     RuntimeCard(modifier = modifier.fillMaxWidth(), onClick = onClick,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = MaterialTheme.shapes.extraLarge, contentPadding = PaddingValues(16.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            RuntimeIcon(RuntimeIconName.Network, Modifier.size(24.dp), MaterialTheme.colorScheme.onSurfaceVariant)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stateLabel, style = MaterialTheme.typography.labelMedium, color = mcpStateColor(enabled, connectionState))
-                    if (toolCount != null && toolCount > 0) Text("$toolCount 工具", style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    authLabel?.let { label -> Text(label, style = MaterialTheme.typography.labelMedium,
-                        color = if (authOk) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error) }
-                }
-                val secondary = error?.takeIf { it.isNotBlank() } ?: notice?.takeIf { it.isNotBlank() }
-                    ?: subtitle?.takeIf { it.isNotBlank() }
-                if (secondary != null) Text(secondary.replace('\n', ' '), style = MaterialTheme.typography.bodyMedium,
-                    color = when {
-                        !error.isNullOrBlank() -> MaterialTheme.colorScheme.error
-                        !notice.isNullOrBlank() -> MaterialTheme.colorScheme.tertiary
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+        shape = RuntimeTheme.shapes.medium, contentPadding = PaddingValues(0.dp)) {
+        BasicComponent(
+            startAction = {
+                RuntimeIcon(RuntimeIconName.Network, Modifier.padding(end = 6.dp).size(24.dp), MiuixTheme.colorScheme.onSurface)
+            },
+            endActions = trailing,
+            bottomAction = if (bottomActions != null) {
+                { FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalArrangement = Arrangement.spacedBy(8.dp), itemVerticalAlignment = Alignment.CenterVertically) {
+                    bottomActions()
+                } }
+            } else null,
+        ) {
+            Text(name, style = MiuixTheme.textStyles.headline1, fontWeight = FontWeight.Medium,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stateLabel, style = MiuixTheme.textStyles.footnote1, color = mcpStateColor(enabled, connectionState))
+                if (toolCount != null && toolCount > 0) Text("$toolCount 工具", style = MiuixTheme.textStyles.footnote1,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                authLabel?.let { label -> Text(label, style = MiuixTheme.textStyles.footnote1,
+                    color = if (authOk) RuntimeTheme.colorScheme.onSurfaceVariant else RuntimeTheme.colorScheme.error) }
             }
-            if (trailing != null) Row(verticalAlignment = Alignment.CenterVertically, content = trailing)
+            val secondary = error?.takeIf { it.isNotBlank() } ?: notice?.takeIf { it.isNotBlank() }
+                ?: subtitle?.takeIf { it.isNotBlank() }
+            if (secondary != null) Text(secondary.replace('\n', ' '), style = MiuixTheme.textStyles.body2,
+                color = when {
+                    !error.isNullOrBlank() -> RuntimeTheme.colorScheme.error
+                    !notice.isNullOrBlank() -> RuntimeTheme.colorScheme.tertiary
+                    else -> RuntimeTheme.colorScheme.onSurfaceVariant
+                }, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        if (bottomActions != null) FlowRow(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            itemVerticalAlignment = Alignment.CenterVertically,
-        ) { bottomActions() }
     }
 }
 
 @Composable
 private fun mcpStateColor(enabled: Boolean, state: McpConnectionState): Color = when {
-    !enabled -> MaterialTheme.colorScheme.outlineVariant
+    !enabled -> RuntimeTheme.colorScheme.outlineVariant
     state == McpConnectionState.ONLINE || state == McpConnectionState.SLEEPING -> semanticColors().success
-    state == McpConnectionState.CHECKING || state == McpConnectionState.WAKING -> MaterialTheme.colorScheme.tertiary
-    state == McpConnectionState.OFFLINE -> MaterialTheme.colorScheme.error
-    else -> MaterialTheme.colorScheme.outline
+    state == McpConnectionState.CHECKING || state == McpConnectionState.WAKING -> RuntimeTheme.colorScheme.tertiary
+    state == McpConnectionState.OFFLINE -> RuntimeTheme.colorScheme.error
+    else -> RuntimeTheme.colorScheme.outline
 }
 
 private fun mcpStateLabel(enabled: Boolean, state: McpConnectionState): String = when {

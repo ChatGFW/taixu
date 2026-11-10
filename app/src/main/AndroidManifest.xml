@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- miuix-blur targets API 33; every call site is gated by isRuntimeShaderSupported(). -->
+    <uses-sdk tools:overrideLibrary="top.yukonga.miuix.kmp.blur" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- SSH 设置页检测 VPN / 观察默认网络（getActiveNetwork / NetworkCallback） -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />

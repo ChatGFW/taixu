@@ -6,6 +6,7 @@ import kotlinx.serialization.json.*
 import okhttp3.OkHttpClient
 import org.junit.Assert.*
 import org.junit.Test
+import top.wkbin.taixu.core.model.workflow.WorkflowNodeType
 import top.wkbin.taixu.harness.*
 import top.wkbin.taixu.harness.core.LlmApi
 import top.wkbin.taixu.harness.directory.CapabilityToolRouter
@@ -84,7 +85,7 @@ class HarnessPluginRegistryTest {
     @Test fun builtinProtocolsAndDelayAreProducedByPluginFactories() {
         val registry = HarnessPluginRegistry(builtinHarnessPlugins())
         assertEquals(LlmApi.entries.toSet(), registry.providers(OkHttpClient(), Json).map { it.api }.toSet())
-        assertEquals(setOf(top.wkbin.taixu.core.model.workflow.WorkflowNodeType.DELAY), registry.workflowExecutors().flatMap { it.supportedTypes }.toSet())
+        assertEquals(setOf(WorkflowNodeType.DELAY), registry.workflowExecutors().flatMap { it.supportedTypes }.toSet())
     }
     @Test fun builtinCapabilityGuideDoesNotCreateSyntheticUserMessages() = runBlocking {
         val registry = HarnessPluginRegistry(builtinHarnessPlugins())

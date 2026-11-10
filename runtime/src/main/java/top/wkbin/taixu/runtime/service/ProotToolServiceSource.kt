@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -12,18 +13,18 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import top.wkbin.taixu.core.model.PluginExecutionIdentity
 import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.shell.ManagedProcess
 import top.wkbin.taixu.runtime.shell.ProcessType
 import top.wkbin.taixu.runtime.shell.ShellCommand
-import kotlin.coroutines.coroutineContext
 
 /** Native-resolved launch plan of an installed tool's own service, never taken from Web content. */
 data class ServiceLaunch(
     val launchCommand: String,
     val environment: Map<String, String>,
-    val pluginIdentity: top.wkbin.taixu.core.model.PluginExecutionIdentity? = null,
+    val pluginIdentity: PluginExecutionIdentity? = null,
     val authenticated: Boolean = false,
     val distroId: String? = null,
 )
@@ -40,7 +41,7 @@ data class ProotServiceDescriptor(
     val environment: Map<String, String>,
     val ownerPluginId: String,
     val distroId: String,
-    val pluginIdentity: top.wkbin.taixu.core.model.PluginExecutionIdentity? = null,
+    val pluginIdentity: PluginExecutionIdentity? = null,
 ) {
     init {
         require(port in 1..65535) { "工具服务端口无效" }

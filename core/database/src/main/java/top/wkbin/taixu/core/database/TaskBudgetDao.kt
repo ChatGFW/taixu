@@ -2,6 +2,7 @@ package top.wkbin.taixu.core.database
 
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
+import top.wkbin.taixu.core.model.bot.TaskBudgetExceededException
 import top.wkbin.taixu.core.model.bot.TaskBudgetState
 
 @Entity(tableName = "bot_task_budgets", foreignKeys = [ForeignKey(entity = GroupChatEntity::class,
@@ -90,7 +91,7 @@ interface TaskBudgetDao {
         val owner = ensureBudget(task)
         val state = requireNotNull(budgetState(owner.id))
         check(task.status == "RUNNING") { "任务已停止，不能继续请求模型" }
-        if (state.limitTokens != 0L && tokens > state.availableTokens) throw top.wkbin.taixu.core.model.bot.TaskBudgetExceededException(
+        if (state.limitTokens != 0L && tokens > state.availableTokens) throw TaskBudgetExceededException(
             "任务树预算不足：剩余 ${state.availableTokens}，本次需预留 $tokens tokens；请在群信息的任务预算中调整额度，再继续原任务。")
         check(insertBudgetRequest(BudgetRequestEntity(requestId, owner.id, sessionId, tokens, "reserved", System.currentTimeMillis())) != -1L)
         clearBudgetBlock(sessionId)

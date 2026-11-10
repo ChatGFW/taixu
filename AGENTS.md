@@ -18,7 +18,8 @@ Android 无 Root 下用 PRoot 跑 Linux 多发行版沙箱 + AI Agent Harness + 
 | **写代码 / 改模块 / 理拓扑**   | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)（架构与模块拓扑）               |
 | **追踪数据流 / 调用链路**      | [`docs/EXECUTION_TRACES.md`](docs/EXECUTION_TRACES.md)（核心执行时序）        |
 | **定位某个类 / 寻找文件**      | [`docs/FILE_INDEX.md`](docs/FILE_INDEX.md)（关键文件索引速查）                  |
-| **UI/UX 设计系统与架构铁律**   | [`docs/ARCHITECTURE_RULES.md`](docs/ARCHITECTURE_RULES.md)（设计规范与避坑指南） |
+| **UI/UX 设计系统与架构铁律**   | [`docs/ARCHITECTURE_RULES.md`](docs/ARCHITECTURE_RULES.md)（架构红线与产品 UX） |
+| **Compose / miuix 页面约定**  | [`docs/UI_GUIDELINES.md`](docs/UI_GUIDELINES.md)（骨架、squircle、毛玻璃、Dialog/Sheet、性能） |
 | **构建 / 测试 / 打包 / 调试** | [`docs/COMMANDS.md`](docs/COMMANDS.md)（常用命令速查）                        |
 | **安全边界 / 凭证暴露面**   | [`docs/SECURITY_SURFACE.md`](docs/SECURITY_SURFACE.md)（凭证流、PRoot 挂载、HostBridge、脱敏） |
 

@@ -25,6 +25,8 @@ import top.wkbin.taixu.core.datastore.SettingsDataStore
 import top.wkbin.taixu.core.datastore.ToolPreferences
 import top.wkbin.taixu.core.model.*
 import top.wkbin.taixu.core.network.ChecksumVerifier
+import top.wkbin.taixu.core.network.DownloadEvent
+import top.wkbin.taixu.core.network.DownloadRequest
 import top.wkbin.taixu.core.network.FileDownloader
 import top.wkbin.taixu.core.security.SecretManager
 import top.wkbin.taixu.core.security.SecretRedactor
@@ -272,7 +274,7 @@ class PluginRecoveryTest {
                 override suspend fun acquire(requirement: RuntimeRequirement, toolId: String): AppResult<InstalledRuntime> = error("Unexpected download")
                 override suspend fun release(runtimeId: String, toolId: String) = AppResult.Success(Unit)
             }
-            val downloader = object : FileDownloader { override fun download(request: top.wkbin.taixu.core.network.DownloadRequest): kotlinx.coroutines.flow.Flow<top.wkbin.taixu.core.network.DownloadEvent> = error("Unexpected download") }
+            val downloader = object : FileDownloader { override fun download(request: DownloadRequest): kotlinx.coroutines.flow.Flow<DownloadEvent> = error("Unexpected download") }
             return ToolManager(repository, logs, taskRepository, InstallTransactionManager(paths, logger), dependencies,
                 runtime, BackgroundTaskRegistry(), ProviderManager(), ToolCommandLinker(runtime), ToolNotificationNotifier(context), redactor,
                 ToolSettingsRepository(proxy<ToolSettingsDao> { _, _ -> error("Unexpected settings access") }),
