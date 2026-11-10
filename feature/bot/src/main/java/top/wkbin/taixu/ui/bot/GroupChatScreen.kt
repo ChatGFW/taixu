@@ -1,8 +1,6 @@
 package top.wkbin.taixu.ui.bot
-
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import top.wkbin.taixu.ui.miuix.EmptyScaffoldTopBar
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Scaffold
 import top.wkbin.taixu.ui.miuix.ScaffoldDefaults
@@ -54,12 +53,10 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.runtimeContentPadding
-
 enum class GroupChatViewMode {
     CHAT,
     STUDIO,
 }
-
 @Composable
 fun GroupChatScreen(
     groupId: String,
@@ -126,7 +123,6 @@ fun GroupChatScreen(
     } else {
         stringResource(R.string.fbot_group_members, members.size)
     }
-
     LaunchedEffect(groupId) { viewModel.bind(groupId) }
     LaunchedEffect(Unit) { viewModel.notices.collect { snackbarHostState.showSnackbar(it) } }
     LaunchedEffect(exportFile) {
@@ -147,23 +143,17 @@ fun GroupChatScreen(
         onFollowingChange = { following = it },
         onAnchorChange = { anchorId = it },
     )
-
     val studio = viewMode == GroupChatViewMode.STUDIO
     Scaffold(
         contentWindowInsets = if (studio) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
-        topBar = {
-            if (!studio) {
+        // STUDIO 必须用 EmptyScaffoldTopBar 同一引用，否则会误开零尺寸 textureBlur。
+        topBar = if (studio) EmptyScaffoldTopBar else {
+            {
                 GroupChatTopBar(
-                    viewMode = viewMode,
-                    groupName = state.group?.name.orEmpty(),
-                    statusText = statusText,
-                    busy = busy,
-                    workSummary = workSummary,
-                    exporting = state.exporting,
-                    onBack = onBack,
-                    onSwitchMode = { viewMode = it },
-                    onExportDiagnostics = viewModel::exportDiagnostics,
-                    onShowInfo = { showInfo = true },
+                    viewMode = viewMode, groupName = state.group?.name.orEmpty(),
+                    statusText = statusText, busy = busy, workSummary = workSummary,
+                    exporting = state.exporting, onBack = onBack, onSwitchMode = { viewMode = it },
+                    onExportDiagnostics = viewModel::exportDiagnostics, onShowInfo = { showInfo = true },
                 )
             }
         },
@@ -339,7 +329,6 @@ fun GroupChatScreen(
             }
         }
     }
-
     if (showInfo) {
         state.group?.let { group ->
             GroupInfoDialog(

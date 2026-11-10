@@ -2,8 +2,8 @@ package top.wkbin.taixu.harness
 
 import android.content.Context
 import android.os.SystemClock
-import top.wkbin.taixu.core.database.HarnessSessionEntity
 import java.io.IOException
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
@@ -11,17 +11,20 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
-import top.wkbin.taixu.harness.metrics.RunMetrics
-import top.wkbin.taixu.harness.session.SessionTreeStore
+import top.wkbin.taixu.core.database.HarnessSessionEntity
+import top.wkbin.taixu.harness.bot.TaskBudgetContext
 import top.wkbin.taixu.harness.compaction.CompactionManager
+import top.wkbin.taixu.harness.diagnostics.ContextGovernanceTrace
+import top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore
 import top.wkbin.taixu.harness.effects.RetryPolicy
-import top.wkbin.taixu.harness.operation.OperationCoordinator
 import top.wkbin.taixu.harness.events.AgentEventLogger
+import top.wkbin.taixu.harness.metrics.RunMetrics
+import top.wkbin.taixu.harness.operation.OperationCoordinator
 import top.wkbin.taixu.harness.projection.SessionMessageProjector
 import top.wkbin.taixu.harness.projection.SessionStateMirrors
 import top.wkbin.taixu.harness.session.ApiContextAssembler
-import kotlin.time.Duration.Companion.milliseconds
-import top.wkbin.taixu.harness.diagnostics.RequestDiagnosticsStore
+import top.wkbin.taixu.harness.session.ProviderActivityContext
+import top.wkbin.taixu.harness.session.SessionTreeStore
 
 /** 模型能力选择、流式请求重试及助手回复持久化；不持有会话调度状态。 */
 class HarnessProviderRunner(
@@ -87,8 +90,8 @@ class HarnessProviderRunner(
         var outputBudgetReduced = false
         var outputLimitRecoveries = 0
         var netRetry = 0
-        val governance = top.wkbin.taixu.harness.diagnostics.ContextGovernanceTrace()
-        suspend fun assembleFor(requestModel: ModelConfig) = withContext(top.wkbin.taixu.harness.bot.TaskBudgetContext(sessId)) { contextAssembler.assemble(
+        val governance = ContextGovernanceTrace()
+        suspend fun assembleFor(requestModel: ModelConfig) = withContext(TaskBudgetContext(sessId)) { contextAssembler.assemble(
             sessId = sessId,
             model = requestModel,
             workspacePath = sessionWorkspace,
@@ -125,7 +128,7 @@ class HarnessProviderRunner(
                     attempt = netRetry + 1,
                     maxAttempts = maxAttempts,
                 )
-                streamed = withContext(top.wkbin.taixu.harness.session.ProviderActivityContext(stateMirrors.providerActivity, sessId)) {
+                streamed = withContext(ProviderActivityContext(stateMirrors.providerActivity, sessId)) {
                     providerClient.chatStream(
                         requestModel,
                         requestMessages,
@@ -567,18 +570,15 @@ class HarnessProviderRunner(
         agentEventLogger.log(sessId, "FirstResponseTimeout", text, error)
         return TurnProviderOutcome.Failed(text)
     }
-
     companion object {
         private const val OUTPUT_LIMIT_MAX_RECOVERIES = 1
         private const val EMPTY_RESPONSE_MAX_RETRIES = 2
-
         internal fun emergencyFoldBudget(model: ModelConfig): Int = providerEmergencyFoldBudget(model)
         internal fun maxNetworkRetriesFor(estimatedRequestTokens: Int, configuredRetries: Int): Int =
             providerMaxNetworkRetriesFor(estimatedRequestTokens, configuredRetries)
         internal fun effectiveRetryBudget(largeContextRetries: Int, throwable: Throwable): Int =
             providerEffectiveRetryBudget(largeContextRetries, throwable)
         internal fun isTransientFailure(throwable: Throwable): Boolean = providerIsTransientFailure(throwable)
-
         const val RETRY_BACKOFF_MS = 1_000L
         const val RETRY_BACKOFF_SEC = 2L
     }

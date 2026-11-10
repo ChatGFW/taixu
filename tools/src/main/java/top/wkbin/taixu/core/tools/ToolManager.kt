@@ -47,6 +47,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import android.net.Uri
 import top.wkbin.taixu.core.common.result.AppResult
+import top.wkbin.taixu.runtime.environment.LocalBackendAccess
 
 class ToolManager(
     private val toolRepository: ToolRepository,
@@ -68,7 +69,7 @@ class ToolManager(
     private val serviceController: ToolServiceController,
     private val packageOperations: ToolPackageOperations,
     installerAdapters: Set<@JvmSuppressWildcards ToolRuntimeAdapter>,
-    private val localAccess: top.wkbin.taixu.runtime.environment.LocalBackendAccess? = null,
+    private val localAccess: LocalBackendAccess? = null,
 ) {
     private val managerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val installMutex = Mutex()
@@ -915,5 +916,4 @@ class ToolManager(
         const val TASK_CANCELLED = "CANCELLED"
         const val TASK_INTERRUPTED = "INTERRUPTED"
     }
-
 }

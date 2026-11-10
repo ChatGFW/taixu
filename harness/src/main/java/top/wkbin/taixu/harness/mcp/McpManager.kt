@@ -1,6 +1,7 @@
 package top.wkbin.taixu.harness.mcp
 
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,20 +14,22 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.JsonObject
-import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.McpServerRepository
+import top.wkbin.taixu.core.datastore.McpToolPolicyPreferences
+import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.core.model.McpConnectionState
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.McpToolInfo
 import top.wkbin.taixu.core.model.McpTransportType
 import top.wkbin.taixu.harness.events.AgentEventLogger
 import top.wkbin.taixu.runtime.LinuxRuntime
-import kotlin.time.Duration.Companion.milliseconds
+import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext
 
 /** Thin MCP registry coordinator; transports own protocol and process details. */
 class McpManager(
@@ -37,9 +40,9 @@ class McpManager(
     private val linuxRuntime: LinuxRuntime,
     private val logger: AppLogger,
     private val agentEventLogger: AgentEventLogger,
-    private val remoteServers: top.wkbin.taixu.core.datastore.RemoteServerRepository? = null,
+    private val remoteServers: RemoteServerRepository? = null,
     private val catalogAvailability: McpCatalogAvailability = McpCatalogAvailability(linuxRuntime, remoteServers = remoteServers),
-    private val toolPolicy: top.wkbin.taixu.core.datastore.McpToolPolicyPreferences? = null,
+    private val toolPolicy: McpToolPolicyPreferences? = null,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val standaloneScope = stdio.standaloneScope ?: remoteServers?.let { StandaloneMcpScope(it) }
@@ -167,7 +170,7 @@ class McpManager(
             return@withContext emptyList()
         }
         val key = discoveryKey(server)
-        val world = kotlinx.coroutines.currentCoroutineContext()[top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext]?.environment
+        val world = kotlinx.coroutines.currentCoroutineContext()[ExecutionEnvironmentContext]?.environment
         if (server.transportType == McpTransportType.STDIO && (world?.id?.backend?.let { it != "ssh" } ?: (remoteServers?.activeId?.value == null))) {
             val linuxReady = awaitLinuxRuntimeReady(linuxRuntime.state)
             if (!linuxReady) {
@@ -386,7 +389,7 @@ class McpManager(
 
     /** Bound owners always take precedence over another session's last workspace. */
     private suspend fun boundConfig(server: McpServerConfig, workspace: String? = null): McpServerConfig {
-        val world = kotlinx.coroutines.currentCoroutineContext()[top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext]?.environment
+        val world = kotlinx.coroutines.currentCoroutineContext()[ExecutionEnvironmentContext]?.environment
         return commandBuilder.bindWorkspaceRepository(server, world?.workingDirectory() ?: workspace.orEmpty())
     }
 
@@ -406,14 +409,11 @@ class McpManager(
 
     private suspend fun effectiveServers(): List<McpServerConfig> =
         catalogAvailability.resolve(repository.servers.first())
-
     private companion object {
         /** 单服务器工具发现总超时：覆盖沙箱会话拉起 + initialize + tools/list，超时即本轮跳过注入。 */
         const val DISCOVERY_TIMEOUT_MS = 8_000L
-
         /** 工具发现无会话上下文，agent 事件日志用占位 sessionId。 */
         const val DISCOVERY_LOG_SESSION = "-"
-
         const val RUNTIME_NOT_READY_MSG = "Linux runtime is not ready. Call initialize() first."
     }
 }

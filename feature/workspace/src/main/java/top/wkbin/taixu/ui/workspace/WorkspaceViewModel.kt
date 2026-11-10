@@ -1,16 +1,15 @@
 package top.wkbin.taixu.ui.workspace
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import top.wkbin.taixu.runtime.WorkspaceFileItem
-import top.wkbin.taixu.runtime.WorkspaceManager
-import top.wkbin.taixu.runtime.WorkspaceProject
-import top.wkbin.taixu.runtime.WorkspaceStorage
-import top.wkbin.taixu.core.common.result.AppResult
-import top.wkbin.taixu.template.InstalledProjectTemplate
-import top.wkbin.taixu.template.ProjectTemplateStore
-import android.content.Context
-import top.wkbin.taixu.feature.workspace.R
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,13 +18,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import android.Manifest
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
+import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.datastore.FirstUseGuidePreferences
 import top.wkbin.taixu.core.datastore.WorkshopKeystore
 import top.wkbin.taixu.core.datastore.WorkshopPreferences
@@ -34,15 +27,23 @@ import top.wkbin.taixu.core.model.PluginBundle
 import top.wkbin.taixu.core.model.PluginComponent
 import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.core.tools.ToolManager
+import top.wkbin.taixu.feature.workspace.R
 import top.wkbin.taixu.runtime.ApkImportSource
 import top.wkbin.taixu.runtime.GitTransport
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.ProjectArchiveSource
 import top.wkbin.taixu.runtime.ProjectTemplate
 import top.wkbin.taixu.runtime.ProjectType
+import top.wkbin.taixu.runtime.WorkspaceFileInspection
+import top.wkbin.taixu.runtime.WorkspaceFileItem
+import top.wkbin.taixu.runtime.WorkspaceManager
+import top.wkbin.taixu.runtime.WorkspaceProject
+import top.wkbin.taixu.runtime.WorkspaceStorage
 import top.wkbin.taixu.runtime.build.BuildRunProgress
 import top.wkbin.taixu.runtime.build.WorkshopBuildType
 import top.wkbin.taixu.runtime.tools.InstallEvent
+import top.wkbin.taixu.template.InstalledProjectTemplate
+import top.wkbin.taixu.template.ProjectTemplateStore
 
 class WorkspaceViewModel(
     private val context: Context,
@@ -326,7 +327,7 @@ class WorkspaceViewModel(
     val isSaving: StateFlow<Boolean> = editor.isSaving
     val saveConflict: StateFlow<Boolean> = editor.saveConflict
     /** 非空表示当前文件是二进制：编辑器不载入，改由系统应用打开/分享。 */
-    val binaryFile: StateFlow<top.wkbin.taixu.runtime.WorkspaceFileInspection?> = editor.binaryFile
+    val binaryFile: StateFlow<WorkspaceFileInspection?> = editor.binaryFile
 
     init {
         refresh()
@@ -636,7 +637,6 @@ class WorkspaceViewModel(
     fun reloadSaveConflict() = editor.reloadSaveConflict()
     fun dismissSaveConflict() = editor.dismissSaveConflict()
     fun closeFile() = editor.closeFile()
-
     /** 用系统应用打开/分享当前二进制文件（APK、图片、压缩包等）。 */
     fun openCurrentFileExternally(share: Boolean) = editor.openExternally(share)
 }

@@ -2,11 +2,10 @@ package top.wkbin.taixu.di.runtime
 
 import org.koin.dsl.module
 import org.koin.dsl.onClose
-import top.wkbin.taixu.runtime.backend.BackendSelector
-import top.wkbin.taixu.runtime.backend.ModeBackendSelector
-import top.wkbin.taixu.runtime.droidspaces.DroidspacesCommandBuilder
-import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
 import top.wkbin.taixu.core.database.BuildScriptRepository
+import top.wkbin.taixu.core.datastore.AppearancePreferences
+import top.wkbin.taixu.core.datastore.ContainerBackendPreferences
+import top.wkbin.taixu.core.datastore.RuntimePreferences
 import top.wkbin.taixu.runtime.AttachmentMigrator
 import top.wkbin.taixu.runtime.BackgroundTaskRegistry
 import top.wkbin.taixu.runtime.DistroConfigurator
@@ -19,11 +18,14 @@ import top.wkbin.taixu.runtime.LinuxRuntimeImpl
 import top.wkbin.taixu.runtime.LocalLlmManager
 import top.wkbin.taixu.runtime.RuntimeHealthChecker
 import top.wkbin.taixu.runtime.RuntimePathManager
+import top.wkbin.taixu.runtime.SessionWorkspaceCatalog
 import top.wkbin.taixu.runtime.SshServiceManager
 import top.wkbin.taixu.runtime.StorageManager
 import top.wkbin.taixu.runtime.WorkspaceFileService
 import top.wkbin.taixu.runtime.WorkspaceManager
 import top.wkbin.taixu.runtime.apps.AndroidAppManager
+import top.wkbin.taixu.runtime.backend.BackendSelector
+import top.wkbin.taixu.runtime.backend.ModeBackendSelector
 import top.wkbin.taixu.runtime.bridge.FullAccessGrant
 import top.wkbin.taixu.runtime.bridge.HostBridge
 import top.wkbin.taixu.runtime.bridge.HostCredentialAuthority
@@ -32,9 +34,12 @@ import top.wkbin.taixu.runtime.bridge.adb.EmbeddedAdbManager
 import top.wkbin.taixu.runtime.build.WorkshopSigningManager
 import top.wkbin.taixu.runtime.build.WorkspaceBuildRunner
 import top.wkbin.taixu.runtime.doctor.EnvironmentDoctor
+import top.wkbin.taixu.runtime.doctor.EnvironmentRepairer
 import top.wkbin.taixu.runtime.doctor.ToolchainInspector
 import top.wkbin.taixu.runtime.doctor.ToolchainRepairer
-import top.wkbin.taixu.runtime.doctor.EnvironmentRepairer
+import top.wkbin.taixu.runtime.droidspaces.DroidspacesCommandBuilder
+import top.wkbin.taixu.runtime.environment.LocalBackendAccess
+import top.wkbin.taixu.runtime.environment.LocalDistributionSelection
 import top.wkbin.taixu.runtime.gui.GuiAccessibilityEnabler
 import top.wkbin.taixu.runtime.gui.HostGuiController
 import top.wkbin.taixu.runtime.gui.HostGuiToolkit
@@ -42,11 +47,14 @@ import top.wkbin.taixu.runtime.gui.WorkflowGuiHudBridge
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.runtime.privilege.ShizukuHostServiceClient
 import top.wkbin.taixu.runtime.privilege.ShizukuSystemApis
-import top.wkbin.taixu.runtime.virtualdisplay.VirtualDisplayCoordinator
-import top.wkbin.taixu.runtime.virtualdisplay.VirtualScreenToolkit
+import top.wkbin.taixu.runtime.proot.ProotCommandBuilder
 import top.wkbin.taixu.runtime.proot.ProotInstaller
 import top.wkbin.taixu.runtime.pty.NativePtyManager
 import top.wkbin.taixu.runtime.pty.ScriptPtyManager
+import top.wkbin.taixu.runtime.remote.RemoteSystemService
+import top.wkbin.taixu.runtime.remote.SshConnectionTester
+import top.wkbin.taixu.runtime.remote.SshConnector
+import top.wkbin.taixu.runtime.remote.androidLanSockets
 import top.wkbin.taixu.runtime.rootfs.LxcImagesClient
 import top.wkbin.taixu.runtime.rootfs.OciRegistryClient
 import top.wkbin.taixu.runtime.rootfs.RootfsInstaller
@@ -56,23 +64,30 @@ import top.wkbin.taixu.runtime.scripts.RuntimeAssetSynchronizer
 import top.wkbin.taixu.runtime.service.LocalServiceLauncherImpl
 import top.wkbin.taixu.runtime.shell.ProcessRegistryImpl
 import top.wkbin.taixu.runtime.shell.ProcessShellExecutor
+import top.wkbin.taixu.runtime.terminal.RemoteTerminalProcessFactory
+import top.wkbin.taixu.runtime.terminal.TerminalProcessFactory
 import top.wkbin.taixu.runtime.terminal.TerminalSessionClientRouter
 import top.wkbin.taixu.runtime.terminal.TerminalSessionManager
+import top.wkbin.taixu.runtime.terminal.TermuxRemoteTerminalProcessFactory
+import top.wkbin.taixu.runtime.terminal.TermuxTerminalProcessFactory
+import top.wkbin.taixu.runtime.virtualdisplay.VirtualDisplayCoordinator
+import top.wkbin.taixu.runtime.virtualdisplay.VirtualScreenToolkit
+import top.wkbin.taixu.runtime.webchat.ExternalAgentRuntimeServer
 import top.wkbin.taixu.runtime.webchat.WebChatBridgeServer
 
 /** Dependency registrations owned by the runtime module. */
 val runtimeModule = module {
-    single { top.wkbin.taixu.runtime.environment.LocalDistributionSelection(get<top.wkbin.taixu.core.datastore.RuntimePreferences>(), get<top.wkbin.taixu.runtime.LinuxRuntime>()) }
-    single { top.wkbin.taixu.runtime.environment.LocalBackendAccess(get()) }
-    single { top.wkbin.taixu.runtime.SessionWorkspaceCatalog(servers = get(), remote = get(), local = get()) }
+    single { LocalDistributionSelection(get<RuntimePreferences>(), get<LinuxRuntime>()) }
+    single { LocalBackendAccess(get()) }
+    single { SessionWorkspaceCatalog(servers = get(), remote = get(), local = get()) }
     single {
         val manager = get<LinuxEnvironmentManager>()
-        top.wkbin.taixu.runtime.remote.SshConnector(
-            lanSockets = top.wkbin.taixu.runtime.remote.androidLanSockets(get<android.content.Context>()),
+        SshConnector(
+            lanSockets = androidLanSockets(get<android.content.Context>()),
         ) { manager.snapshotForSsh() }
     }
-    single<top.wkbin.taixu.runtime.remote.SshConnectionTester> { get<top.wkbin.taixu.runtime.remote.SshConnector>() }
-    single { top.wkbin.taixu.runtime.remote.RemoteSystemService(get(), get()) }
+    single<SshConnectionTester> { get<SshConnector>() }
+    single { RemoteSystemService(get(), get()) }
     /**
      * 后端选型收敛点：PRoot 与 Droidspaces 两个实现常驻，由调用点在**自己的挂起路径**里
      * 解析当前模式（`effectiveExecutionMode.first()`）。因此单条命令与会话在其生命周期内
@@ -86,8 +101,8 @@ val runtimeModule = module {
         ModeBackendSelector(
             proot = get<ProotCommandBuilder>(),
             droidspaces = get<DroidspacesCommandBuilder>(),
-            modes = get<top.wkbin.taixu.core.datastore.RuntimePreferences>().effectiveExecutionMode,
-            containerBackend = get<top.wkbin.taixu.core.datastore.ContainerBackendPreferences>().enabled,
+            modes = get<RuntimePreferences>().effectiveExecutionMode,
+            containerBackend = get<ContainerBackendPreferences>().enabled,
         )
     }
 
@@ -106,7 +121,7 @@ val runtimeModule = module {
 
     /** 开发者偏好仅开启确认入口；临时授权保存在内存并在每次鉴权时复核。 */
     single<FullAccessGrant> {
-        FullAccessGrant(developerMode = get<top.wkbin.taixu.core.datastore.AppearancePreferences>().developerMode)
+        FullAccessGrant(developerMode = get<AppearancePreferences>().developerMode)
     }.onClose { it?.close() }
 
     single<SandboxCredentialStore> {
@@ -325,11 +340,8 @@ val runtimeModule = module {
     single<ScriptPtyManager> { ScriptPtyManager() }
 
     single<NativePtyManager> { NativePtyManager(scriptFallback = get()) }
-
     single<LxcImagesClient> { LxcImagesClient(http = get(), logger = get()) }
-
     single<OciRegistryClient> { OciRegistryClient(http = get(), logger = get()) }
-
     single<RootfsInstaller> {
         RootfsInstaller(
             pathManager = get(),
@@ -340,13 +352,9 @@ val runtimeModule = module {
             lxcImagesClient = get(),
         )
     }
-
     single<RootfsValidator> { RootfsValidator(elfInspector = get()) }
-
     single<RuntimeAssetSynchronizer> { RuntimeAssetSynchronizer(context = get(), pathManager = get()) }
-
     single<LocalServiceLauncherImpl> { LocalServiceLauncherImpl(linuxRuntime = get()) }
-
     single<ProcessRegistryImpl> {
         ProcessRegistryImpl(
             pathManager = get(),
@@ -354,15 +362,12 @@ val runtimeModule = module {
             sandboxCredentials = get(),
         )
     }
-
     single<ProcessShellExecutor> { ProcessShellExecutor(pathManager = get()) }
-
     single<TerminalSessionClientRouter> { TerminalSessionClientRouter() }
-    single<top.wkbin.taixu.runtime.terminal.TerminalProcessFactory> { top.wkbin.taixu.runtime.terminal.TermuxTerminalProcessFactory() }
-    single<top.wkbin.taixu.runtime.terminal.RemoteTerminalProcessFactory> {
-        top.wkbin.taixu.runtime.terminal.TermuxRemoteTerminalProcessFactory()
+    single<TerminalProcessFactory> { TermuxTerminalProcessFactory() }
+    single<RemoteTerminalProcessFactory> {
+        TermuxRemoteTerminalProcessFactory()
     }
-
     single<TerminalSessionManager> {
         TerminalSessionManager(
             linuxRuntime = get(),
@@ -374,7 +379,6 @@ val runtimeModule = module {
             remoteProcessFactory = get(),
         )
     }
-
     single<WebChatBridgeServer> {
         WebChatBridgeServer(
             context = get(),
@@ -389,10 +393,8 @@ val runtimeModule = module {
             logger = get(),
         )
     }
-
     single {
-        top.wkbin.taixu.runtime.webchat.ExternalAgentRuntimeServer(gateway = get(), logger = get())
+        ExternalAgentRuntimeServer(gateway = get(), logger = get())
     }
-
     single<TarStreamExtractor> { TarStreamExtractor(logger = get()) }
 }

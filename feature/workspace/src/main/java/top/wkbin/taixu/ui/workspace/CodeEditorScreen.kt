@@ -360,7 +360,6 @@ fun CodeEditorScreen(
                     }
                 }
             }
-
             // 底部状态栏
             EditorStatusBar(
                 extension = extension,
@@ -372,7 +371,6 @@ fun CodeEditorScreen(
             )
         }
     }
-
     // 未保存退出提示
     if (showUnsavedDialog) {
         RuntimeAlertDialog(
@@ -406,7 +404,6 @@ fun CodeEditorScreen(
             },
         )
     }
-
     if (showDiscardDialog) {
         DiscardEditsDialog(
             onConfirm = {
@@ -416,7 +413,6 @@ fun CodeEditorScreen(
             onDismiss = { showDiscardDialog = false },
         )
     }
-
     if (saveConflict) {
         SaveConflictDialog(
             isSaving = isSaving,
@@ -427,7 +423,6 @@ fun CodeEditorScreen(
         )
     }
 }
-
 @Composable
 private fun EditorStatusBar(
     extension: String,
@@ -455,13 +450,11 @@ private fun EditorStatusBar(
                 color = EditorAccent,
                 fontWeight = FontWeight.Medium,
             )
-
             Text(
                 text = "•",
                 color = EditorGutterText,
                 style = RuntimeTheme.typography.labelSmall,
             )
-
             // 行数与字数
             Text(
                 text = stringResource(R.string.workspace_editor_stats, lineCount, charCount),
@@ -469,9 +462,7 @@ private fun EditorStatusBar(
                 color = EditorGutterText,
                 fontFamily = FontFamily.Monospace,
             )
-
             Spacer(Modifier.weight(1f))
-
             // 自动换行切换
             Surface(
                 shape = RuntimeTheme.shapes.tiny,
@@ -487,7 +478,6 @@ private fun EditorStatusBar(
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 )
             }
-
             // 保存状态
             Text(
                 text = stringResource(if (isDirty) R.string.workspace_unsaved else R.string.workspace_saved),

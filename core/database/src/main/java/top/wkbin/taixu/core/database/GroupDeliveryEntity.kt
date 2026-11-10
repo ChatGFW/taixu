@@ -33,8 +33,11 @@ data class GroupDeliveryEntity(
     val taskId: String? = null,
     val error: String? = null,
     val claimNonce: String? = null,
+    val claimedAt: Long? = null,
 ) {
-    fun toModel() = GroupDelivery(id, sourceMessageId, groupId, botId, createdAt, status, sessionId, taskId, error, claimNonce)
+    fun toModel() = GroupDelivery(
+        id, sourceMessageId, groupId, botId, createdAt, status, sessionId, taskId, error, claimNonce, claimedAt,
+    )
 }
 
 /** Shared by the message and assignment owners so staging is inside their existing transactions. */
@@ -97,9 +100,12 @@ interface GroupDeliveryDao {
     @Query("SELECT * FROM group_deliveries WHERE status IN ('submitting', 'admitted')")
     suspend fun interruptedGroupDeliveries(): List<GroupDeliveryEntity>
 
-    @Query("UPDATE group_deliveries SET status = 'submitting', claimNonce = :claimNonce WHERE id = :id AND status = 'pending' AND claimNonce IS NULL AND EXISTS " +
-        "(SELECT 1 FROM group_members m WHERE m.groupId = group_deliveries.groupId AND m.botId = group_deliveries.botId)")
-    suspend fun claimGroupDelivery(id: String, claimNonce: String): Int
+    @Query(
+        "UPDATE group_deliveries SET status = 'submitting', claimNonce = :claimNonce, claimedAt = :claimedAt " +
+            "WHERE id = :id AND status = 'pending' AND claimNonce IS NULL AND EXISTS " +
+            "(SELECT 1 FROM group_members m WHERE m.groupId = group_deliveries.groupId AND m.botId = group_deliveries.botId)",
+    )
+    suspend fun claimGroupDelivery(id: String, claimNonce: String, claimedAt: Long): Int
 
     @Query("UPDATE group_deliveries SET sessionId = :sessionId WHERE id = :id AND status = 'submitting' AND claimNonce = :claimNonce AND EXISTS " +
         "(SELECT 1 FROM group_members m WHERE m.groupId = group_deliveries.groupId AND m.botId = group_deliveries.botId)")
@@ -108,14 +114,62 @@ interface GroupDeliveryDao {
     @Query("UPDATE group_deliveries SET status = 'admitted', sessionId = :sessionId, taskId = :taskId WHERE id = :id AND status = 'submitting' AND claimNonce = :claimNonce")
     suspend fun admitGroupDelivery(id: String, sessionId: String, taskId: String?, claimNonce: String): Int
 
-    @Query("UPDATE group_deliveries SET status = :status, error = :error WHERE id = :id AND status IN ('submitting', 'admitted') AND claimNonce = :claimNonce")
+    @Query(
+        "UPDATE group_deliveries SET status = :status, error = :error, claimedAt = NULL " +
+            "WHERE id = :id AND status IN ('submitting', 'admitted') AND claimNonce = :claimNonce",
+    )
     suspend fun settleClaimedGroupDelivery(id: String, status: String, error: String?, claimNonce: String): Int
 
     @Query("UPDATE group_deliveries SET status = :status, error = :error WHERE id = :id AND status = 'pending'")
     suspend fun settlePendingGroupDelivery(id: String, status: String, error: String?): Int
 
-    @Query("UPDATE group_deliveries SET status = :status, error = :error WHERE id = :id AND status IN ('submitting', 'admitted')")
+    @Query(
+        "UPDATE group_deliveries SET status = :status, error = :error, claimedAt = NULL " +
+            "WHERE id = :id AND status IN ('submitting', 'admitted')",
+    )
     suspend fun settleInterruptedGroupDelivery(id: String, status: String, error: String?): Int
+
+    /** External executors may put a claimed-but-unsettled receipt back on the queue. */
+    @Query(
+        "UPDATE group_deliveries SET status = 'pending', claimNonce = NULL, claimedAt = NULL, sessionId = NULL, taskId = NULL, error = NULL " +
+            "WHERE id = :id AND status = 'submitting' AND claimNonce = :claimNonce",
+    )
+    suspend fun requeueClaimedGroupDelivery(id: String, claimNonce: String): Int
+
+    /**
+     * EXTERNAL members only claim to submitting; if the phone process dies mid-turn,
+     * put those receipts back to pending instead of marking UNKNOWN.
+     */
+    @Query(
+        "UPDATE group_deliveries SET status = 'pending', claimNonce = NULL, claimedAt = NULL, sessionId = NULL, taskId = NULL, error = NULL " +
+            "WHERE status = 'submitting' AND EXISTS (" +
+            "SELECT 1 FROM persona_bots b WHERE b.id = group_deliveries.botId AND b.runtimeMode = 'EXTERNAL')",
+    )
+    suspend fun requeueExternalSubmittingDeliveries(): Int
+
+    /**
+     * Live reclaim for crashed external executors: EXTERNAL submitting leases whose
+     * claimedAt is missing or older than [beforeMs] go back to pending.
+     */
+    @Query(
+        "UPDATE group_deliveries SET status = 'pending', claimNonce = NULL, claimedAt = NULL, sessionId = NULL, taskId = NULL, error = NULL " +
+            "WHERE status = 'submitting' AND (claimedAt IS NULL OR claimedAt < :beforeMs) AND EXISTS (" +
+            "SELECT 1 FROM persona_bots b WHERE b.id = group_deliveries.botId AND b.runtimeMode = 'EXTERNAL')",
+    )
+    suspend fun requeueStaleExternalSubmittingDeliveries(beforeMs: Long): Int
+
+    @Query(
+        "UPDATE group_deliveries SET claimedAt = :claimedAt " +
+            "WHERE id = :id AND botId = :botId AND status = 'submitting' AND claimNonce = :claimNonce",
+    )
+    suspend fun touchExternalClaim(id: String, botId: String, claimNonce: String, claimedAt: Long): Int
+
+    /** When a member leaves EXTERNAL, put its unsettled claims back so LOCAL pump can take them. */
+    @Query(
+        "UPDATE group_deliveries SET status = 'pending', claimNonce = NULL, claimedAt = NULL, sessionId = NULL, taskId = NULL, error = NULL " +
+            "WHERE botId = :botId AND status = 'submitting'",
+    )
+    suspend fun requeueSubmittingForBot(botId: String): Int
 
     @Query("UPDATE group_messages SET isStreaming = 0, content = CASE WHEN content = '' THEN :notice ELSE content || char(10) || :notice END " +
         "WHERE id = :id AND isStreaming = 1")
@@ -133,6 +187,7 @@ interface GroupDeliveryDao {
 
     @Transaction
     suspend fun recoverGroupDeliveries() {
+        requeueExternalSubmittingDeliveries()
         interruptedGroupDeliveries().forEach {
             if (settleInterruptedGroupDelivery(it.id, GroupDelivery.UNKNOWN,
                     "进程在处理群消息时退出，结果待核对；未自动重新执行") == 1) {

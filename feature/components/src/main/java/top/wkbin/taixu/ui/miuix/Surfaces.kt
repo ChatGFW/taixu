@@ -94,8 +94,11 @@ fun VerticalDivider(
     color: Color = RuntimeTheme.colorScheme.outlineVariant,
 ) = top.yukonga.miuix.kmp.basic.VerticalDivider(modifier = modifier, thickness = thickness, color = color)
 
-/** 与默认参数共用同一引用，便于识别「未提供顶栏」从而跳过零尺寸 textureBlur。 */
-private val EmptyScaffoldTopBar: @Composable () -> Unit = {}
+/**
+ * 与默认参数共用同一引用，便于识别「未提供顶栏」从而跳过零尺寸 textureBlur。
+ * STUDIO 等全屏模式必须传此引用（或省略 topBar），不能传「内部为空」的新 lambda。
+ */
+val EmptyScaffoldTopBar: @Composable () -> Unit = {}
 
 @Composable
 fun Scaffold(

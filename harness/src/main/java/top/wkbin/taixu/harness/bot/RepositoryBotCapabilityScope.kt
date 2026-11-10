@@ -41,10 +41,15 @@ class RepositoryBotCapabilityScope(
     private suspend fun policyForSession(sessionId: String): BotCapabilityPolicy {
         val task = assignments.assignmentForSession(sessionId)
         if (task?.capabilityGrant == null) {
-            val bot = bots.getBotBySessionId(sessionId) ?: task?.let {
-                requireNotNull(bots.getBot(it.botId)) { "任务所属 Bot 已不存在" }
-            }
-            return usable(bot?.let { policyFor(it) } ?: unrestricted)
+            // 历史任务 grant 为 null、Bot 行已删时不要炸循环：拒权即可。
+            val bot = bots.getBotBySessionId(sessionId) ?: task?.botId?.let { bots.getBot(it) }
+            return usable(
+                when {
+                    bot != null -> policyFor(bot)
+                    task != null -> denied
+                    else -> unrestricted
+                },
+            )
         }
         var policy = unrestricted
         var current: BotAssignment = task

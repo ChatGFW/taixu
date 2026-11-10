@@ -20,11 +20,14 @@ val XuantongLightColors = lightColorScheme()
 val XuantongDarkColors = darkColorScheme()
 val TaiXuShapes = Shapes()
 
-/** 使用 Miuix 原生明暗配色。旧配色参数仅兼容现有调用。 */
+/**
+ * 太墟主题：Miuix 设计系统，支持保存的色板与壁纸动态取色（HCT 兜底）。
+ * [dynamicColor]/[palette] 仍生效，不再固定为玄同默认色。
+ */
 @Composable
 fun TaiXuTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
+    dynamicColor: Boolean = true,
     palette: ThemePalette = ThemePalette(),
     content: @Composable () -> Unit,
 ) {
@@ -43,7 +46,19 @@ fun TaiXuTheme(
         }
     }
 
-    val colorScheme = if (darkTheme) XuantongDarkColors else XuantongLightColors
+    val staticFallback = remember(darkTheme, palette) {
+        themePaletteColorScheme(palette, darkTheme)
+    }
+    val colorScheme = if (dynamicColor) {
+        rememberWallpaperDynamicColorScheme(
+            darkTheme = darkTheme,
+            systemScheme = null,
+            fallback = staticFallback,
+            style = palette.style,
+        )
+    } else {
+        staticFallback
+    }
 
     RuntimeDesignTheme(
         colorScheme = colorScheme,

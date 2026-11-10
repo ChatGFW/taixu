@@ -50,6 +50,7 @@ internal class GroupDeliveryPump(
                 delay(5_000)
                 true
             }.collect { receipts ->
+                // Iterable.forEach 是 inline（非 crossinline）；落在 Flow.collect 的 suspend 体里可调用 isExternalRuntime。
                 receipts.distinctBy { "${it.botId}:${it.groupId}" }.forEach { receipt ->
                     if (isExternalRuntime(receipt.botId)) return@forEach
                     if (synchronized(scheduled) { scheduled.add("${receipt.botId}:${receipt.groupId}") }) enqueue(receipt)

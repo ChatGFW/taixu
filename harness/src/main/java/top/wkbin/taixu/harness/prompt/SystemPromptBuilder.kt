@@ -1,29 +1,31 @@
 package top.wkbin.taixu.harness.prompt
 
 import android.content.Context
+import java.text.Normalizer
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import top.wkbin.taixu.core.database.AgentContextRepository
 import top.wkbin.taixu.core.database.AgentSkillRepository
 import top.wkbin.taixu.core.database.AgentSubagentRepository
 import top.wkbin.taixu.core.database.McpServerRepository
 import top.wkbin.taixu.core.datastore.AgentPreferences
+import top.wkbin.taixu.core.datastore.SettingsDataStore
 import top.wkbin.taixu.core.model.AgentSkill
 import top.wkbin.taixu.core.model.RunMode
+import top.wkbin.taixu.core.model.ToolState
 import top.wkbin.taixu.core.tools.ToolRepository
+import top.wkbin.taixu.harness.ContextWindowPolicy
 import top.wkbin.taixu.harness.MentionExtractor
+import top.wkbin.taixu.harness.ProviderClient
 import top.wkbin.taixu.harness.R
 import top.wkbin.taixu.harness.SubagentDepartmentIndexRenderer
 import top.wkbin.taixu.harness.ToolCallMode
-import top.wkbin.taixu.harness.ContextWindowPolicy
-import top.wkbin.taixu.harness.ProviderClient
 import top.wkbin.taixu.harness.WorkspaceFileAccess
-import java.text.Normalizer
-import top.wkbin.taixu.core.datastore.SettingsDataStore
-import top.wkbin.taixu.core.model.ToolState
+import top.wkbin.taixu.harness.environment.SessionExecutionEnvironments
+import top.wkbin.taixu.harness.mcp.probeMcpCatalog
 
 /**
  * Agent 系统提示词的统一构建器。
@@ -44,7 +46,7 @@ class SystemPromptBuilder(
     private val fileAccess: WorkspaceFileAccess,
     private val privilegeRenderer: PrivilegeSectionRenderer,
     private val promptRouter: PromptRouter,
-    private val environments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
+    private val environments: SessionExecutionEnvironments? = null,
 ) {
     data class PromptUsageSnapshot(
         val toolCallMode: ToolCallMode,
@@ -177,7 +179,7 @@ class SystemPromptBuilder(
         // 系统核心 MCP 能力引导：内置 MCP 默认关闭，但 harness 必须知道其存在；
         // 未授权时引导 LLM 提示用户开启，授权开启后常驻本会话随时可调用。
         val mcpCapabilitySection = buildMcpCapabilitySection(mcpServerRepository, toolCallMode,
-            world?.let { top.wkbin.taixu.harness.mcp.probeMcpCatalog { command -> it.execute(command) } })
+            world?.let { probeMcpCatalog { command -> it.execute(command) } })
 
         // pinned 与 relevant 正交分层：
         // - pinned 常驻稳定前缀（最高权威，注入格式与官方长期指令记忆一致）
@@ -550,7 +552,6 @@ class SystemPromptBuilder(
     }
 }
 
-
 /**
  * 可用技能目录：
  * 启用技能的「名称 + 一句话描述」以极低成本常驻系统提示，模型自主判断当前请求
@@ -589,7 +590,6 @@ private const val MAX_SKILL_BODY_CHARS = 8_000
 
 /** 所有 @提及 技能正文的累计上限（字符）：防止多技能 @ 撑爆系统提示预算。 */
 private const val MAX_SKILL_BODY_TOTAL_CHARS = 24_000
-
 /**
  * 决定技能目录段（skillSection）是否需要作为兜底补注入。
  *

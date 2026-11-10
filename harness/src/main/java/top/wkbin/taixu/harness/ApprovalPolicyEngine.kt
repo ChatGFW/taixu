@@ -1,5 +1,9 @@
 package top.wkbin.taixu.harness
 
+import java.security.MessageDigest
+import java.util.UUID
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.BuiltinMcpPresets
@@ -9,11 +13,7 @@ import top.wkbin.taixu.harness.approval.AnnotationEscalation
 import top.wkbin.taixu.harness.approval.TrustedToolRiskPolicy
 import top.wkbin.taixu.harness.directory.HostCapabilityDirectory
 import top.wkbin.taixu.harness.mcp.McpToolApiName
-import java.util.UUID
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import java.security.MessageDigest
-
+import top.wkbin.taixu.harness.text.HashlineEditArgs
 
 data class ApprovalDecision(
     val required: Boolean,
@@ -266,7 +266,7 @@ class ApprovalPolicyEngine(
     }
 
     private fun summarize(tool: HarnessTool, args: JsonObject, rawToolName: String? = null): String = when (tool) {
-        HarnessTool.WRITE, HarnessTool.EDIT -> top.wkbin.taixu.harness.text.HashlineEditArgs.fileMutationSummary(tool.name, args)
+        HarnessTool.WRITE, HarnessTool.EDIT -> HashlineEditArgs.fileMutationSummary(tool.name, args)
         HarnessTool.BASE -> args["command"]?.jsonPrimitive?.content.orEmpty().lineSequence().firstOrNull().orEmpty()
         HarnessTool.PROCESS -> "process ${processAction(args)} ${args["id"]?.jsonPrimitive?.content.orEmpty()}".trim()
         HarnessTool.DOWNLOAD -> "download ${args["destination"]?.jsonPrimitive?.content.orEmpty()}"

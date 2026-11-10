@@ -1,72 +1,77 @@
 package top.wkbin.taixu.harness
-import top.wkbin.taixu.harness.core.TurnOutcome
-import top.wkbin.taixu.core.common.logging.AppLogger
-import top.wkbin.taixu.core.database.HarnessSessionRepository
-import top.wkbin.taixu.core.database.HarnessSessionEntity
-import top.wkbin.taixu.core.model.SessionRunState
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.AgentApprovalRepository
+import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.database.AiModelRepository
-import top.wkbin.taixu.harness.validation.ToolCallLoopDetector
-import top.wkbin.taixu.harness.metrics.RunMetrics
-import top.wkbin.taixu.harness.task.AgentStateMachine
+import top.wkbin.taixu.core.database.HarnessSessionEntity
+import top.wkbin.taixu.core.database.HarnessSessionRepository
+import top.wkbin.taixu.core.database.MessageFeedbackService
+import top.wkbin.taixu.core.database.task.AgentTaskStatus
 import top.wkbin.taixu.core.datastore.AgentPreferences
+import top.wkbin.taixu.core.model.SessionRunState
+import top.wkbin.taixu.harness.approval.ApprovalAuditRecorder
 import top.wkbin.taixu.harness.approval.ApprovalResumePolicy
 import top.wkbin.taixu.harness.approval.RunInitiator
 import top.wkbin.taixu.harness.approval.RunInitiatorContext
 import top.wkbin.taixu.harness.approval.SessionApprovalGrants
-import top.wkbin.taixu.harness.checkpoint.RewindController
-import top.wkbin.taixu.harness.subagent.BackgroundSubagentRegistry
-import top.wkbin.taixu.harness.checkpoint.TurnChangeCards
-import top.wkbin.taixu.harness.compaction.BranchSummarizer
-import top.wkbin.taixu.harness.session.QueuedInstructionRecorder
-import top.wkbin.taixu.harness.session.SessionTreeStore
-import top.wkbin.taixu.harness.session.SessionTurnCoordinator
-import top.wkbin.taixu.harness.session.TurnPriority
-import top.wkbin.taixu.harness.effects.RetryPolicy
-import top.wkbin.taixu.harness.operation.OperationCoordinator
-import top.wkbin.taixu.harness.operation.OperationStatus
-import top.wkbin.taixu.harness.recovery.RecoveryManager
-import top.wkbin.taixu.harness.recovery.RecoveryOutcome
-import top.wkbin.taixu.harness.queue.PromptQueue
-import top.wkbin.taixu.harness.queue.PromptQueueManager
-import top.wkbin.taixu.harness.effects.DanglingToolCallPlanner
-import top.wkbin.taixu.harness.events.AgentEventLogger
-import top.wkbin.taixu.harness.projection.CurrentSessionTracker
-import top.wkbin.taixu.harness.projection.SessionMessageProjector
-import top.wkbin.taixu.harness.projection.SessionStateMirrors
-import top.wkbin.taixu.harness.skill.SkillEvolutionAdvisor
-import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
-import top.wkbin.taixu.core.database.task.AgentTaskStatus
+import top.wkbin.taixu.harness.approval.expiredRequestResult
 import top.wkbin.taixu.harness.checkpoint.CheckpointMeta
+import top.wkbin.taixu.harness.checkpoint.RewindController
 import top.wkbin.taixu.harness.checkpoint.RewindPlan
 import top.wkbin.taixu.harness.checkpoint.RewindResult
 import top.wkbin.taixu.harness.checkpoint.RewindScope
+import top.wkbin.taixu.harness.checkpoint.TurnChangeCards
+import top.wkbin.taixu.harness.compaction.BranchSummarizer
+import top.wkbin.taixu.harness.core.TurnOutcome
+import top.wkbin.taixu.harness.effects.DanglingToolCallPlanner
+import top.wkbin.taixu.harness.effects.RetryPolicy
+import top.wkbin.taixu.harness.environment.SessionExecutionEnvironments
+import top.wkbin.taixu.harness.events.AgentEventLogger
+import top.wkbin.taixu.harness.metrics.RunMetrics
+import top.wkbin.taixu.harness.operation.OperationCoordinator
+import top.wkbin.taixu.harness.operation.OperationStatus
+import top.wkbin.taixu.harness.projection.CurrentSessionTracker
+import top.wkbin.taixu.harness.projection.SessionMessageProjector
+import top.wkbin.taixu.harness.projection.SessionStateMirrors
+import top.wkbin.taixu.harness.queue.PromptQueue
+import top.wkbin.taixu.harness.queue.PromptQueueManager
+import top.wkbin.taixu.harness.queue.QueuedPromptActions
+import top.wkbin.taixu.harness.recovery.RecoveryManager
+import top.wkbin.taixu.harness.recovery.RecoveryOutcome
 import top.wkbin.taixu.harness.session.InteractiveSessionControl
 import top.wkbin.taixu.harness.session.PromptSubmission
+import top.wkbin.taixu.harness.session.QueuedInstructionRecorder
 import top.wkbin.taixu.harness.session.SessionInputController
 import top.wkbin.taixu.harness.session.SessionInputRuntime
+import top.wkbin.taixu.harness.session.SessionTreeStore
+import top.wkbin.taixu.harness.session.SessionTurnCoordinator
+import top.wkbin.taixu.harness.session.TurnPriority
+import top.wkbin.taixu.harness.skill.SkillEvolutionAdvisor
+import top.wkbin.taixu.harness.subagent.BackgroundSubagentRegistry
+import top.wkbin.taixu.harness.task.AgentStateMachine
+import top.wkbin.taixu.harness.validation.ToolCallLoopDetector
 
 /** Agent 单次运行的结构化结果，外层据此设置会话状态，避免内部失败被误标为 COMPLETED。 */
 private sealed interface RunResult {
@@ -111,9 +116,9 @@ class HarnessLoop(
     private val branchSummarizer: BranchSummarizer,
     private val skillEvolutionAdvisor: SkillEvolutionAdvisor? = null,
     private val turnCoordinator: SessionTurnCoordinator,
-    private val executionEnvironments: top.wkbin.taixu.harness.environment.SessionExecutionEnvironments? = null,
-    private val approvalAuditor: top.wkbin.taixu.harness.approval.ApprovalAuditRecorder? = null,
-    private val feedbackService: top.wkbin.taixu.core.database.MessageFeedbackService? = null,
+    private val executionEnvironments: SessionExecutionEnvironments? = null,
+    private val approvalAuditor: ApprovalAuditRecorder? = null,
+    private val feedbackService: MessageFeedbackService? = null,
     private val backgroundSubagents: BackgroundSubagentRegistry? = null,
 ) : InteractiveSessionControl {
     private val loopScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -235,7 +240,7 @@ class HarnessLoop(
         val now = now()
         var continueQuestions = swept.isNotEmpty()
         for (expired in swept) {
-            val result = top.wkbin.taixu.harness.approval.expiredRequestResult(expired, now, resumePolicy)
+            val result = expiredRequestResult(expired, now, resumePolicy)
             val active = operationCoordinator.active(sessId)
             val ownsTurn = active != null && (expired.operationId == null || expired.operationId == active.id)
             continueQuestions = continueQuestions && result.success && ownsTurn
@@ -811,7 +816,7 @@ class HarnessLoop(
     }
 
     private val queueActions by lazy {
-        top.wkbin.taixu.harness.queue.QueuedPromptActions(promptQueueManager, turnCoordinator, loopScope,
+        QueuedPromptActions(promptQueueManager, turnCoordinator, loopScope,
             ::isSessionBusy, { startNextQueuedLocked(it) }, ::refreshPendingProjection,
             { agentTaskStateMachine.markCancelled(it, "已从等待队列移除") },
             { sessionId, error -> logger.e("Queue update failed for $sessionId", error); stateMirrors.setError(sessionId, "队列操作失败，请重试") })
@@ -1607,18 +1612,14 @@ class HarnessLoop(
     companion object {
         internal fun maxNetworkRetriesFor(estimatedRequestTokens: Int, configuredRetries: Int): Int =
             HarnessProviderRunner.maxNetworkRetriesFor(estimatedRequestTokens, configuredRetries)
-
         const val MAX_ROUNDS = 200
-
         /**
          * ModelResponse 事件里记录的模型输出首部长度。只取首部是刻意的：Agent 日志上限 5 MB、
          * 超限即轮转，长回答全文写入会用一次响应挤掉整段历史；诊断只需"开头说了什么"。
          */
         internal const val MODEL_RESPONSE_HEAD_CHARS = 500
-
         /** 软收敛提示阈值：连续 N 轮工具全失败即注入一次 steering 提示（须低于硬熔断默认值）。 */
         internal const val STORM_HINT_THRESHOLD = 3
-
         /** storm breaker 提示文案（纯函数便于测试）；未达阈值返回 null。 */
         internal fun stormHintFor(consecutiveFailures: Int): String? {
             if (consecutiveFailures < STORM_HINT_THRESHOLD) return null
@@ -1632,7 +1633,6 @@ class HarnessLoop(
             }
         }
         val KNOWN_TOOL_NAMES: Set<String> = HarnessToolRoundRunner.KNOWN_TOOL_NAMES
-
         /** 工作流节点专属 Harness 会话的 id 前缀（workflow:<executionId>:<nodeId>）。 */
         const val WORKFLOW_SESSION_PREFIX = "workflow:"
     }

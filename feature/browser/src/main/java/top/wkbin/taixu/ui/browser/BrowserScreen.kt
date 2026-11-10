@@ -1,7 +1,5 @@
 package top.wkbin.taixu.ui.browser
-
 import androidx.compose.runtime.*
-
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import org.koin.compose.viewmodel.koinViewModel
@@ -71,7 +69,6 @@ fun BrowserScreen(
         )
     }
 }
-
 /**
  * 可复用的浏览器内容面板，浏览区域最大化：
  *  - 顶部：极薄状态栏（共浏览开关 · 快照入口 · 标签页胶囊 · 固定返回入口，其余项目可横向滚动）；
@@ -192,7 +189,6 @@ fun BrowserPane(
         }
     }
 }
-
 /**
  * 顶部极薄状态栏：样式对齐智枢工作台工具条（模型·审批·分支·运行）——
  * 半透明 Surface + 横向滚动的小胶囊（icon + label），几乎不侵占浏览区高度。
@@ -273,8 +269,6 @@ private fun BrowserStatusBar(
         }
     }
 }
-
-/** 标签页胶囊：Globe 图标 + 标题 + 关闭小钮，选中态高亮。 */
 @Composable
 private fun BrowserTabChip(
     tab: BrowserTabUi,
@@ -311,7 +305,6 @@ private fun BrowserTabChip(
         }
     }
 }
-
 @Composable
 private fun StatusDivider() {
     Box(
@@ -321,7 +314,6 @@ private fun StatusDivider() {
             .background(RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
     )
 }
-
 /**
  * CDP 调试暂停横幅：断点/异常命中导致页面 JS 挂起时悬浮于浏览区顶部，
  * 提示暂停原因与命中位置，并提供手动"继续执行"（agent 不在时避免页面无限冻结）。
@@ -386,8 +378,6 @@ private fun DebugPausedBanner(
         }
     }
 }
-
-/** 状态栏小胶囊：icon + label，样式对齐智枢工作台的 WorkbenchStatusItem。 */
 @Composable
 private fun BrowserStatusItem(
     icon: RuntimeIconName,
@@ -424,7 +414,6 @@ private fun BrowserStatusItem(
         }
     }
 }
-
 /**
  * 底部紧凑 URL 栏：后退/前进/刷新小图标钮 + 圆角输入胶囊 + 主色跳转圆钮。
  * 单行高度 ~44dp，只占浏览区很小一块。

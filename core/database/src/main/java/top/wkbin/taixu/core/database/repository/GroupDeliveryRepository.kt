@@ -20,12 +20,24 @@ interface GroupDeliveryRepository {
     suspend fun admitDelivery(id: String, sessionId: String, taskId: String?, claimNonce: String): Boolean
     /** With nonce settles the active claim; without nonce only settles still-pending receipts. */
     suspend fun finishDelivery(id: String, status: String, error: String? = null, claimNonce: String? = null)
+    /** Puts a submitting claim back to pending when the nonce matches. */
+    suspend fun releaseDelivery(id: String, claimNonce: String): Boolean
+    /** Requeues EXTERNAL submitting leases older than [beforeMs] (claimedAt). */
+    suspend fun reclaimStaleExternalClaims(beforeMs: Long): Int
+    /** Renews claimedAt for an active EXTERNAL submitting lease. */
+    suspend fun touchClaim(id: String, botId: String, claimNonce: String, claimedAt: Long): Boolean
+    /** Requeues all submitting leases for one bot (used when leaving EXTERNAL). */
+    suspend fun requeueSubmittingForBot(botId: String): Int
     suspend fun recoverDeliveries()
     suspend fun recoverOrphanStreams(notice: String = "⚠️ 群聊回复因进程退出中断，结果待核对")
     suspend fun cancelDeliveries(groupId: String)
 }
 
-internal class RoomGroupDeliveryRepository(private val dao: GroupChatDao, private val json: Json) : GroupDeliveryRepository {
+internal class RoomGroupDeliveryRepository(
+    private val dao: GroupChatDao,
+    private val json: Json,
+    private val now: () -> Long = System::currentTimeMillis,
+) : GroupDeliveryRepository {
     override suspend fun stageMessage(message: GroupMessage, botIds: List<String>) = dao.stageGroupDelivery(message.toEntity(json), botIds)
     override fun pendingDeliveries() = dao.pendingGroupDeliveries().map { rows -> rows.map { it.toModel() } }
     override suspend fun deliverySource(id: String) = dao.findMessage(id)?.toModel(json)
@@ -33,7 +45,7 @@ internal class RoomGroupDeliveryRepository(private val dao: GroupChatDao, privat
     override suspend fun findDelivery(id: String) = dao.findGroupDelivery(id)?.toModel()
     override suspend fun claimDelivery(id: String): String? {
         val nonce = UUID.randomUUID().toString()
-        return nonce.takeIf { dao.claimGroupDelivery(id, nonce) == 1 }
+        return nonce.takeIf { dao.claimGroupDelivery(id, nonce, now()) == 1 }
     }
     override suspend fun prepareDelivery(id: String, sessionId: String, claimNonce: String) =
         dao.prepareGroupDelivery(id, sessionId, claimNonce) == 1
@@ -41,6 +53,13 @@ internal class RoomGroupDeliveryRepository(private val dao: GroupChatDao, privat
         dao.admitGroupDelivery(id, sessionId, taskId, claimNonce) == 1
     override suspend fun finishDelivery(id: String, status: String, error: String?, claimNonce: String?) =
         dao.finishGroupDelivery(id, status, error, claimNonce)
+    override suspend fun releaseDelivery(id: String, claimNonce: String): Boolean =
+        dao.requeueClaimedGroupDelivery(id, claimNonce) == 1
+    override suspend fun reclaimStaleExternalClaims(beforeMs: Long): Int =
+        dao.requeueStaleExternalSubmittingDeliveries(beforeMs)
+    override suspend fun touchClaim(id: String, botId: String, claimNonce: String, claimedAt: Long): Boolean =
+        dao.touchExternalClaim(id, botId, claimNonce, claimedAt) == 1
+    override suspend fun requeueSubmittingForBot(botId: String): Int = dao.requeueSubmittingForBot(botId)
     override suspend fun recoverDeliveries() = dao.recoverGroupDeliveries()
     override suspend fun recoverOrphanStreams(notice: String) = dao.settleOrphanStreams(notice)
     override suspend fun cancelDeliveries(groupId: String) = dao.cancelGroupDeliveries(groupId)

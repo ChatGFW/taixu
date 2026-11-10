@@ -31,4 +31,17 @@ class ExternalAgentRuntimeMigrationTest {
             }
         }
     }
+
+    @Test fun `90 to 91 adds claimedAt for lease TTL`() {
+        val path = InstrumentationRegistry.getInstrumentation().targetContext
+            .getDatabasePath("external-agent-claim-lease-migration.db").absolutePath
+        helper.createDatabase(path, 90).close()
+        helper.runMigrationsAndValidate(path, 91, true, MIGRATION_90_91).use { db ->
+            db.query("PRAGMA table_info(`group_deliveries`)").use { row ->
+                val columns = mutableListOf<String>()
+                while (row.moveToNext()) columns += row.getString(1)
+                assertTrue(columns.contains("claimedAt"))
+            }
+        }
+    }
 }

@@ -300,7 +300,6 @@ fun WorkflowTimelineView(
             val isRunning = status == NodeRunStatus.RUNNING || status == NodeRunStatus.STREAMING
             val isWaiting = status == NodeRunStatus.WAITING_APPROVAL
             val color = statusColor(status)
-
             val pulseAlpha = if (isRunning) {
                 val infiniteTransition = rememberInfiniteTransition(label = "pulse_${node.id}")
                 val alpha by infiniteTransition.animateFloat(
@@ -318,7 +317,6 @@ fun WorkflowTimelineView(
             } else {
                 0.55f
             }
-
             val cardContainerColor = if (isRunning) {
                 RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.15f * pulseAlpha)
             } else if (isWaiting) {
@@ -326,7 +324,6 @@ fun WorkflowTimelineView(
             } else {
                 RuntimeTheme.colorScheme.surfaceContainerLow
             }
-
             RuntimeCard(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = cardContainerColor,
@@ -354,7 +351,6 @@ fun WorkflowTimelineView(
         item { Spacer(Modifier.height(64.dp)) }
     }
 }
-
 @Composable
 private fun RunSummary(state: WorkflowRuntimeState) {
     val color = when (state.status) {
@@ -373,43 +369,4 @@ private fun RunSummary(state: WorkflowRuntimeState) {
             }
         }
     }
-}
-
-@Composable
-internal fun statusColor(status: NodeRunStatus): Color = when (status) {
-    NodeRunStatus.SUCCESS -> Color(0xFF2E7D32)
-    NodeRunStatus.FAILED, NodeRunStatus.CANCELLED -> RuntimeTheme.colorScheme.error
-    NodeRunStatus.RUNNING, NodeRunStatus.STREAMING, NodeRunStatus.WAITING_APPROVAL -> RuntimeTheme.colorScheme.primary
-    NodeRunStatus.SKIPPED -> RuntimeTheme.colorScheme.tertiary
-    else -> RuntimeTheme.colorScheme.outline
-}
-
-internal fun statusIcon(status: NodeRunStatus) = when (status) {
-    NodeRunStatus.SUCCESS -> RuntimeIconName.Check
-    NodeRunStatus.FAILED, NodeRunStatus.CANCELLED -> RuntimeIconName.Alert
-    NodeRunStatus.RUNNING, NodeRunStatus.STREAMING -> RuntimeIconName.Play
-    NodeRunStatus.WAITING_APPROVAL -> RuntimeIconName.Shield
-    NodeRunStatus.SKIPPED -> RuntimeIconName.ArrowUp
-    else -> RuntimeIconName.Hub
-}
-
-internal fun statusLabel(status: NodeRunStatus) = when (status) {
-    NodeRunStatus.IDLE -> "空闲"
-    NodeRunStatus.PENDING -> "等待"
-    NodeRunStatus.RUNNING -> "运行中"
-    NodeRunStatus.STREAMING -> "输出中"
-    NodeRunStatus.WAITING_APPROVAL -> "待确认"
-    NodeRunStatus.SUCCESS -> "成功"
-    NodeRunStatus.FAILED -> "失败"
-    NodeRunStatus.SKIPPED -> "已跳过"
-    NodeRunStatus.CANCELLED -> "已取消"
-}
-
-internal fun workflowStatusLabel(status: WorkflowRunStatus) = when (status) {
-    WorkflowRunStatus.IDLE -> "准备执行"
-    WorkflowRunStatus.RUNNING -> "工作流运行中"
-    WorkflowRunStatus.WAITING_APPROVAL -> "等待人工确认"
-    WorkflowRunStatus.SUCCESS -> "工作流已完成"
-    WorkflowRunStatus.FAILED -> "工作流执行失败"
-    WorkflowRunStatus.CANCELLED -> "工作流已取消"
 }
