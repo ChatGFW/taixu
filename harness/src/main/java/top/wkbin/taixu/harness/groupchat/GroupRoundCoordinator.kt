@@ -244,8 +244,19 @@ internal class GroupRoundCoordinator(
                 outcome.failed -> slot.status = GroupSlotStatus.FAILED
                 else -> {
                     slot.status = GroupSlotStatus.POSTED
-                    appendRoundMentions(slots, index, outcome.text, members, turns, group,
-                        delegatedTargets(groupId, outcome.nativeTaskId))
+                    val external = appendRoundMentions(
+                        slots, index, outcome.text, members, turns, group,
+                        delegatedTargets(groupId, outcome.nativeTaskId),
+                    )
+                    // 回合中途 @ 到 EXTERNAL：不进手机槽位，挂到已落库发言上供外部 claim。
+                    val sourceId = outcome.messageId
+                    if (external.isNotEmpty() && sourceId != null) {
+                        runCatching {
+                            groups.enqueueDeliveries(sourceId, groupId, external.map { it.id })
+                        }.onFailure {
+                            logger.w("[GroupRound] EXTERNAL 中途点名收件失败: ${it.message}")
+                        }
+                    }
                 }
             }
             persist(round, slots)

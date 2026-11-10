@@ -34,7 +34,7 @@
 11. `listTokens(botId)` → 成员详情展示未撤销令牌（含已到期未清理）  
 12. `revokeExpiredTokens(botId)` → 批量把已到期令牌标为撤销  
 
-冷启动 `recoverDeliveries`：`runtimeMode=EXTERNAL` 且仍为 `submitting` 的收件**重新入队**；本地成员的中断收件仍标 `UNKNOWN`。运行中 `claim` / `/me` / pending 预览会先回收超过 TTL 的 EXTERNAL 租约。
+冷启动 `recoverDeliveries`：**保留**仍有效的 EXTERNAL `submitting` 租约（不清 `claimNonce`，避免电脑无法 ack 却再次领取同一消息）；仅把 LOCAL / 未知模式的中断收件标 `UNKNOWN`。失联 EXTERNAL 租约靠运行中 `claim` / `/me` / pending 预览触发的 TTL reclaim（`claimedAt`）。用户入口与回合中途 `@` EXTERNAL 都只落可 claim 收件，不进手机轮次槽位。
 
 ## LAN / HTTP 适配
 
@@ -123,7 +123,7 @@ python scripts/external_agent_runtime_poller.py --auto-heartbeat
 | bounded mention coalesce | 同群 pending 最多 8 条并入一轮 `leases` |
 | message post into pod | `postMessage` 入群 |
 | CAP HTTP 路由 | `/runtime/v1/*` + Bearer `tx_rt_`；claim 支持 `waitMs` |
-| mid-turn / stranded reclaim | `claimedAt` TTL（默认 15m）+ `heartbeat` 续租；冷启动仍整批 requeue |
+| mid-turn / stranded reclaim | `claimedAt` TTL（默认 15m）+ `heartbeat` 续租；冷启动保留 EXTERNAL 租约 |
 
 ## 迁移
 

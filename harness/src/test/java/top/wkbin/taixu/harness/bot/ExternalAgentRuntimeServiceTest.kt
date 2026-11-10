@@ -214,7 +214,7 @@ class ExternalAgentRuntimeServiceTest {
         ))
     }
 
-    @Test fun `recover requeues external submitting instead of marking unknown`() = runBlocking {
+    @Test fun `recover keeps external submitting lease instead of requeueing`() = runBlocking {
         seed()
         val issued = runtime.issueToken("member", "laptop")
         val principal = runtime.authorize(issued.rawToken)!!
@@ -222,12 +222,18 @@ class ExternalAgentRuntimeServiceTest {
             GroupMessage("source", "group", "user", "我", GroupSenderType.USER, "recover me", 1),
             listOf("member"),
         )
-        runtime.claimNextDelivery(principal)!!
+        val event = runtime.claimNextDelivery(principal)!!
         groups.recoverDeliveries()
-        assertEquals(GroupDelivery.PENDING, groups.findDelivery("source:member")!!.status)
-        assertNull(groups.findDelivery("source:member")!!.claimNonce)
-        val again = runtime.claimNextDelivery(principal)!!
-        assertEquals("recover me", again.content)
+        val receipt = groups.findDelivery("source:member")!!
+        assertEquals(GroupDelivery.SUBMITTING, receipt.status)
+        assertEquals(event.claimNonce, receipt.claimNonce)
+        assertNull(runtime.claimNextDelivery(principal))
+        assertTrue(
+            runtime.acknowledge(
+                principal,
+                ExternalAgentDeliveryAck(event.deliveryId, event.claimNonce, GroupDelivery.COMPLETED),
+            ),
+        )
     }
 
     @Test fun `lists member groups and recent context`() = runBlocking {

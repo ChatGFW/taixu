@@ -79,9 +79,22 @@ interface GroupDeliveryDao {
         // A replay of a staged source must not change its recipients or recreate cleared work.
         val withSeq = message.copy(seq = nextMessageSeq(message.groupId))
         if (insertDeliverySource(withSeq) == -1L) return
+        enqueueGroupDeliveries(message.id, message.groupId, botIds, message.timestamp)
+    }
+
+    /** Attach pending receipts to an already-posted source (e.g. mid-round @ of EXTERNAL). */
+    @Transaction
+    suspend fun enqueueGroupDeliveries(
+        sourceMessageId: String,
+        groupId: String,
+        botIds: List<String>,
+        createdAt: Long,
+    ) {
         botIds.distinct().forEach { botId ->
-            if (deliveryMember(message.groupId, botId)) {
-                insertGroupDelivery(GroupDeliveryEntity("${message.id}:$botId", message.id, message.groupId, botId, message.timestamp))
+            if (deliveryMember(groupId, botId)) {
+                insertGroupDelivery(
+                    GroupDeliveryEntity("$sourceMessageId:$botId", sourceMessageId, groupId, botId, createdAt),
+                )
             }
         }
     }
@@ -99,6 +112,13 @@ interface GroupDeliveryDao {
 
     @Query("SELECT * FROM group_deliveries WHERE status IN ('submitting', 'admitted')")
     suspend fun interruptedGroupDeliveries(): List<GroupDeliveryEntity>
+
+    /** LOCAL / 未知模式中断收件；EXTERNAL 租约冷启动时保留 nonce，失联靠 TTL 回收。 */
+    @Query(
+        "SELECT * FROM group_deliveries WHERE status IN ('submitting', 'admitted') AND NOT EXISTS (" +
+            "SELECT 1 FROM persona_bots b WHERE b.id = group_deliveries.botId AND b.runtimeMode = 'EXTERNAL')",
+    )
+    suspend fun interruptedLocalGroupDeliveries(): List<GroupDeliveryEntity>
 
     @Query(
         "UPDATE group_deliveries SET status = 'submitting', claimNonce = :claimNonce, claimedAt = :claimedAt " +
@@ -187,8 +207,10 @@ interface GroupDeliveryDao {
 
     @Transaction
     suspend fun recoverGroupDeliveries() {
-        requeueExternalSubmittingDeliveries()
-        interruptedGroupDeliveries().forEach {
+        // EXTERNAL submitting 保留 claimNonce：执行器仍可幂等 ack。
+        // 冷启动立刻 requeue 会清掉 nonce，电脑无法收口且同一消息可再次领取。
+        // 失联租约由运行中 TTL reclaim（claimedAt）处理。
+        interruptedLocalGroupDeliveries().forEach {
             if (settleInterruptedGroupDelivery(it.id, GroupDelivery.UNKNOWN,
                     "进程在处理群消息时退出，结果待核对；未自动重新执行") == 1) {
                 annotateTerminalDelivery(it.id, GroupDelivery.UNKNOWN,

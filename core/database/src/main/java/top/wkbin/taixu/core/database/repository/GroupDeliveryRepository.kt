@@ -10,6 +10,8 @@ import top.wkbin.taixu.core.model.bot.GroupMessage
 
 interface GroupDeliveryRepository {
     suspend fun stageMessage(message: GroupMessage, botIds: List<String>)
+    /** Attach pending receipts to an existing source message without re-inserting it. */
+    suspend fun enqueueDeliveries(sourceMessageId: String, groupId: String, botIds: List<String>, createdAt: Long = System.currentTimeMillis())
     fun pendingDeliveries(): Flow<List<GroupDelivery>>
     suspend fun deliverySource(id: String): GroupMessage?
     suspend fun listDeliveries(groupId: String, limit: Int = 100): List<GroupDelivery>
@@ -39,6 +41,12 @@ internal class RoomGroupDeliveryRepository(
     private val now: () -> Long = System::currentTimeMillis,
 ) : GroupDeliveryRepository {
     override suspend fun stageMessage(message: GroupMessage, botIds: List<String>) = dao.stageGroupDelivery(message.toEntity(json), botIds)
+    override suspend fun enqueueDeliveries(
+        sourceMessageId: String,
+        groupId: String,
+        botIds: List<String>,
+        createdAt: Long,
+    ) = dao.enqueueGroupDeliveries(sourceMessageId, groupId, botIds, createdAt)
     override fun pendingDeliveries() = dao.pendingGroupDeliveries().map { rows -> rows.map { it.toModel() } }
     override suspend fun deliverySource(id: String) = dao.findMessage(id)?.toModel(json)
     override suspend fun listDeliveries(groupId: String, limit: Int) = dao.listGroupDeliveries(groupId, limit.coerceIn(1, 100)).map { it.toModel() }

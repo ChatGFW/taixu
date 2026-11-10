@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -47,17 +48,13 @@ import top.wkbin.taixu.ui.components.LocalAppNavigation
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.SpotlightGuideOverlay
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import top.wkbin.taixu.ui.components.rememberSpotlightAnchor
-import top.wkbin.taixu.ui.components.spotlightAnchor
 import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Scaffold
 import top.wkbin.taixu.ui.theme.terminalContentColor
 import top.wkbin.taixu.ui.theme.terminalSurfaceColor
 import top.yukonga.miuix.kmp.basic.Text
@@ -164,10 +161,28 @@ fun TerminalScreen(
         }
     }
 
-    val sessionStatus = activeHandle?.label?.takeIf { it.isNotBlank() }
-        ?: stringResource(R.string.terminal_active_sessions, handles.size)
-    val terminalBody: @Composable (Modifier) -> Unit = { bodyModifier ->
-        Column(modifier = bodyModifier) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(termBg),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                // 独立页面自行消费状态栏与“导航栏 ∪ 软键盘”；内嵌分屏由宿主提供内边距
+                .then(if (embedded) Modifier else Modifier.statusBarsPadding())
+                .then(
+                    if (embedded) Modifier
+                    else Modifier.windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime)),
+                ),
+        ) {
+            TerminalConsoleBar(
+                onBack = if (showBackButton) navigateBack else null,
+                onOpenNavigation = if (showBackButton) null else LocalAppNavigation.current,
+                onOpenSessions = { showSessions = true },
+                sessionsAnchor = sessionsAnchor,
+            )
+
             TerminalRestoreWarnings(viewModel)
 
             Box(
@@ -243,54 +258,6 @@ fun TerminalScreen(
             // Row1: ESC TAB / - ~ HOME ▲ END
             // Row2: CTRL ALT | ^C ^D ◀ ▼ ▶
             TerminalExtraKeys(bridge, hapticsEnabled)
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(termBg),
-    ) {
-        if (embedded) {
-            // 内嵌分屏：不占整页顶栏，继续用轻量 ConsoleBar，由宿主提供 insets。
-            Column(Modifier.fillMaxSize()) {
-                TerminalConsoleBar(
-                    onBack = if (showBackButton) navigateBack else null,
-                    onOpenNavigation = if (showBackButton) null else LocalAppNavigation.current,
-                    onOpenSessions = { showSessions = true },
-                    sessionsAnchor = sessionsAnchor,
-                )
-                terminalBody(Modifier.fillMaxSize())
-            }
-        } else {
-            // 独立二级页：Scaffold + RuntimeTopBar 启用顶栏毛玻璃；底边消费导航栏 ∪ IME。
-            Scaffold(
-                containerColor = termBg,
-                contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                topBar = {
-                    RuntimeTopBar(
-                        title = stringResource(R.string.terminal_screen_title),
-                        statusText = sessionStatus,
-                        onBack = if (showBackButton) navigateBack else null,
-                        actions = {
-                            RuntimeIconButton(
-                                onClick = { showSessions = true },
-                                contentDescription = stringResource(R.string.terminal_sessions),
-                                modifier = Modifier.spotlightAnchor(sessionsAnchor),
-                            ) {
-                                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp))
-                            }
-                        },
-                    )
-                },
-            ) { _ ->
-                // 正文铺满含顶栏后方，便于 layerBackdrop 采到终端画面；底边避让导航栏 ∪ IME。
-                terminalBody(
-                    Modifier
-                        .fillMaxSize()
-                        .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime)),
-                )
-            }
         }
 
         if ("terminal_sessions" !in firstUseGuidesShown) {
