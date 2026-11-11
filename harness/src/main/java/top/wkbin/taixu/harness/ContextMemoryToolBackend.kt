@@ -91,6 +91,10 @@ class ContextMemoryToolBackend(
         return compactAtIndex(sessionId, context, keepFromIndex, modeLabel = mode)
     }
 
+    /** UI 是否展示「可压缩」：与 [manualCompact] 同一边界算法，避免点了才发现无可折叠轮次。 */
+    fun canManualCompact(messages: List<HarnessMessage>, keepRecent: Int = 4): Boolean =
+        manualCompactionBoundary(messages, keepRecent) > 0
+
     /**
      * UI 手动压缩入口（"+" 附件弹窗）：至少保留最近 [keepRecent] 条，并回退到完整用户轮次，
      * 走与 compress 工具相同的 LLM 摘要路径（模型解析失败退回机械摘要）；原文不丢，可 history_read 回读。

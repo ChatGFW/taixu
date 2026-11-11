@@ -282,7 +282,7 @@ fun StorageMountSettingsScreen(
                 Text("确定要删除挂载点「${binding.name}」（${binding.hostPath} ➔ ${binding.guestPath}）吗？删除后新建的终端 / 构建任务将不再映射该目录。")
             },
             confirmButton = {
-                Button(
+                TextButton(
                     onClick = {
                         viewModel?.removeCustomMountBinding(binding.id)
                         pendingDeleteBindingId = null

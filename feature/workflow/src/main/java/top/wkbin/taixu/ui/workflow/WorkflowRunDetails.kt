@@ -220,9 +220,9 @@ internal fun WorkflowStartDialog(
                 }
             }
         },
-        dismissButton = { RuntimeOutlinedButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { RuntimeTextButton(onClick = onDismiss) { Text("取消") } },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = {
                     val payload = values.toMutableMap()
                     if (needsModel && selectedModelId.isNotBlank()) {

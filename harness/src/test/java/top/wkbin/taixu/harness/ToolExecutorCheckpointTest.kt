@@ -119,6 +119,41 @@ class ToolExecutorCheckpointTest {
         assertFalse(File(root, "a.txt").exists())
     }
 
+    @Test fun `wrapped process start is gated before backend dispatch`() = runBlocking {
+        seed(ApprovalMode.REQUEST.id)
+        val wrapped = ToolCall("start", 1, HarnessTool.PROCESS,
+            Json.parseToJsonElement("""{"arguments":{"action":"start","id":"server","command":"echo changed"}}""") as JsonObject,
+            rawToolName = "process")
+        val result = executor(checkpoint()).execute(wrapped, "session")
+        assertFalse(result.success)
+        assertTrue(result.awaitingApproval)
+        assertEquals(1, approvals.pendingNow("session").size)
+    }
+
+    @Test fun `mcp read only access rejects wrapped memory mutations before execution`() = runBlocking {
+        var reachedExecution = false
+        val provider = top.wkbin.taixu.harness.mcp.server.HarnessToolProvider(
+            executor(checkpoint(before = { reachedExecution = true; ToolGateDecision.Allow })),
+        )
+        val result = provider.callTool("memory",
+            Json.parseToJsonElement("""{"arguments":{"action":"save","content":"changed"}}""") as JsonObject)
+        assertEquals(kotlinx.serialization.json.JsonPrimitive(true), result["isError"])
+        assertTrue(result.toString().contains("当前未开启"))
+        assertFalse(reachedExecution)
+    }
+
+    @Test fun `wrapped process start is blocked in plan mode before backend dispatch`() = runBlocking {
+        seed(runMode = "plan")
+        val wrapped = ToolCall("start", 1, HarnessTool.PROCESS,
+            Json.parseToJsonElement("""{"input":{"action":"start","id":"server","command":"echo changed"}}""") as JsonObject,
+            rawToolName = "process")
+        val result = executor(checkpoint()).execute(wrapped, "session")
+        assertFalse(result.success)
+        assertFalse(result.awaitingApproval)
+        assertTrue(result.output.contains("PLAN"))
+        assertTrue(approvals.pendingNow("session").isEmpty())
+    }
+
     @Test fun `lane approval handoff remains deferred without creating a request`() = runBlocking {
         seed(ApprovalMode.REQUEST.id)
         val result = executor(checkpoint(after = { _, _ -> "handoff note" })).execute(call, "session", allowApprovalRequest = false)

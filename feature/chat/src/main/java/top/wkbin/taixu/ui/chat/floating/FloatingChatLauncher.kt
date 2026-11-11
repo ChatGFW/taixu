@@ -26,7 +26,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 
 /** Keeps permission/result state alive when the workbench sheet closes. */
@@ -64,7 +63,7 @@ internal fun rememberFloatingChatLauncher(): (() -> Unit)? {
             title = { Text(stringResource(R.string.chat_floating_permission_title)) },
             text = { Text(stringResource(R.string.chat_floating_permission_message)) },
             confirmButton = {
-                RuntimeButton(onClick = {
+                RuntimeTextButton(onClick = {
                     showPermission = false
                     runCatching {
                         permissionLauncher.launch(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,

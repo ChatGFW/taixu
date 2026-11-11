@@ -32,7 +32,6 @@ import top.wkbin.taixu.core.model.bot.BotSessionGroupRef
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.core.database.MessageSearchHitRow
 
@@ -253,7 +252,7 @@ internal fun SessionsSideDrawer(
                 }
             },
             confirmButton = {
-                RuntimeButton(
+                RuntimeTextButton(
                     onClick = {
                         deleteTargetId = null
                         onDelete(targetId)

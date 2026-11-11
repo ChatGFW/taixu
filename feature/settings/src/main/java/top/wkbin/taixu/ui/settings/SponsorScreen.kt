@@ -302,7 +302,7 @@ private fun SponsorQrDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = {
                     val prefix = if (title.contains("微信")) "wechat" else "alipay"
                     val success = saveSponsorQrToGallery(context, qrRes, prefix)

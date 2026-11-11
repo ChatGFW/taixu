@@ -13,7 +13,6 @@ import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.tools.LocalPluginImportState
 import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 
 @Composable
@@ -49,6 +48,6 @@ internal fun LocalPluginImportConfirmation(pending: LocalPluginImportState.Pendi
             }
         },
         dismissButton = { RuntimeTextButton(onClick = onCancel) { Text(stringResource(android.R.string.cancel)) } },
-        confirmButton = { RuntimeButton(onClick = onConfirm) { Text(stringResource(R.string.package_install)) } },
+        confirmButton = { RuntimeTextButton(onClick = onConfirm) { Text(stringResource(R.string.package_install)) } },
     )
 }

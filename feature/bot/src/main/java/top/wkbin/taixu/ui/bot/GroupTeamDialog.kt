@@ -5,6 +5,7 @@ import androidx.compose.runtime.setValue
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -23,7 +24,7 @@ import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.GroupTeam
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeArrowPreference
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.core.model.bot.GroupGovernance
@@ -47,22 +48,31 @@ internal fun GroupTeamDialog(team: GroupTeam, members: List<Bot>, onDismiss: () 
                 Text(stringResource(R.string.fbot_team_hint), style = RuntimeTheme.typography.bodySmall)
                 TeamArchitectureGraph(current, governance, members, editable = !saving) { if (it != team.adminBotId) selecting = it }
                 members.sortedBy { if (it.id == team.adminBotId) 0 else 1 }.forEach { member ->
-                    RuntimeCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(member.name, style = RuntimeTheme.typography.titleSmall)
-                            if (member.id == team.adminBotId) Text(stringResource(R.string.fbot_team_root))
-                            else RuntimeTextButton(onClick = { selecting = member.id }, enabled = !saving) {
-                                Text(stringResource(R.string.fbot_team_supervisor,
-                                    memberById[current.supervisorOf(member.id)]?.name.orEmpty()))
+                    if (member.id == team.adminBotId) {
+                        RuntimeCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(member.name, style = RuntimeTheme.typography.titleSmall)
+                                Text(stringResource(R.string.fbot_team_root))
                             }
                         }
+                    } else {
+                        RuntimeArrowPreference(
+                            title = member.name,
+                            summary = stringResource(
+                                R.string.fbot_team_supervisor,
+                                memberById[current.supervisorOf(member.id)]?.name.orEmpty(),
+                            ),
+                            onClick = { selecting = member.id },
+                            enabled = !saving,
+                            insideMargin = PaddingValues(horizontal = 0.dp, vertical = 12.dp),
+                        )
                     }
                 }
                 error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
             }
         },
         confirmButton = {
-            RuntimeButton(enabled = !saving, onClick = {
+            RuntimeTextButton(enabled = !saving, onClick = {
                 saving = true
                 scope.launch {
                     runCatching { current.validate(); onSave(draft) }
@@ -84,11 +94,15 @@ internal fun GroupTeamDialog(team: GroupTeam, members: List<Bot>, onDismiss: () 
                             current.copy(supervisors = draft + (botId to candidate.id)).validate()
                         }.isSuccess
                     }.forEach { candidate ->
-                        RuntimeTextButton(onClick = {
-                            draft = draft + (botId to candidate.id)
-                            error = null
-                            selecting = null
-                        }) { Text(candidate.name) }
+                        RuntimeArrowPreference(
+                            title = candidate.name,
+                            onClick = {
+                                draft = draft + (botId to candidate.id)
+                                error = null
+                                selecting = null
+                            },
+                            insideMargin = PaddingValues(horizontal = 0.dp, vertical = 12.dp),
+                        )
                     }
                 }
             },

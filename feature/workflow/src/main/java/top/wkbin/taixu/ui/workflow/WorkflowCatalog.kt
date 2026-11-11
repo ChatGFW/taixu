@@ -27,6 +27,7 @@ import top.wkbin.taixu.harness.workflow.SentinelState
 import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -207,9 +208,9 @@ internal fun WorkflowCatalog(
             onDismissRequest = { deleteRequested = null },
             title = { Text("删除工作流？") },
             text = { Text("“${workflow.name}”及其运行历史将被永久删除，无法撤销。") },
-            dismissButton = { RuntimeOutlinedButton(onClick = { deleteRequested = null }) { Text("取消") } },
+            dismissButton = { RuntimeTextButton(onClick = { deleteRequested = null }) { Text("取消") } },
             confirmButton = {
-                RuntimeButton(
+                RuntimeTextButton(
                     onClick = {
                         deleteRequested = null
                         onDelete(workflow)

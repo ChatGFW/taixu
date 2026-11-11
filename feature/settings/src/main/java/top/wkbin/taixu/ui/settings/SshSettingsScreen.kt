@@ -359,7 +359,7 @@ private fun PasswordSettingsDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = { onSave(password) },
                 enabled = password.length >= 8 && matches && ':' !in password,
             ) { Text("保存并启用") }

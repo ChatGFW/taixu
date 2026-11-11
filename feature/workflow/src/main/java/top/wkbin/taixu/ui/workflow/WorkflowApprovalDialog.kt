@@ -14,8 +14,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.workflow.WorkflowApprovalRequest
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeSwitch
 
 @Composable
@@ -41,7 +40,7 @@ internal fun ApprovalDialog(request: WorkflowApprovalRequest, onDecision: (Boole
                 }
             }
         },
-        dismissButton = { RuntimeOutlinedButton(onClick = { onDecision(false, emptyMap()) }) { Text("拒绝", maxLines = 1) } },
-        confirmButton = { RuntimeButton(enabled = request.reviewToken == null || reviewed, onClick = { onDecision(true, values.toMap()) }) { Text("确认执行", maxLines = 1) } },
+        dismissButton = { RuntimeTextButton(onClick = { onDecision(false, emptyMap()) }) { Text("拒绝", maxLines = 1) } },
+        confirmButton = { RuntimeTextButton(enabled = request.reviewToken == null || reviewed, onClick = { onDecision(true, values.toMap()) }) { Text("确认执行", maxLines = 1) } },
     )
 }

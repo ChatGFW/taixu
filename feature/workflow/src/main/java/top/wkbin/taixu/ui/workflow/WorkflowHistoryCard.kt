@@ -77,7 +77,7 @@ private fun WorkflowResumeDialog(
                 }
             }
         },
-        dismissButton = { RuntimeOutlinedButton(onClick = onDismiss) { Text("取消") } },
-        confirmButton = { RuntimeButton(onClick = { onConfirm(retries) }, enabled = retries == plan.retryNodeIds) { Text("继续执行") } },
+        dismissButton = { RuntimeTextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = { RuntimeTextButton(onClick = { onConfirm(retries) }, enabled = retries == plan.retryNodeIds) { Text("继续执行") } },
     )
 }

@@ -9,7 +9,8 @@ import top.wkbin.taixu.ui.miuix.SheetState
 import top.wkbin.taixu.ui.miuix.rememberModalBottomSheetState
 
 /**
- * 聊天页内统一的 M3 ModalBottomSheet：默认跳过半展开态，容器色取 surfaceContainerLow。
+ * 聊天页统一底栏抽屉：委托项目 miuix `ModalBottomSheet`（底层 WindowBottomSheet），
+ * 默认跳过半展开态，容器色取 surfaceContainerLow。命名保留 PlainBackdrop 以兼容既有调用。
  */
 @Composable
 internal fun PlainBackdropModalBottomSheet(

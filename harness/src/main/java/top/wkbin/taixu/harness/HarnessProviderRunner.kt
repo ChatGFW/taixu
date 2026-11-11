@@ -79,7 +79,7 @@ class HarnessProviderRunner(
                 persistAssistant(
                     sessId, assistantId, assistantAt, streamText.toString(),
                     streamReasoning.toString().ifBlank { null },
-                    totalMs = now() - startedAt, operationId = operationId, round = round,
+                    totalMs = System.currentTimeMillis() - startedAt, operationId = operationId, round = round,
                 )
             } else {
                 messageProjector.remove(sessId, assistantId)
@@ -89,7 +89,7 @@ class HarnessProviderRunner(
         var requestModel = model
         var outputBudgetReduced = false
         var outputLimitRecoveries = 0
-        var netRetry = 0
+        var netRetry = 0; var emptyRetry = 0
         val governance = ContextGovernanceTrace()
         suspend fun assembleFor(requestModel: ModelConfig) = withContext(TaskBudgetContext(sessId)) { contextAssembler.assemble(
             sessId = sessId,
@@ -196,7 +196,7 @@ class HarnessProviderRunner(
                         assistantAt,
                         streamText.toString(),
                         streamReasoning.toString().ifBlank { null },
-                        totalMs = now() - startedAt,
+                        totalMs = System.currentTimeMillis() - startedAt,
                         operationId = operationId,
                         round = round,
                     )
@@ -349,8 +349,8 @@ class HarnessProviderRunner(
                         continue
                     }
                 }
-                requestMessages = stripEmptyResponseImages(++netRetry, EMPTY_RESPONSE_MAX_RETRIES, requestMessages, sessId, agentEventLogger, empty)
-                if (netRetry > EMPTY_RESPONSE_MAX_RETRIES) {
+                requestMessages = stripEmptyResponseImages(++emptyRetry, EMPTY_RESPONSE_MAX_RETRIES, requestMessages, sessId, agentEventLogger, empty)
+                if (emptyRetry > EMPTY_RESPONSE_MAX_RETRIES) {
                     stateMirrors.setThinkingLive(sessId, false)
                     messageProjector.remove(sessId, assistantId)
                     agentEventLogger.log(sessId, "EmptyModelResponse", empty.message.orEmpty(), empty)
@@ -363,10 +363,10 @@ class HarnessProviderRunner(
                 }
                 metrics.streamRetry()
                 stateMirrors.setThinkingLive(sessId, false)
-                stateMirrors.setStatus(sessId, "模型返回空响应，正在重试（$netRetry/$EMPTY_RESPONSE_MAX_RETRIES）")
-                agentEventLogger.log(sessId, "EmptyModelResponseRetry", "第 $netRetry 次空响应，重试上限 $EMPTY_RESPONSE_MAX_RETRIES")
+                stateMirrors.setStatus(sessId, "模型返回空响应，正在重试（$emptyRetry/$EMPTY_RESPONSE_MAX_RETRIES）")
+                agentEventLogger.log(sessId, "EmptyModelResponseRetry", "第 $emptyRetry 次空响应，重试上限 $EMPTY_RESPONSE_MAX_RETRIES")
                 resetStreamBaseline()
-                delay(retryPolicy.delayForRetry(netRetry).milliseconds)
+                delay(retryPolicy.delayForRetry(emptyRetry).milliseconds)
             } catch (io: IOException) {
                 stateMirrors.providerActivity.retry(sessId, "network_io")
                 // 用户取消会主动关闭 socket，通常以 IOException 形式抛出：先按取消语义保留已生成内容，再传播取消。
@@ -455,7 +455,7 @@ class HarnessProviderRunner(
                 assistantAt,
                 displayText,
                 result.reasoningContent,
-                totalMs = if (!hasToolCalls) now() - startedAt else null,
+                totalMs = if (!hasToolCalls) System.currentTimeMillis() - startedAt else null,
                 reasoningMs = result.reasoningMs,
                 responsesTurn = result.responsesTurn,
                 operationId = operationId,
@@ -544,7 +544,7 @@ class HarnessProviderRunner(
                         sessId, assistantId, assistantAt,
                         streamText.toString(),
                         streamReasoning.toString().ifBlank { null },
-                        totalMs = now() - startedAt,
+                        totalMs = System.currentTimeMillis() - startedAt,
                         operationId = operationId,
                         round = round,
                     )
@@ -554,7 +554,7 @@ class HarnessProviderRunner(
             }
         }
     }
-    private fun now(): Long = SystemClock.elapsedRealtime() // 单调时钟：耗时与 StreamBuffer 节流
+    private fun now(): Long = SystemClock.elapsedRealtime() // 单调时钟：仅用于 StreamBuffer 节流；耗时另用 currentTimeMillis 对齐 startedAt
     private fun friendly(throwable: Throwable): String =
         throwable.message?.take(200) ?: throwable::class.simpleName.orEmpty()
     /** 首个响应看门狗到点：不按网络中断重试，直接给出与上游错误区分开的说明。 */

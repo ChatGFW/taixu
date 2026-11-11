@@ -52,4 +52,13 @@ class ManualCompactionBoundaryTest {
         assertEquals(4, manualCompactionBoundary(messages, 0))
         assertEquals(0, manualCompactionBoundary(messages, Int.MAX_VALUE))
     }
+
+    @Test fun canManualCompactMirrorsBoundary() {
+        val backend = ContextMemoryToolBackend()
+        val foldable = listOf(user("old"), text("old-answer"), user("next"), text("next-answer"),
+            user("last"), text("last-answer"))
+        assertEquals(true, backend.canManualCompact(foldable))
+        assertEquals(false, backend.canManualCompact(listOf(user("u"), text("a"))))
+        assertEquals(false, backend.canManualCompact(emptyList()))
+    }
 }

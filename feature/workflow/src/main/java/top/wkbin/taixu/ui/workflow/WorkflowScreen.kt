@@ -46,7 +46,7 @@ import top.wkbin.taixu.core.model.workflow.WorkflowRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState
 import top.wkbin.taixu.harness.workflow.SentinelState
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
@@ -220,9 +220,9 @@ fun WorkflowScreen(
             onDismissRequest = { discardRequested = false },
             title = { Text("放弃未保存更改？") },
             text = { Text("当前工作流还有未保存的编辑。") },
-            dismissButton = { RuntimeOutlinedButton(onClick = { discardRequested = false }) { Text("继续编辑") } },
+            dismissButton = { RuntimeTextButton(onClick = { discardRequested = false }) { Text("继续编辑") } },
             confirmButton = {
-                RuntimeButton(onClick = { discardRequested = false; viewModel?.closeEditor() }) { Text("放弃更改") }
+                RuntimeTextButton(onClick = { discardRequested = false; viewModel?.closeEditor() }) { Text("放弃更改") }
             },
         )
     }

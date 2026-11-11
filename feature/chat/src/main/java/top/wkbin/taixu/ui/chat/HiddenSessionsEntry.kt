@@ -3,15 +3,12 @@ package top.wkbin.taixu.ui.chat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -19,12 +16,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeArrowPreference
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 
 /** 已隐藏 Bot 会话的入口与恢复弹窗；隐藏只影响抽屉展示，不删历史。 */
@@ -44,32 +40,19 @@ internal fun HiddenSessionsEntry(
             onDismissRequest = { expanded = false },
             title = { Text(stringResource(R.string.chat_hidden_sessions_title)) },
             text = {
-                Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     hiddenSessions.forEach { session ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(
-                                text = session.title,
-                                style = RuntimeTheme.typography.bodyMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f),
-                            )
-                            RuntimeTextButton(onClick = { onRestore(session.id, false) }) {
-                                Text(stringResource(R.string.chat_restore_session))
-                            }
-                        }
+                        RuntimeArrowPreference(
+                            title = session.title,
+                            summary = stringResource(R.string.chat_restore_session),
+                            onClick = { onRestore(session.id, false) },
+                            insideMargin = PaddingValues(horizontal = 0.dp, vertical = 12.dp),
+                        )
                     }
                 }
             },
             confirmButton = {
-                RuntimeButton(
+                RuntimeTextButton(
                     onClick = {
                         hiddenSessions.forEach { onRestore(it.id, false) }
                         expanded = false

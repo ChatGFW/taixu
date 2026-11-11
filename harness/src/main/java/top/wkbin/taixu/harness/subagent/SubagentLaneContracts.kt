@@ -488,9 +488,9 @@ internal fun looksLikeShellWrite(command: String): Boolean {
     val normalized = " $command "
     if (SHELL_WRITE_HINTS.any { normalized.contains(it) }) return true
     REDIRECT_TARGET.findAll(command).forEach { match ->
-        val target = match.groupValues[2].trim()
+        val target = match.groupValues[2].trim().removeSurrounding("\"").removeSurrounding("'")
         // /dev/null 是错误流抑制的惯用目标，不算写
-        if (target.isNotBlank() && !target.startsWith("/dev/null")) return true
+        if (target.isNotBlank() && target != "/dev/null") return true
     }
     return false
 }
@@ -501,5 +501,5 @@ private val SHELL_WRITE_HINTS = listOf(
     " wget ", " dd ", " chmod ", " chown ", " patch ", " truncate ", " rsync ",
 )
 
-// 重定向：> 或 >>，排除 2>/&>（错误流抑制）；目标是否 /dev/null 由调用方判读
-private val REDIRECT_TARGET = Regex("""(^|[^0-9>&])>{1,2}\s*([^\s;&|]+)""")
+// 重定向：> 或 >>（含 2>file、&>file 等真实写入）；2>&1 因目标以 & 开头不命中，/dev/null 由调用方判读
+private val REDIRECT_TARGET = Regex("""(^|[^>])>{1,2}\s*([^\s;&|]+)""")

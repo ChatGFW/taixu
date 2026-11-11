@@ -18,6 +18,27 @@ import top.wkbin.taixu.harness.UserMessage
 class SubagentLaneRunnerTest {
 
     @Test
+    fun `resumed task retains assignment and previous results but excludes parent history`() {
+        val assignment = "$SUBAGENT_TASK_MARKER\n检查文件"
+        val messages = listOf(
+            UserMessage("parent", 1L, "父任务"),
+            UserMessage("task", 2L, assignment),
+            AssistantText("progress", 3L, "已确认第一处问题"),
+            ToolCall("read", 4L, HarnessTool.READ, JsonObject(emptyMap())),
+            ToolResult("result", 5L, "read", true, "文件内容"),
+            UserMessage("resume", 6L, "继续检查"),
+        )
+
+        val result = isolatedProviderMessages(messages, "system", forceFinalAnswer = false)
+
+        assertFalse(result.any { it.content == "父任务" })
+        assertTrue(result.any { it.content == assignment })
+        assertTrue(result.any { it.content == "已确认第一处问题" })
+        assertTrue(result.any { it.role == "tool" && it.content == "文件内容" })
+        assertEquals("继续检查", result.last().content)
+    }
+
+    @Test
     fun `isolated messages omit parent history and dangling parent tool call`() {
         val messages = listOf(
             UserMessage("parent-user", 1L, "父任务"),

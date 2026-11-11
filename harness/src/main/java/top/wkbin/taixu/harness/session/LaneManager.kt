@@ -7,6 +7,7 @@ import top.wkbin.taixu.core.database.HarnessRuntimeRepository
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.UserMessage
+import top.wkbin.taixu.harness.subagent.subagentTaskStartIndex
 enum class ConversationBranchKind { MAIN, BRANCH, SUBAGENT, HISTORY }
 
 data class ConversationBranch(
@@ -44,7 +45,7 @@ class LaneManager(
     suspend fun subagentTranscript(sessionId: String, laneName: String): List<HarnessMessage> {
         require(laneName.startsWith(SUBAGENT_PREFIX)) { "Not a subagent lane: $laneName" }
         val fullPath = transcript(sessionId, laneName)
-        val taskStart = fullPath.indexOfLast { it is UserMessage }.takeIf { it >= 0 } ?: 0
+        val taskStart = subagentTaskStartIndex(fullPath) ?: 0
         return fullPath.drop(taskStart)
     }
 
@@ -79,16 +80,15 @@ class LaneManager(
                 leafId == main?.leafId -> ConversationBranchKind.MAIN
                 else -> ConversationBranchKind.HISTORY
             }
-            val scopedPathEntries = if (kind == ConversationBranchKind.SUBAGENT) {
-                val taskStart = pathEntries.indexOfLast { it.customType == "user" }.takeIf { it >= 0 } ?: 0
-                pathEntries.drop(taskStart)
-            } else {
-                pathEntries
-            }
-            val scopedMessages = scopedPathEntries.mapNotNull { entry ->
+            val pathMessages = pathEntries.mapNotNull { entry ->
                 if (!decodedMessages.containsKey(entry.id)) decodedMessages[entry.id] = treeStore.decode(entry)
                 decodedMessages[entry.id]
             }
+            val taskStart = if (kind == ConversationBranchKind.SUBAGENT) subagentTaskStartIndex(pathMessages) ?: 0 else 0
+            val scopedMessages = pathMessages.drop(taskStart)
+            val scopedPathEntries = if (kind == ConversationBranchKind.SUBAGENT && scopedMessages.isNotEmpty()) {
+                pathEntries.dropWhile { it.id != scopedMessages.first().id }
+            } else pathEntries
             val roleName = namedLane?.name.orEmpty()
                 .removePrefix(SUBAGENT_PREFIX)
                 .substringBefore(':')

@@ -46,7 +46,6 @@ import top.wkbin.taixu.core.model.bot.GroupAttachment
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.EmptyPanel
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.runtimeScrollViewport
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
@@ -382,7 +381,7 @@ fun GroupChatScreen(
             title = { Text(stringResource(R.string.fbot_clear_title)) },
             text = { Text(stringResource(R.string.fbot_clear_confirm)) },
             confirmButton = {
-                RuntimeButton(onClick = {
+                RuntimeTextButton(onClick = {
                     confirmClear = false
                     viewModel.clearMessages()
                 }) { Text(stringResource(R.string.fbot_clear_messages)) }

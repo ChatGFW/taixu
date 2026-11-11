@@ -55,7 +55,7 @@ fun StatsMetricGrid(
             value = formatCompact(summary.cachedTokens),
         ),
         MetricItem(
-            icon = RuntimeIconName.Speed,
+            icon = RuntimeIconName.Play,
             label = "启动次数",
             value = "${summary.launchCount} 次",
         ),

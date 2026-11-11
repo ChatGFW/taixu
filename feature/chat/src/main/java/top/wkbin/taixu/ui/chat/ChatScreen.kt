@@ -153,6 +153,8 @@ fun ChatScreen(
     val onboardingPrivilege by viewModel?.privilegeOnboarding?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val attachmentsProcessing by viewModel?.attachmentsProcessing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val notice by viewModel?.notice?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val canManualCompact by viewModel?.canManualCompact?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val compactingContext by viewModel?.compactingContext?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val subagentResult by viewModel?.subagentResult?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     // 弹窗开关与编辑目标：用 rememberSaveable 保存，旋转 / 进程重建后不丢失
     var showModels by rememberSaveable { mutableStateOf(false) }; var showApprovalModes by rememberSaveable { mutableStateOf(false) }
@@ -291,11 +293,15 @@ fun ChatScreen(
         }
     }
 
-    // VM 层轻量通知（附件处理失败 / 模型档案已存在 / 新会话已创建等）以 Toast 上抛
+    // VM 层轻量通知（附件处理失败 / 模型档案已存在 / 压缩进度与结果等）以 Toast 上抛。
+    // 清除时核对仍是本条：手动压缩会先发「正在压缩…」再发结果，若无条件 clear 会抹掉结果 → 像点了没反应。
     LaunchedEffect(notice) {
-        notice?.let {
-            Toast.makeText(appContext, it, Toast.LENGTH_SHORT).show()
-            viewModel?.clearNotice()
+        val text = notice ?: return@LaunchedEffect
+        val duration = if (text.length > 40) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
+        Toast.makeText(appContext, text, duration).show()
+        delay(if (duration == Toast.LENGTH_LONG) 3500 else 2000)
+        if (viewModel?.notice?.value == text) {
+            viewModel.clearNotice()
         }
     }
 
@@ -424,7 +430,9 @@ fun ChatScreen(
                     initializing = initializing,
                     pinnedCapabilities = pinnedCapabilities,
                     onOpenSkillsMcp = { showSkillsMcpSheet = true },
-                    onCompactContext = { viewModel?.compactContextNow() },
+                    canCompactContext = canManualCompact,
+                    compactingContext = compactingContext,
+                    onCompactContext = { done -> viewModel?.compactContextNow(done) ?: done() },
                     onUnpinMention = { arg0 -> viewModel?.unpinMention(arg0) },
                     activePlan = activePlan,
                     pendingApprovals = pendingApprovals,
@@ -661,7 +669,9 @@ private fun ChatPaneContent(
     initializing: Boolean = false,
     pinnedCapabilities: List<MentionItem> = emptyList(),
     onOpenSkillsMcp: () -> Unit = {},
-    onCompactContext: () -> Unit = {},
+    canCompactContext: Boolean = false,
+    compactingContext: Boolean = false,
+    onCompactContext: (onFinished: () -> Unit) -> Unit = { it() },
     onUnpinMention: (String) -> Unit = {},
     activeModel: AiModelEntity? = null,
     onOpenModels: () -> Unit, approvalMode: ApprovalMode, onOpenApprovalModes: () -> Unit,
@@ -809,6 +819,8 @@ private fun ChatPaneContent(
                         pinnedCapabilities = pinnedCapabilities,
                         onUnpinMention = onUnpinMention,
                         onOpenSkillsMcp = onOpenSkillsMcp,
+                        canCompactContext = canCompactContext,
+                        compactingContext = compactingContext,
                         onCompactContext = onCompactContext,
                         activeModel = activeModel,
                         onOpenModels = onOpenModels,

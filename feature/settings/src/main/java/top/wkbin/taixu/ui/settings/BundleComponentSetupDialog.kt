@@ -160,9 +160,9 @@ internal fun BundleComponentSetupDialog(
         confirmButton = {
             val uninstalled = bundle.components.filter { it.id !in installedComponentIds }
             if (uninstalled.isEmpty()) {
-                Button(onClick = onDismiss) { Text("完成") }
+                TextButton(onClick = onDismiss) { Text("完成") }
             } else {
-                Button(
+                TextButton(
                     onClick = onInstall,
                     enabled = !isInstallingComponents && selectedComponents.isNotEmpty(),
                 ) {
@@ -180,7 +180,7 @@ internal fun BundleComponentSetupDialog(
             title = { Text(stringResource(R.string.settings_component_uninstall_title, component.name), fontWeight = FontWeight.Medium) },
             text = { Text(stringResource(R.string.settings_component_uninstall_body)) },
             confirmButton = {
-                Button(
+                TextButton(
                     onClick = {
                         pendingUninstallId = null
                         onUninstall(component)

@@ -57,16 +57,23 @@ class BackgroundSubagentRegistry(
                 logger.logAgent(parentSessionId, "BackgroundSubagentBatch", "crashed: ${failure.message}")
                 false to "后台子任务批次异常（${failure::class.simpleName ?: "Throwable"}）：${failure.message ?: "无错误消息"}"
             }
-            promptQueueManager.enqueue(
-                parentSessionId,
-                PromptQueue.STEER,
-                PendingMessage(text = backgroundCompletionText(allSucceeded, summary)),
-            )
-            logger.logAgent(
-                parentSessionId,
-                "BackgroundSubagentBatch",
-                "completed, tasks=$taskCount, allSucceeded=$allSucceeded, summaryChars=${summary.length}",
-            )
+            try {
+                promptQueueManager.enqueue(
+                    parentSessionId,
+                    PromptQueue.STEER,
+                    PendingMessage(text = backgroundCompletionText(allSucceeded, summary)),
+                )
+                logger.logAgent(
+                    parentSessionId,
+                    "BackgroundSubagentBatch",
+                    "completed, tasks=$taskCount, allSucceeded=$allSucceeded, summaryChars=${summary.length}",
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                // 回传阶段（入队/日志）失败不能让无 handler 的进程级 scope 崩溃整个 App。
+                logger.logAgent(parentSessionId, "BackgroundSubagentBatch", "delivery failed: ${failure.message}")
+            }
         }
         jobs.getOrPut(parentSessionId) { ConcurrentHashMap.newKeySet() }.add(job)
         job.invokeOnCompletion {

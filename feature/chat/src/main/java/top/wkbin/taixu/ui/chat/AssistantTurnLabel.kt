@@ -29,11 +29,11 @@ internal fun assistantTurnLabelKeys(items: List<ChatRenderItem>): Set<String> = 
 
 @Composable
 internal fun AssistantTurnLabel() {
-    Row(Modifier.padding(top = 8.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically,
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         RuntimeChatIdentityAvatar(20.dp)
-        Text(LocalChatIdentity.current.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        Text(LocalChatIdentity.current.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
             style = RuntimeTheme.typography.titleSmall,
-            color = RuntimeTheme.colorScheme.onSurface)
+            color = RuntimeTheme.colorScheme.onSurfaceVariant)
     }
 }

@@ -22,7 +22,8 @@ class ChatTimelineSpacingTest {
         val user = ChatRenderItem.MessageItem(UserMessage("u", 2, "next"))
         assertEquals(4, chatTimelineItemSpacing(prose, tool("t")))
         assertEquals(8, chatTimelineItemSpacing(prose, tool("sub", HarnessTool.SUBAGENT)))
-        assertEquals(16, chatTimelineItemSpacing(prose, user))
+        assertEquals(24, chatTimelineItemSpacing(prose, user))
+        assertEquals(12, chatTimelineItemSpacing(user, prose))
         assertEquals(0, chatTimelineItemSpacing(null, prose))
     }
 }

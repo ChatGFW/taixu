@@ -192,7 +192,7 @@ internal fun SessionMemorySheet(
                 )
             },
             confirmButton = {
-                Button(
+                TextButton(
                     onClick = {
                         if (isClear) {
                             onClearScratchpads()

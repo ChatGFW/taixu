@@ -125,4 +125,28 @@ class McpResponseSizeLimiterTest {
             tempDir.deleteRecursively()
         }
     }
+
+    @Test
+    fun quotaCleanupStopsOnceEnoughBytesHaveBeenReclaimed() {
+        val dir = java.nio.file.Files.createTempDirectory("mcp_quota_").toFile()
+        try {
+            val now = System.currentTimeMillis()
+            val files = (0..2).map { index ->
+                File(dir, "mcp_spill_$index.txt").apply {
+                    java.io.RandomAccessFile(this, "rw").use { it.setLength(24L * 1024 * 1024) }
+                    setLastModified(now - (3 - index) * 1000L)
+                }
+            }
+            val result = McpResponseSizeLimiter.readBounded(
+                ByteArrayInputStream(ByteArray(1000)), maxInlineBytes = 100,
+                maxSpillBytes = 2000, spillDirectory = dir,
+            )
+            assertTrue(result is McpResponseSizeLimiter.Payload.Spilled)
+            assertTrue(!files[0].exists())
+            assertTrue(files[1].exists())
+            assertTrue(files[2].exists())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
 }

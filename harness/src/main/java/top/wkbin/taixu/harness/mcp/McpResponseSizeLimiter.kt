@@ -229,8 +229,10 @@ object McpResponseSizeLimiter {
             var count = remaining.size
             for (file in remaining) {
                 if (total <= maxTotalBytes && count <= maxFiles) break
+                // 先取大小再删：delete() 后 file.length() 恒为 0，total 永不下降会把整个落盘目录删光。
+                val bytes = file.length()
                 if (file.delete()) {
-                    total -= file.length()
+                    total -= bytes
                     count--
                 }
             }

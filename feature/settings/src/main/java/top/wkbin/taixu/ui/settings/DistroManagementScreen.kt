@@ -227,7 +227,7 @@ private fun ResetDistroConfirmDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = onConfirm,
                 enabled = countdown == 0,
                 colors = ButtonDefaults.buttonColors(
@@ -287,7 +287,7 @@ private fun DeleteDistroConfirmDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = onConfirm,
                 enabled = countdown == 0,
                 colors = ButtonDefaults.buttonColors(
@@ -593,7 +593,7 @@ private fun InstallDistroDialog(
         },
         confirmButton = {
             if (!isInstalling && availableDistros.isNotEmpty()) {
-                Button(
+                TextButton(
                     onClick = { onConfirmInstall(selectedSpec, selectedRoute) },
                     shape = RuntimeTheme.shapes.medium,
                 ) {

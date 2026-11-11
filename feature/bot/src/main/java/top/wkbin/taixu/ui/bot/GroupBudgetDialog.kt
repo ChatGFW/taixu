@@ -59,7 +59,7 @@ private fun BudgetLimitEditor(id: String?, initial: Long, onDismiss: () -> Unit,
                 error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
             }
         }, confirmButton = {
-            RuntimeButton(enabled = !saving, onClick = {
+            RuntimeTextButton(enabled = !saving, onClick = {
                 saving = true
                 scope.launch {
                     runCatching {

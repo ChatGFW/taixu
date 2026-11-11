@@ -656,7 +656,7 @@ internal fun ModelEditorContent(
             ModelEditorExpandableSection(
                 title = "推理与上下文调优",
                 subtitle = "Temperature、Max Tokens、上下文容量与思考模式",
-                icon = RuntimeIconName.Speed,
+                icon = RuntimeIconName.Tune,
                 expanded = reasoningSectionExpanded,
                 onExpandedChange = { reasoningSectionExpanded = it },
             ) {

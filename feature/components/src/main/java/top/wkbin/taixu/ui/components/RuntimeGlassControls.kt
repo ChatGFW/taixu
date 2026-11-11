@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import top.wkbin.taixu.ui.miuix.Badge
@@ -238,7 +237,7 @@ fun RuntimeModalBottomSheet(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(),
-    shape: Shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+    shape: Shape = RuntimeTheme.shapes.extraLarge,
     containerColor: Color = Color.Unspecified,
     contentColor: Color = RuntimeTheme.colorScheme.onSurface,
     tonalElevation: Dp = 0.dp,

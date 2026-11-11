@@ -21,12 +21,13 @@ internal fun ComposerSheets(
     showAttach: Boolean,
     showSketch: Boolean,
     canCompress: Boolean,
+    compacting: Boolean,
     onDismissAttach: () -> Unit,
     onDismissSketch: () -> Unit,
     onOpenSketch: () -> Unit,
     onAttachmentsPicked: (List<Uri>, Boolean) -> Unit,
     onOpenSkillsMcp: () -> Unit,
-    onCompactContext: () -> Unit,
+    onCompactContext: (onFinished: () -> Unit) -> Unit,
 ) {
     val context = LocalContext.current
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
@@ -54,12 +55,14 @@ internal fun ComposerSheets(
     if (showAttach) {
         ChatAttachSheet(
             canCompress = canCompress,
+            compacting = compacting,
             onCamera = { onDismissAttach(); onCamera() },
             onPickImage = { onDismissAttach(); imagePickerLauncher.launch("image/*") },
             onSketch = { onDismissAttach(); onOpenSketch() },
             onPickFile = { onDismissAttach(); filePickerLauncher.launch("*/*") },
             onOpenSkillsMcp = { onDismissAttach(); onOpenSkillsMcp() },
-            onCompact = { onDismissAttach(); onCompactContext() },
+            // 压缩可能走 LLM：弹窗保持打开并显示加载，结束后再关。
+            onCompact = { onCompactContext(onDismissAttach) },
             onDismiss = onDismissAttach,
         )
     }

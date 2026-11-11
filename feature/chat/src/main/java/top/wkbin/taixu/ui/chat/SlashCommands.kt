@@ -78,7 +78,7 @@ object SlashCommands {
             labelRes = R.string.chat_command_help,
             descriptionRes = R.string.chat_command_help_description,
             template = "/help",
-            icon = RuntimeIconName.Alert,
+            icon = RuntimeIconName.Info,
         ),
         Preset(
             command = "/btw",

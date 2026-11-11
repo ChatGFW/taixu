@@ -953,7 +953,7 @@ private fun UpgradeVersionDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = { onConfirmUpgrade(versionInput.trim()) },
             ) {
                 Text(if (agent.installed) "确认升级" else "确认安装")
@@ -1088,7 +1088,7 @@ private fun InstallLogDialog(
                     ) {
                         Text("清空")
                     }
-                    RuntimeButton(
+                    RuntimeTextButton(
                         onClick = { onCopy(logs.joinToString("\n")) },
                     ) {
                         RuntimeIcon(name = RuntimeIconName.Copy, modifier = Modifier.size(14.dp))
@@ -1096,7 +1096,7 @@ private fun InstallLogDialog(
                         Text("复制全部日志", fontWeight = FontWeight.Medium)
                     }
                 } else {
-                    RuntimeButton(onClick = onDismiss) {
+                    RuntimeTextButton(onClick = onDismiss) {
                         Text("确定")
                     }
                 }

@@ -357,14 +357,14 @@ private fun UpdateInfoDialog(
         },
         confirmButton = {
             if (info.apkDownloadUrl != null) {
-                Button(
+                TextButton(
                     onClick = onDownload,
                     enabled = !isDownloading,
                 ) {
                     Text(if (isDownloading) "正在下载…" else "更新")
                 }
             } else {
-                Button(onClick = onOpenBrowser) {
+                TextButton(onClick = onOpenBrowser) {
                     Text("前往 GitHub 下载")
                 }
             }

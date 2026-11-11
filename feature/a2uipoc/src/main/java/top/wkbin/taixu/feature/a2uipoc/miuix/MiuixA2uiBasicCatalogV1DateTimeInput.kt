@@ -80,7 +80,7 @@ private fun DateTimeSelection(
     val valid = (min == null || candidate >= min) && (max == null || candidate <= max)
     RuntimeAlertDialog(onDismissRequest = onDismiss,
         confirmButton = {
-            RuntimeButton(onClick = { onConfirm(candidate) }, enabled = valid) { Text(androidx.compose.ui.res.stringResource(android.R.string.ok)) }
+            RuntimeTextButton(onClick = { onConfirm(candidate) }, enabled = valid) { Text(androidx.compose.ui.res.stringResource(android.R.string.ok)) }
         },
         dismissButton = {
             RuntimeTextButton(onClick = onDismiss) { Text(androidx.compose.ui.res.stringResource(android.R.string.cancel)) }

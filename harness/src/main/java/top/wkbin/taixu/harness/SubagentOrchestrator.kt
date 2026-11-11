@@ -14,7 +14,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.supervisorScope
 import kotlin.coroutines.cancellation.CancellationException
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.Json
@@ -71,7 +70,8 @@ class SubagentOrchestrator(
      * while larger batches still queue to protect the shared API/PRoot/Room resources.
      */
     private val globalParallelism = SubagentConcurrencyGate()
-    private val resumeLaneLocks = ConcurrentHashMap<String, Mutex>()
+    // 续跑并发闸门：add 成功即占用、finally remove 释放，键随执行结束清除，不像 Mutex 映射那样永久累积。
+    private val runningLanes = ConcurrentHashMap.newKeySet<String>()
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     suspend fun executeSubagents(
@@ -291,8 +291,7 @@ class SubagentOrchestrator(
             )
         }
         val laneLockKey = "$parentSessionId::$laneName"
-        val laneLock = resumeLaneLocks.getOrPut(laneLockKey) { Mutex() }
-        if (!laneLock.tryLock()) {
+        if (!runningLanes.add(laneLockKey)) {
             return SubagentExecutionOutcome(
                 spec = spec,
                 subSessionId = laneName,
@@ -316,7 +315,7 @@ class SubagentOrchestrator(
                 )
             }
         } finally {
-            laneLock.unlock()
+            runningLanes.remove(laneLockKey)
         }
 
         // 超时取消时 withTimeoutOrNull 返回 null，若直接 ?: 0 会把子智能体在超时窗口内

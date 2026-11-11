@@ -69,6 +69,21 @@ class SubagentLaneFinalizerTest {
         assertNull(repository.findLane("s", "child")!!.currentOperationId)
     }
     private suspend fun begin(ops: OperationCoordinator) = ops.acceptRun("s", UserMessage("user", 1, "write"), "child")
+
+    @Test fun `stale interruption releases only its resources and preserves replacement operation`() = runBlocking {
+        val ops = operations()
+        val oldId = begin(ops)
+        finalizer(ops).finish("s", "completed", laneName = "child")
+        val replacement = ops.acceptRun("s", UserMessage("resume", 2, "continue"), "child")
+        var releases = 0
+        val oldFinalizer = SubagentLaneFinalizer(ops) { releases++ }
+
+        assertNull(oldFinalizer.interrupted("s", "child", oldId, "aborted", "cancelled"))
+
+        assertEquals(1, releases)
+        assertEquals(replacement, repository.findLane("s", "child")!!.currentOperationId)
+    }
+
     private suspend fun results() = repository.listEntries("s").mapNotNull {
         Json.decodeFromString<HarnessMessage>(it.payloadJson) as? ToolResult
     }

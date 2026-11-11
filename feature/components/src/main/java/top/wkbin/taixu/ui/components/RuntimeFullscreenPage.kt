@@ -8,7 +8,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
-/** Full-window detail page above the current editor, keeping its unsaved state in place. */
+/**
+ * Full-window detail page above the current editor, keeping its unsaved state in place.
+ *
+ * Uses platform [Dialog] on purpose (edge-to-edge page, not a miuix card WindowDialog /
+ * RuntimeAlertDialog). Call sites needing a centred alert should use those instead.
+ */
 @Composable
 fun RuntimeFullscreenPage(title: String, onBack: () -> Unit, statusText: String? = null,
     content: @Composable (PaddingValues) -> Unit) {

@@ -30,11 +30,10 @@ import top.wkbin.taixu.core.model.skill.AuditLevel
 import top.wkbin.taixu.core.model.skill.CompatibilityLevel
 import top.wkbin.taixu.core.tools.skill.SkillInstallInspection
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 /**
  * 技能端侧静态安全审计与权限审查弹窗（基于 RuntimeAlertDialog 与 Miuix 设计规范）。
@@ -284,7 +283,7 @@ fun SkillSecurityAuditDialog(
         },
         confirmButton = {
             if (isBlocked) {
-                RuntimeButton(
+                RuntimeTextButton(
                     onClick = onDismiss,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = RuntimeTheme.colorScheme.error,
@@ -293,7 +292,7 @@ fun SkillSecurityAuditDialog(
                     Text("安全策略已阻断")
                 }
             } else {
-                RuntimeButton(
+                RuntimeTextButton(
                     onClick = onConfirmInstall,
                     enabled = !isCommitting,
                     colors = ButtonDefaults.buttonColors(
@@ -314,7 +313,7 @@ fun SkillSecurityAuditDialog(
             }
         },
         dismissButton = {
-            RuntimeOutlinedButton(onClick = onDismiss) {
+            RuntimeTextButton(onClick = onDismiss) {
                 Text(if (isBlocked) "关闭" else "放弃")
             }
         },

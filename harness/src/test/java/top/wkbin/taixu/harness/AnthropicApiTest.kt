@@ -147,6 +147,24 @@ class AnthropicApiTest {
     }
 
     @Test
+    fun `malformed and non object tool arguments serialize as empty input objects`() = runBlocking {
+        for (arguments in listOf("broken json", "[]", "null", "\"text\"")) {
+            server.enqueue(MockResponse().setBody("""{"content":[{"type":"text","text":"ok"}]}"""))
+            api.chat(model(), listOf(
+                ApiMessage(role = "user", content = "inspect"),
+                ApiMessage(role = "assistant", tool_calls = listOf(
+                    ApiToolCall(id = "call", function = ApiFunctionCall(name = "read", arguments = arguments)),
+                )),
+                ApiMessage(role = "tool", content = "invalid arguments", tool_call_id = "call"),
+            ))
+            val body = Json.parseToJsonElement(server.takeRequest().body.readUtf8()).jsonObject
+            val blocks = body.getValue("messages").jsonArray[1].jsonObject.getValue("content").jsonArray
+            val toolUse = blocks.single { it.jsonObject["type"]?.jsonPrimitive?.content == "tool_use" }.jsonObject
+            assertEquals(kotlinx.serialization.json.JsonObject(emptyMap()), toolUse["input"])
+        }
+    }
+
+    @Test
     fun `non-positive max tokens is normalized and thinking stays below output budget`() = runBlocking {
         server.enqueue(MockResponse().setBody("""{"content":[{"type":"text","text":"ok"}]}"""))
         api.chat(model().copy(maxTokens = 0, reasoningMode = ReasoningMode.ENABLED), listOf(ApiMessage(role = "user", content = "hi")))

@@ -22,6 +22,34 @@ import android.content.Context
 @Config(sdk = [34])
 class LaneBranchProjectionTest {
     @Test
+    fun resumedSubagentPreservesTaskTitleAndToolCount() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .allowMainThreadQueries().build()
+        try {
+            val repository = RoomHarnessRuntimeRepository(database.harnessRuntimeDao())
+            val store = SessionTreeStore(repository, Json, AppLogger(context, SensitiveDataRedactor { it }))
+            val manager = LaneManager(repository, store)
+            val lane = "subagent:research:resume"
+            store.append("session", UserMessage("parent", 1L, "父任务"))
+            manager.create("session", lane, "parent")
+            store.append("session", UserMessage("task", 2L, "【子智能体任务指派】\n任务目标：调查问题"), lane)
+            store.append("session", top.wkbin.taixu.harness.ToolCall("read", 3L,
+                top.wkbin.taixu.harness.HarnessTool.READ, kotlinx.serialization.json.JsonObject(emptyMap())), lane)
+            store.append("session", top.wkbin.taixu.harness.ToolResult("result", 4L, "read", true, "已读取"), lane)
+            store.append("session", UserMessage("resume", 5L, "继续"), lane)
+
+            val child = manager.branches("session").single { it.laneName == lane }
+            assertEquals("调查问题 · research", child.name)
+            assertEquals(1, child.toolCallCount)
+            assertEquals(4, child.depth)
+            assertEquals(listOf("task", "read", "result", "resume"), manager.subagentTranscript("session", lane).map { it.id })
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
     fun sharedAncestorsPreserveNearestNamedLaneAndBranchPreviews() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)

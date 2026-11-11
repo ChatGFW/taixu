@@ -205,7 +205,7 @@ class ComposerMaterialRenderTest : ModelFlowRenderSupport() {
                     attachmentsProcessing = false, onAttachmentsPicked = { _, _ -> }, onRemoveAttachment = {},
                     queuedPrompts = emptyList(), onEditQueuedPrompt = {}, onRemoveQueuedPrompt = {}, onConvertToSteer = {},
                     knownMentionNames = emptyList(), attachedMentions = emptyList(), onRemoveMention = {},
-                    pinnedCapabilities = emptyList(), onUnpinMention = {}, onOpenSkillsMcp = {}, onCompactContext = {}, onOpenModels = {},
+                    pinnedCapabilities = emptyList(), onUnpinMention = {}, onOpenSkillsMcp = {}, onCompactContext = { it() }, onOpenModels = {},
                     activeModel = profile, approvalMode = ApprovalMode.REQUEST, onOpenApprovalModes = {}, contextUsage = ContextUsage())
             }
         }) { root ->

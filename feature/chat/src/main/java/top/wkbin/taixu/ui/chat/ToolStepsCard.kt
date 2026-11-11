@@ -50,6 +50,7 @@ internal fun ToolStepsCard(item: ToolStepsItem, results: Map<String, ToolResult>
             if (!expanded) focus?.value = null
         }.semantics { stateDescription = stateLabel }.padding(horizontal = 2.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ChatProcessIcon(RuntimeIconName.Checklist)
             Text(stringResource(R.string.chat_tool_chain_title, item.toolCount), modifier = Modifier.weight(1f),
                 style = RuntimeTheme.typography.labelMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)

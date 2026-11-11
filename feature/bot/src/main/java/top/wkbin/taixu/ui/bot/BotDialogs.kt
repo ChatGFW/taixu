@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -27,9 +28,9 @@ import top.wkbin.taixu.core.model.bot.BotMemberGroup
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCheckbox
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
+import top.wkbin.taixu.ui.components.RuntimeRadioPreference
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 
 @Composable
@@ -107,7 +108,7 @@ fun CreateBotDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = { onCreate(name, role, persona, groupId, avatarSeed) },
                 enabled = !busy && !avatarLoading && name.isNotBlank() && role.isNotBlank() && persona.isNotBlank(),
             ) { Text(stringResource(R.string.fbot_create)) }
@@ -157,13 +158,24 @@ fun CreateGroupDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text("引用团队组", style = RuntimeTheme.typography.titleSmall)
-                RuntimeTextButton(onClick = { selectedTeamId = null }) { Text(if (selectedTeamId == null) "✓ 手动选人（不带入团队规则）" else "手动选人") }
+                val teamMargin = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
+                RuntimeRadioPreference(
+                    title = "手动选人（不带入团队规则）",
+                    selected = selectedTeamId == null,
+                    onClick = { selectedTeamId = null },
+                    insideMargin = teamMargin,
+                )
                 memberGroups.filter { it.publishedSnapshot != null }.forEach { team ->
-                    RuntimeTextButton(onClick = {
-                        selectedTeamId = team.id
-                        adminBotId = requireNotNull(team.publishedSnapshot).definition.adminBotId
-                        selectedIds = requireNotNull(team.publishedSnapshot).memberIds.toSet()
-                    }) { Text((if (selectedTeamId == team.id) "✓ " else "") + "${team.name} · v${team.publishedVersion}") }
+                    RuntimeRadioPreference(
+                        title = "${team.name} · v${team.publishedVersion}",
+                        selected = selectedTeamId == team.id,
+                        onClick = {
+                            selectedTeamId = team.id
+                            adminBotId = requireNotNull(team.publishedSnapshot).definition.adminBotId
+                            selectedIds = requireNotNull(team.publishedSnapshot).memberIds.toSet()
+                        },
+                        insideMargin = teamMargin,
+                    )
                 }
                 val referencedTeam = memberGroups.firstOrNull { it.id == selectedTeamId }
                 val published = referencedTeam?.publishedSnapshot
@@ -210,7 +222,7 @@ fun CreateGroupDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = { onCreate(name, description, adminBotId, selectedIds + adminBotId, selectedTeamId) },
                 enabled = !busy && bots.isNotEmpty() && name.isNotBlank() && adminBotId.isNotBlank(),
             ) { Text(stringResource(R.string.fbot_create)) }
@@ -281,7 +293,7 @@ fun GroupMembersDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(onClick = { onConfirm(selected + adminBotId) }) {
+            RuntimeTextButton(onClick = { onConfirm(selected + adminBotId) }) {
                 Text(stringResource(R.string.fbot_save))
             }
         },

@@ -149,7 +149,7 @@ fun StorageUsageScreen(
                         }
                     },
                     confirmButton = {
-                        RuntimeButton(
+                        RuntimeTextButton(
                             onClick = { viewModel?.quickSafeClean() },
                         ) {
                             Text("立即清理")
@@ -180,7 +180,7 @@ fun StorageUsageScreen(
                         }
                     },
                     confirmButton = {
-                        RuntimeButton(
+                        RuntimeTextButton(
                             onClick = { viewModel?.cleanProjectBuilds() },
                         ) {
                             Text("确认清理")
@@ -217,7 +217,7 @@ fun StorageUsageScreen(
                         }
                     },
                     confirmButton = {
-                        RuntimeButton(
+                        RuntimeTextButton(
                             onClick = { viewModel?.clearCategory(category.id) },
                         ) {
                             Text("确认清理")
@@ -252,7 +252,7 @@ fun StorageUsageScreen(
                         }
                     },
                     confirmButton = {
-                        RuntimeButton(
+                        RuntimeTextButton(
                             onClick = { viewModel?.clearEntry(target.categoryId, entry.id, entry.name) },
                         ) {
                             Text("确认清理")

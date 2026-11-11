@@ -21,6 +21,7 @@ import top.wkbin.taixu.core.model.workflow.WorkflowDefinitionImport
 import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
@@ -108,7 +109,7 @@ private fun WorkflowImportDialog(onDismiss: () -> Unit, onImport: (WorkflowDefin
             preview?.let { Text("${it.name}\n${it.nodes.size} 个节点 · ${it.edges.size} 条连接 · 最大执行并发 ${it.maxParallelNodes}",
                 style = RuntimeTheme.typography.bodyMedium) }
         }
-    }, dismissButton = { RuntimeOutlinedButton(onClick = onDismiss) { Text("取消", maxLines = 1) } },
-        confirmButton = { RuntimeButton(enabled = preview != null && !checking && !reading && fileError == null,
+    }, dismissButton = { RuntimeTextButton(onClick = onDismiss) { Text("取消", maxLines = 1) } },
+        confirmButton = { RuntimeTextButton(enabled = preview != null && !checking && !reading && fileError == null,
             onClick = { if (!checking && !reading && fileError == null) preview?.let(onImport) }) { Text("导入并编辑", maxLines = 1) } })
 }

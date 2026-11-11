@@ -72,7 +72,9 @@ import top.wkbin.taixu.core.model.workflow.WorkflowNodeType
 import top.wkbin.taixu.core.model.workflow.WorkflowRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowRuntimeState
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import top.wkbin.taixu.ui.components.RuntimeArrowPreference
 import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeDropdownField
 import top.wkbin.taixu.ui.components.RuntimeIcon
@@ -317,7 +319,7 @@ fun WorkflowEditorView(
                 )
             },
             confirmButton = {
-                RuntimeButton(
+                RuntimeTextButton(
                     onClick = {
                         val id = target.id
                         nodePendingDelete = null
@@ -328,7 +330,7 @@ fun WorkflowEditorView(
                 }
             },
             dismissButton = {
-                RuntimeOutlinedButton(onClick = { nodePendingDelete = null }) {
+                RuntimeTextButton(onClick = { nodePendingDelete = null }) {
                     Text("取消")
                 }
             },
@@ -558,7 +560,7 @@ private fun EditorBottomDock(
             )
 
             DockActionButton(
-                icon = RuntimeIconName.Reverse,
+                icon = RuntimeIconName.Refresh,
                 label = "重做",
                 enabled = state.canRedo && !isRunning,
                 onClick = onRedo,
@@ -769,7 +771,7 @@ private fun RunConsoleModal(
         },
         confirmButton = {
 
-                RuntimeOutlinedButton(onClick = {
+                RuntimeTextButton(onClick = {
                     clipboardScope.launch {
                         clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("workflow_console", consoleOutput)))
                     }
@@ -777,18 +779,18 @@ private fun RunConsoleModal(
                     Text("复制日志")
                 }
                 if (isRunning) {
-                    RuntimeOutlinedButton(onClick = onCancelRun) {
+                    RuntimeTextButton(onClick = onCancelRun) {
                         Text("停止运行", color = RuntimeTheme.colorScheme.error)
                     }
                 } else {
-                    RuntimeButton(onClick = onRerun) {
+                    RuntimeTextButton(onClick = onRerun) {
                         Text("重新运行")
                     }
                 }
 
         },
         dismissButton = {
-            RuntimeOutlinedButton(onClick = onDismiss) { Text("关闭") }
+            RuntimeTextButton(onClick = onDismiss) { Text("关闭") }
         },
     )
 }
@@ -845,17 +847,11 @@ private fun NodePickerModal(
                 )
                 WorkflowNodeType.entries.forEach { type ->
                     val meta = type.metadata()
-                    Surface(
+                    RuntimeArrowPreference(
+                        title = meta.label,
+                        summary = meta.summary,
                         onClick = { onSelect(type) },
-                        shape = RuntimeTheme.shapes.small,
-                        color = RuntimeTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
+                        startAction = {
                             Surface(
                                 color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f),
                                 shape = RuntimeTheme.shapes.chip,
@@ -865,22 +861,14 @@ private fun NodePickerModal(
                                     RuntimeIcon(meta.icon, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurface)
                                 }
                             }
-                            Column(Modifier.weight(1f)) {
-                                Text(meta.label, style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium)
-                                Text(
-                                    meta.summary,
-                                    style = RuntimeTheme.typography.bodySmall,
-                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
+                        },
+                        insideMargin = PaddingValues(horizontal = 0.dp, vertical = 12.dp),
+                    )
                 }
             }
         },
-        confirmButton = {},
-        dismissButton = {
-            RuntimeOutlinedButton(onClick = onDismiss) { Text("取消") }
+        confirmButton = {
+            RuntimeTextButton(onClick = onDismiss) { Text("取消") }
         },
     )
 }

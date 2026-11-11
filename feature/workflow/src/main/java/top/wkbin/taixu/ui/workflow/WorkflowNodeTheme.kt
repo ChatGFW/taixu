@@ -24,7 +24,7 @@ fun WorkflowNodeType.visualTheme(): NodeVisualTheme = when (this) {
     )
     WorkflowNodeType.PROCESS_SERVICE -> NodeVisualTheme(
         accentColor = Color(0xFF818CF8), // 守护紫
-        icon = RuntimeIconName.Settings,
+        icon = RuntimeIconName.Server,
         tag = "常驻服务",
     )
     WorkflowNodeType.AGENT_INFERENCE -> NodeVisualTheme(
@@ -44,7 +44,7 @@ fun WorkflowNodeType.visualTheme(): NodeVisualTheme = when (this) {
     )
     WorkflowNodeType.CONDITION_BRANCH -> NodeVisualTheme(
         accentColor = Color(0xFFEAB308), // 分支黄
-        icon = RuntimeIconName.Link,
+        icon = RuntimeIconName.GitBranch,
         tag = "条件分支",
     )
     WorkflowNodeType.HUMAN_APPROVAL -> NodeVisualTheme(
@@ -59,7 +59,7 @@ fun WorkflowNodeType.visualTheme(): NodeVisualTheme = when (this) {
     )
     WorkflowNodeType.DELAY -> NodeVisualTheme(
         accentColor = Color(0xFF94A3B8),
-        icon = RuntimeIconName.Speed,
+        icon = RuntimeIconName.Alarm,
         tag = "延时等待",
     )
     WorkflowNodeType.SET_VARIABLE -> NodeVisualTheme(

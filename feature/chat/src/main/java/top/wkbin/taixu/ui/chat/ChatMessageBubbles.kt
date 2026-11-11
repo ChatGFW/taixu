@@ -122,6 +122,7 @@ internal fun UserBubble(
 
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
         Column(
+            modifier = Modifier.fillMaxWidth(0.88f),
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
@@ -147,8 +148,8 @@ internal fun UserBubble(
                 Box(
                     modifier = Modifier
                         .widthIn(max = 560.dp)
-                        .clipBubbleShape(RoundedCornerShape(20.dp, 6.dp, 20.dp, 20.dp))
-                        .background(RuntimeTheme.colorScheme.secondaryContainer)
+                        .clipBubbleShape(RoundedCornerShape(16.dp, 4.dp, 16.dp, 16.dp))
+                        .background(RuntimeTheme.colorScheme.primaryContainer)
                         .clickable { showMenu = true },
                 ) {
                     val mentionColor = RuntimeTheme.colorScheme.primary
@@ -159,9 +160,9 @@ internal fun UserBubble(
                     SelectionContainer {
                         Text(
                             text = annotatedText,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                             style = RuntimeTheme.typography.bodyMedium,
-                            color = RuntimeTheme.colorScheme.onSurface,
+                            color = RuntimeTheme.colorScheme.onPrimaryContainer,
                         )
                     }
                 }
@@ -229,7 +230,7 @@ internal fun UserBubble(
                 )
             },
             confirmButton = {
-                Button(
+                TextButton(
                     onClick = {
                         showDeleteConfirm = false
                         onDelete()
@@ -277,8 +278,7 @@ internal fun UserBubble(
                     )
                 }
             },
-            confirmButton = {},
-            dismissButton = {
+            confirmButton = {
                 TextButton(onClick = { showRewindScopeDialog = false }) { Text(stringResource(R.string.chat_cancel)) }
             },
         )
@@ -764,7 +764,7 @@ internal fun ThinkingBlock(
                 )
             },
             confirmButton = {
-                Button(
+                TextButton(
                     onClick = {
                         showMissingModelDialog = false
                         if (onNavigateToSettings != null) {

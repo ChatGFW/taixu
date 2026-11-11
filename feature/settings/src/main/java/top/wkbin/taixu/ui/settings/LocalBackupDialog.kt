@@ -75,7 +75,7 @@ internal fun LocalBackupDialog(onDismiss: () -> Unit, viewModel: LocalBackupView
             }
         },
         confirmButton = {
-            if (state.prepared != null) RuntimeButton(enabled = !state.busy, onClick = { viewModel.restore(restorePreferences) }) {
+            if (state.prepared != null) RuntimeTextButton(enabled = !state.busy, onClick = { viewModel.restore(restorePreferences) }) {
                 Text(stringResource(R.string.local_backup_restore))
             }
         },

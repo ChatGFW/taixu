@@ -256,7 +256,8 @@ internal fun ChatMessageList(
             }
             if (waitingForFirstOutput) {
                 item(key = "assistant_generation_placeholder") {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(12.dp))
+                    AssistantTurnLabel()
                     ChatTypingIndicator(messages.getOrNull(lastInputIndex)?.id ?: "first_output", messages.getOrNull(lastInputIndex)?.createdAt)
                 }
             }

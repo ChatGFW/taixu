@@ -626,7 +626,7 @@ internal fun LocalToolCenterContent(
                 confirmButton = {
 
                         if (hasErrors) {
-                            Button(
+                            TextButton(
                                 onClick = {
                                     val fullLogs = toolLogs.map { "[${it.event}] ${it.message}" }
                                     viewModel?.viewLogs(null)

@@ -9,6 +9,7 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import top.wkbin.taixu.ui.miuix.LocalDialogAction
+import top.wkbin.taixu.ui.miuix.LocalDialogPrimaryAction
 import top.wkbin.taixu.ui.miuix.RuntimeSpacing
 
 /** Equal action cells, with consistent heights and wrapping for narrow windows and large text. */
@@ -58,5 +59,21 @@ fun RuntimeActionRow(
                 }
             }
         }
+    }
+}
+
+/**
+ * Dialog / sheet footer: grey dismiss + primary confirm TextButtons via [LocalDialogAction] /
+ * [LocalDialogPrimaryAction]. Prefer this over a Material [FlowRow] of tonal buttons.
+ */
+@Composable
+fun RuntimeDialogActions(
+    modifier: Modifier = Modifier,
+    dismissButton: (@Composable () -> Unit)? = null,
+    confirmButton: @Composable () -> Unit = {},
+) {
+    RuntimeActionRow(modifier, spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
+        dismissButton?.invoke()
+        CompositionLocalProvider(LocalDialogPrimaryAction provides true, content = confirmButton)
     }
 }

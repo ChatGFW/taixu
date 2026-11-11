@@ -14,23 +14,22 @@ import top.wkbin.taixu.ui.components.*
 @Composable
 internal fun AssistantMessageFooter(message: AssistantText, prominent: Boolean, showRegenerate: Boolean,
     onRegenerate: () -> Unit, onCreateBranch: () -> Unit, onCopy: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(top = if (prominent) 4.dp else 0.dp, bottom = if (prominent) 8.dp else 0.dp)) {
+    Column(Modifier.fillMaxWidth().padding(top = 2.dp, bottom = if (prominent) 4.dp else 0.dp)) {
         AssistantNerdLine(message)
         Row(Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (!prominent) Spacer(Modifier.weight(1f))
-            RuntimeIconButton(onClick = onCopy, modifier = Modifier.size(if (prominent) 32.dp else 24.dp),
+            RuntimeIconButton(onClick = onCopy, modifier = Modifier.size(32.dp),
                 contentDescription = stringResource(R.string.chat_copy)) {
-                RuntimeIcon(RuntimeIconName.Copy, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
+                RuntimeIcon(RuntimeIconName.Copy, Modifier.size(16.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
             }
-            RuntimeIconButton(onClick = onCreateBranch, modifier = Modifier.size(if (prominent) 32.dp else 24.dp),
+            RuntimeIconButton(onClick = onCreateBranch, modifier = Modifier.size(32.dp),
                 contentDescription = stringResource(R.string.chat_branch_from_here)) {
-                RuntimeIcon(RuntimeIconName.GitBranch, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
+                RuntimeIcon(RuntimeIconName.GitBranch, Modifier.size(16.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
             }
             if (prominent) {
                 if (showRegenerate) RuntimeIconButton(onClick = onRegenerate, modifier = Modifier.size(32.dp),
                     contentDescription = stringResource(R.string.chat_regenerate)) {
-                    RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
+                    RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(16.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
                 MessageFeedbackAction(message.id)
             }

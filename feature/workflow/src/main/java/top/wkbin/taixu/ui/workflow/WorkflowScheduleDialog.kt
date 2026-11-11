@@ -33,9 +33,8 @@ import top.wkbin.taixu.core.model.workflow.WorkflowDefinition
 import top.wkbin.taixu.core.model.workflow.WorkflowScheduleRepeat
 import top.wkbin.taixu.harness.workflow.WorkflowScheduleRepository
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeDropdownField
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeNumberPicker
 /** 重复方式的展示文案（列表与对话框共用）。 */
 fun scheduleRepeatLabel(entity: WorkflowScheduleEntity): String = when (WorkflowScheduleRepeat.valueOf(entity.repeatType)) {
@@ -167,9 +166,9 @@ fun WorkflowScheduleEditDialog(
                 error?.let { Text(it, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall) }
             }
         },
-        dismissButton = { RuntimeOutlinedButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { RuntimeTextButton(onClick = onDismiss) { Text("取消") } },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = {
                     val parsed = validateAndBuild(
                         existing = existing,

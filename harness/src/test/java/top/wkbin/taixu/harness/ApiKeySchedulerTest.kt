@@ -135,4 +135,31 @@ class ApiKeySchedulerTest {
         // 唯一 Key 未进入冷却：后续请求仍能选中它，交由上层退避重试
         assertEquals("only-key", scheduler.select(listOf("only-key"), rpmLimit = 0).key)
     }
+
+    @Test
+    fun `last key in a multi-key pool still cools after a 429`() = runBlocking {
+        val scheduler = ApiKeyScheduler { 1_000L }
+        val model = ModelConfig(
+            name = "test",
+            provider = "test",
+            model = "test-model",
+            baseUrl = "https://example.com/v1",
+            apiKey = "key-a",
+            apiKeys = listOf("key-a", "key-b"),
+        )
+
+        var thrown = false
+        try {
+            executeWithRotatedApiKey(model, scheduler) {
+                throw LlmRateLimitException("limited", retryAfterSeconds = 60)
+            }
+        } catch (_: LlmRateLimitException) {
+            thrown = true
+        }
+
+        assertTrue(thrown)
+        // 多 Key 池轮到最后一个也照常冷却：两个 Key 都冷却后不再立即返回任一 Key，
+        // 上层重试会按冷却窗口退避，而不是连续打同一个未冷却的 429 Key。
+        assertNull(scheduler.select(listOf("key-a", "key-b"), rpmLimit = 0).key)
+    }
 }

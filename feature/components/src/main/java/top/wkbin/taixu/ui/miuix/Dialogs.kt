@@ -12,7 +12,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowBottomSheet
@@ -62,7 +61,7 @@ fun AlertDialog(
             if (text != null) Box(Modifier.weight(1f, fill = false)) { text() }
             DialogActionRow(
                 dismissButton,
-                { CompositionLocalProvider(LocalDialogPrimaryAction provides true, content = confirmButton) },
+                confirmButton,
                 Modifier.padding(top = if (text != null) 12.dp else 0.dp),
             )
         }
@@ -77,10 +76,11 @@ private fun DialogActionRow(
     confirmButton: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    RuntimeActionRow(modifier, spacing = RuntimeSpacing.dialogActionGap, scrollable = true) {
-        dismissButton?.invoke()
-        confirmButton()
-    }
+    top.wkbin.taixu.ui.components.RuntimeDialogActions(
+        modifier = modifier,
+        dismissButton = dismissButton,
+        confirmButton = confirmButton,
+    )
 }
 
 enum class SheetValue { Hidden, PartiallyExpanded, Expanded }

@@ -78,7 +78,7 @@ internal fun SessionListDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onCreate) {
+            TextButton(onClick = onCreate) {
                 RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.terminal_new))
@@ -118,7 +118,7 @@ internal fun CloseSessionConfirmDialog(
             )
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = onConfirm,
                 enabled = countdown == 0,
                 colors = ButtonDefaults.buttonColors(

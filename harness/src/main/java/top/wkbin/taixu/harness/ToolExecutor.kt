@@ -162,6 +162,11 @@ class ToolExecutor(
         }
         val toolMetadata = mutableMapOf<String, String>()
         val toolName = toolCall.rawToolName ?: toolCall.tool.name.lowercase()
+        // 门控必须与执行看同一份参数视图：executeTool 会解包 params/arguments/input 包裹并还原别名，
+        // 若审批/PLAN 仍读原始 args，`{"arguments":{"action":"start",…}}` 会让 action 落空而免审执行。
+        val policyArgs = ToolSchemaValidator.normalizeArgs(
+            toolCall.args, applyAliases = toolCall.tool != HarnessTool.MCP, isMcpTool = toolCall.tool == HarnessTool.MCP,
+        )
         var auditedRisk = ""
         val outcome = try {
             if (!bypassApproval && sessionId.isNotBlank()) {
@@ -175,7 +180,7 @@ class ToolExecutor(
                 // 弹审批卡只是噪音）。子智能体 Lane 复用父会话 id（见 SubagentLaneRunner），
                 // 因此这里同样约束后台并行子智能体，无需在 Lane 内重复判定。
                 if (runMode == RunMode.PLAN) {
-                    approvalPolicyEngine.planBlock(toolCall.tool, toolCall.args, toolCall.rawToolName)?.let { blocked ->
+                    approvalPolicyEngine.planBlock(toolCall.tool, policyArgs, toolCall.rawToolName)?.let { blocked ->
                         approvalAuditor?.policyDenied(sessionId, toolCall.id, toolName, "high", blocked)
                         return planBlockedResult(now, toolCall.id, toolName, blocked)
                     }
@@ -191,7 +196,7 @@ class ToolExecutor(
                     mcpManager.annotationsForCall(toolCall.args, toolCall.rawToolName)
                 } else null
                 val decision = applyMcpRiskOverride(
-                    approvalPolicyEngine.decide(mode, toolCall.tool, toolCall.args, workspace, toolCall.rawToolName, annotations = annotations),
+                    approvalPolicyEngine.decide(mode, toolCall.tool, policyArgs, workspace, toolCall.rawToolName, annotations = annotations),
                     mcpCall?.riskOverride,
                     annotations,
                 )

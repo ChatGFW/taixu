@@ -169,7 +169,7 @@ internal fun NewSessionDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = { onCreate(title.ifBlank { defaultTitle }, selected, selectedType) },
                 enabled = !catalog.loading && (selected.isBlank() || catalog.error == null),
                 shape = RuntimeTheme.shapes.medium,

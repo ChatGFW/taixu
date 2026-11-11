@@ -100,7 +100,7 @@ internal fun AddMountDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = { onConfirm(name, hostPath, guestPath) },
                 enabled = nameValid && hostPathValid && guestPathValid,
             ) {

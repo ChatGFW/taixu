@@ -38,6 +38,7 @@ import top.wkbin.taixu.core.datastore.WorkshopKeystore
 import top.wkbin.taixu.feature.workspace.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
@@ -130,10 +131,10 @@ fun WorkshopSigningScreen(onBack: () -> Unit, viewModel: WorkshopSigningViewMode
             title = { Text(stringResource(R.string.workshop_signing_delete_title, target.name)) },
             text = { Text(stringResource(R.string.workshop_signing_delete_message)) },
             confirmButton = {
-                RuntimeButton(onClick = { viewModel?.deleteKeystore(target); deleteTarget = null }) { Text(stringResource(R.string.workspace_confirm_delete)) }
+                RuntimeTextButton(onClick = { viewModel?.deleteKeystore(target); deleteTarget = null }) { Text(stringResource(R.string.workspace_confirm_delete)) }
             },
             dismissButton = {
-                RuntimeOutlinedButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.workspace_cancel)) }
+                RuntimeTextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.workspace_cancel)) }
             },
         )
     }
@@ -253,7 +254,7 @@ private fun CreateKeystoreDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = {
                     createError = null
                     onConfirm(draft) { errMsg ->
@@ -267,8 +268,8 @@ private fun CreateKeystoreDialog(
         },
         dismissButton = {
 
-                RuntimeOutlinedButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.workspace_cancel)) }
-                RuntimeOutlinedButton(
+                RuntimeTextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.workspace_cancel)) }
+                RuntimeTextButton(
                     onClick = {
                         createError = null
                         val newDraft = generateDefaultSigningDraft(draft.name)
@@ -392,7 +393,7 @@ private fun ImportKeystoreDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = {
                     importError = null
                     onConfirm(draft) { errMsg ->
@@ -405,7 +406,7 @@ private fun ImportKeystoreDialog(
             }
         },
         dismissButton = {
-            RuntimeOutlinedButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.workspace_cancel)) }
+            RuntimeTextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.workspace_cancel)) }
         },
     )
 }

@@ -21,6 +21,7 @@ import top.wkbin.taixu.core.model.workflow.WorkflowDefinition
 import top.wkbin.taixu.core.model.workflow.WorkflowDefinitionExport
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 
 @Composable
@@ -58,8 +59,8 @@ private fun WorkflowExportDialog(definition: WorkflowDefinition, isDirty: Boolea
             if (copied) Text("完整 JSON 已复制", style = RuntimeTheme.typography.bodySmall)
             WorkflowSaveDocumentButton(raw, definition.name)
         }
-    }, dismissButton = { RuntimeOutlinedButton(onClick = onDismiss) { Text("关闭", maxLines = 1) } }, confirmButton = {
-        RuntimeButton(enabled = raw != null && !copying, onClick = {
+    }, dismissButton = { RuntimeTextButton(onClick = onDismiss) { Text("关闭", maxLines = 1) } }, confirmButton = {
+        RuntimeTextButton(enabled = raw != null && !copying, onClick = {
             val text = raw ?: return@RuntimeButton
             copying = true
             scope.launch {

@@ -87,7 +87,9 @@ internal fun ChatComposer(
     pinnedCapabilities: List<MentionItem>,
     onUnpinMention: (String) -> Unit,
     onOpenSkillsMcp: () -> Unit,
-    onCompactContext: () -> Unit,
+    canCompactContext: Boolean = false,
+    compactingContext: Boolean = false,
+    onCompactContext: (onFinished: () -> Unit) -> Unit,
     onOpenModels: () -> Unit,
     activeModel: AiModelEntity?,
     approvalMode: ApprovalMode, onOpenApprovalModes: () -> Unit,
@@ -180,14 +182,12 @@ internal fun ChatComposer(
             .clip(RuntimeTheme.shapes.extraLarge),
         shape = RuntimeTheme.shapes.extraLarge, contentPadding = PaddingValues(0.dp),
         containerColor = chatBackdropSurface(RuntimeTheme.colorScheme.surfaceContainer),
-        // 全包裹描边：常态 outlineVariant，运行中主色
-        borderColor = if (running) RuntimeTheme.colorScheme.primary.copy(alpha = 0.5f)
-            else RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        borderColor = RuntimeTheme.colorScheme.primary.copy(alpha = if (running) 0.5f else 0f),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             // 显式挂载的能力才展示标签；常驻能力从 + 菜单管理。
@@ -213,7 +213,7 @@ internal fun ChatComposer(
                                        else RuntimeTheme.colorScheme.onTertiaryContainer
 
                         Surface(
-                            shape = RuntimeTheme.shapes.medium,
+                            shape = RuntimeTheme.shapes.chip,
                             color = tagBg,
                             modifier = Modifier.clickable {
                                 if (isAttached) {
@@ -224,18 +224,18 @@ internal fun ChatComposer(
                             },
                         ) {
                             Row(
-                                modifier = Modifier.heightIn(min = 40.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.heightIn(min = 32.dp).padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 RuntimeIcon(
                                     item.icon,
-                                    Modifier.size(18.dp),
+                                    Modifier.size(16.dp),
                                     tint = tagColor,
                                 )
                                 Text(
                                     item.name,
-                                    style = RuntimeTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    style = RuntimeTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     color = tagColor,
                                 )
                                 if (isPinned) {
@@ -253,7 +253,7 @@ internal fun ChatComposer(
                                 }
                                 RuntimeIcon(
                                     RuntimeIconName.Close,
-                                    Modifier.size(18.dp),
+                                    Modifier.size(16.dp),
                                     tint = tagColor,
                                 )
                             }
@@ -261,23 +261,23 @@ internal fun ChatComposer(
                     }
                     item {
                         Surface(
-                            shape = RuntimeTheme.shapes.medium,
+                            shape = RuntimeTheme.shapes.chip,
                             color = RuntimeTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier.clickable { onOpenSkillsMcp() },
                         ) {
                             Row(
-                                modifier = Modifier.heightIn(min = 40.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+                                modifier = Modifier.heightIn(min = 32.dp).padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 RuntimeIcon(
                                     RuntimeIconName.Plus,
-                                    Modifier.size(18.dp),
+                                    Modifier.size(16.dp),
                                     tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
                                     stringResource(R.string.chat_attach_button),
-                                    style = RuntimeTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                    style = RuntimeTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                     color = RuntimeTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -390,7 +390,8 @@ internal fun ChatComposer(
     ComposerSheets(
         showAttach = showAttachSheet,
         showSketch = showSketchSheet,
-        canCompress = messages.isNotEmpty(),
+        canCompress = canCompactContext,
+        compacting = compactingContext,
         onDismissAttach = { showAttachSheet = false },
         onDismissSketch = { showSketchSheet = false },
         onOpenSketch = { showSketchSheet = true },

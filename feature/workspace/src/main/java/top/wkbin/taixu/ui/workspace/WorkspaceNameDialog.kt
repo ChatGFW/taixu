@@ -18,8 +18,6 @@ import top.wkbin.taixu.feature.workspace.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTextButton
-import top.wkbin.taixu.ui.components.RuntimeButton
-
 @Composable
 internal fun WorkspaceNameDialog(
     title: String,
@@ -53,7 +51,7 @@ internal fun WorkspaceNameDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(onClick = onSubmit, enabled = enabled && !busy) {
+            RuntimeTextButton(onClick = onSubmit, enabled = enabled && !busy) {
                 if (busy) RuntimeCircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
                 else Text(actionLabel)
             }

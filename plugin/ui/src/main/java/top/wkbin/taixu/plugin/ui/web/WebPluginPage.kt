@@ -252,30 +252,22 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
                 }
             },
             confirmButton = {
-                Column(
-                    Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                RuntimeTextButton(
+                    onClick = { session.decide(pending.token, PluginGrantChoice.ONCE) },
                 ) {
+                    Text(stringResource(R.string.ui_web_plugin_allow_once))
+                }
+                if (capability.allowSession) {
                     RuntimeTextButton(
-                        onClick = { session.decide(pending.token, PluginGrantChoice.ONCE) },
-                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { session.decide(pending.token, PluginGrantChoice.SESSION) },
                     ) {
-                        Text(stringResource(R.string.ui_web_plugin_allow_once))
-                    }
-                    if (capability.allowSession) {
-                        RuntimeTextButton(
-                            onClick = { session.decide(pending.token, PluginGrantChoice.SESSION) },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(stringResource(R.string.ui_web_plugin_allow_session))
-                        }
+                        Text(stringResource(R.string.ui_web_plugin_allow_session))
                     }
                 }
             },
             dismissButton = {
                 RuntimeTextButton(
                     onClick = { session.decide(pending.token, PluginGrantChoice.DENY) },
-                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.ui_web_plugin_deny))
                 }

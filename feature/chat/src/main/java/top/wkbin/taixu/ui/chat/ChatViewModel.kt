@@ -963,11 +963,50 @@ class ChatViewModel(
     val attachmentsProcessing: StateFlow<Boolean> = composerDrafts.processing
 
     /** 需要以 Toast 提示用户的轻量通知（附件失败、模型档案已存在等），展示后调用 clearNotice() */
-    /** 手动压缩当前会话历史为结构化摘要（"+" 附件弹窗入口）。 */
-    fun compactContextNow() {
-        viewModelScope.launch {
-            val (ok, message) = contextMemoryBackend.manualCompact(currentSessionId.value)
-            _notice.value = if (ok) message else "压缩失败：$message"
+    /**
+     * 当前会话是否还能再手动压缩：基于真实压缩投影（与引擎同源），不是 UI 全量转写条数。
+     * 已折叠后的保留窗若不足一轮，按钮应禁用，避免点了只关弹窗、无任何反馈。
+     */
+    val canManualCompact: StateFlow<Boolean> = compactedContext
+        .map { ctx -> ctx != null && contextMemoryBackend.canManualCompact(ctx.messages) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    private val compactInFlight = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val _compactingContext = MutableStateFlow(false)
+    /** 手动压缩进行中：附件弹窗据此展示加载态，并在结束前禁止关闭。 */
+    val compactingContext: StateFlow<Boolean> = _compactingContext.asStateFlow()
+
+    /**
+     * 手动压缩当前会话历史为结构化摘要（"+" 附件弹窗入口）。
+     * [onFinished] 在成功/失败后于主线程回调，供 UI 关闭弹窗；若已有压缩在飞则立即回调且不重复启动。
+     */
+    fun compactContextNow(onFinished: (() -> Unit)? = null) {
+        // 已在压缩：保留弹窗加载态，不回调 onFinished（避免二次点击把仍在跑的任务弹窗关掉）。
+        if (!compactInFlight.compareAndSet(false, true)) return
+        _compactingContext.value = true
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val (ok, message) = contextMemoryBackend.manualCompact(currentSessionId.value)
+                _notice.value = when {
+                    ok -> message
+                    message.contains("无需压缩") || message.contains("不足") -> message
+                    else -> "压缩失败：$message"
+                }
+            } catch (cancellation: kotlinx.coroutines.CancellationException) {
+                throw cancellation
+            } catch (failure: Exception) {
+                Log.w("ChatViewModel", "手动压缩失败：${failure.message}", failure)
+                _notice.value = "压缩失败：${failure.message ?: "unknown"}"
+            } finally {
+                _compactingContext.value = false
+                compactInFlight.set(false)
+                // NonCancellable：协程被取消时仍要关弹窗，否则加载态会卡住。
+                if (onFinished != null) {
+                    kotlinx.coroutines.withContext(
+                        kotlinx.coroutines.NonCancellable + Dispatchers.Main.immediate,
+                    ) { onFinished() }
+                }
+            }
         }
     }
 

@@ -61,7 +61,7 @@ internal fun TeamGroupEditorDialog(group: BotMemberGroup, bots: List<Bot>, onDis
             error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
         }
     }, confirmButton = {
-        RuntimeButton(enabled = !saving && name.isNotBlank() && root in selected, onClick = {
+        RuntimeTextButton(enabled = !saving && name.isNotBlank() && root in selected, onClick = {
             saving = true
             scope.launch {
                 try {

@@ -4,6 +4,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,6 +22,7 @@ import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
+import top.wkbin.taixu.ui.components.RuntimeArrowPreference
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 
@@ -125,20 +127,16 @@ internal fun GroupAdminTransferDialog(
                     color = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
                 members.filter { it.id != currentAdminId }.forEach { member ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 2.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("${member.name}（${member.role}）", modifier = Modifier.padding(top = 12.dp))
-                        RuntimeTextButton(onClick = { onTransfer(member.id) }) { Text("移交") }
-                    }
+                    RuntimeArrowPreference(
+                        title = member.name,
+                        summary = member.role,
+                        onClick = { onTransfer(member.id) },
+                        insideMargin = PaddingValues(horizontal = 0.dp, vertical = 12.dp),
+                    )
                 }
             }
         },
-        confirmButton = {},
-        dismissButton = {
+        confirmButton = {
             RuntimeTextButton(onClick = onDismiss) { Text(stringResource(R.string.fbot_cancel)) }
         },
     )

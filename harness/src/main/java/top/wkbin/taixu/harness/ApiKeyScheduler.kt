@@ -150,9 +150,10 @@ internal suspend fun <T> executeWithRotatedApiKey(
                 scheduler.markRateLimited(selectedKey, error.retryAfterSeconds)
                 throw error
             }
-            // 没有其它可轮换的 Key 时，唯一可用 Key 不进入冷却，直接上抛交由上层退避重试：
-            // 否则该 Key 冷却期间本进程的所有请求都会被卡住，单 Key 场景无法自愈。
-            if (keys.count { it !in excluded && it != selectedKey } == 0) throw error
+            // 仅单 Key 池时唯一 Key 不进入冷却，直接上抛交由上层退避重试：否则该 Key 冷却期间
+            // 本进程所有请求都被卡住、单 Key 场景无法自愈。多 Key 池即使轮到最后一个也照常冷却，
+            // 否则上层重试会立刻再选中这个未冷却的 Key，绕过冷却窗口连续打同一个 429 Key。
+            if (keys.size == 1) throw error
             scheduler.markRateLimited(selectedKey, error.retryAfterSeconds)
             excluded += selectedKey
             lastRateLimit = error

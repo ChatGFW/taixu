@@ -50,7 +50,7 @@ fun AgentEcoSettingsScreen(
                 }
                 PreferenceSurface(first = false, last = true) {
                     SettingsRow(
-                        icon = RuntimeIconName.Speed,
+                        icon = RuntimeIconName.NavDashboard,
                         title = "数据统计与用量分析",
                         subtitle = stringResource(R.string.settings_nav_stats_summary),
                         onClick = onOpenStats, tonalIcon = true,

@@ -12,6 +12,7 @@ import top.wkbin.taixu.harness.JsonArgs
 import top.wkbin.taixu.harness.ProviderClient
 import top.wkbin.taixu.harness.ToolCall
 import top.wkbin.taixu.harness.ToolExecutor
+import top.wkbin.taixu.harness.validation.ToolSchemaValidator
 import top.wkbin.taixu.runtime.browser.secret.SecretRedactingInterceptor
 import java.util.UUID
 
@@ -54,7 +55,9 @@ class HarnessToolProvider(
             return textResult("工具「$name」未对 MCP 被控端开放。", isError = true)
         }
         val tool = HarnessApiMapper.toolByName(name)
-        denialReason(name, tool, args)?.let { return textResult(it, isError = true) }
+        // 门控与执行看同一份归一化视图：否则 `{"arguments":{"action":"save"}}` 会让 memory 的
+        // action 落空回落 "list" 被判只读，执行层解包后却真正写入，绕过「允许写入与执行」开关。
+        denialReason(name, tool, ToolSchemaValidator.normalizeArgs(args))?.let { return textResult(it, isError = true) }
 
         val call = ToolCall(
             id = UUID.randomUUID().toString(),
