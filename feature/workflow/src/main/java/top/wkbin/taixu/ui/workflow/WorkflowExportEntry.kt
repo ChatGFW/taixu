@@ -61,7 +61,7 @@ private fun WorkflowExportDialog(definition: WorkflowDefinition, isDirty: Boolea
         }
     }, dismissButton = { RuntimeTextButton(onClick = onDismiss) { Text("关闭", maxLines = 1) } }, confirmButton = {
         RuntimeTextButton(enabled = raw != null && !copying, onClick = {
-            val text = raw ?: return@RuntimeButton
+            val text = raw ?: return@RuntimeTextButton
             copying = true
             scope.launch {
                 try {

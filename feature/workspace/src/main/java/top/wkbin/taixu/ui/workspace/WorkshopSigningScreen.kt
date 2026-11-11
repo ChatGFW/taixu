@@ -444,7 +444,6 @@ private fun SigningField(
 
 private fun formatDate(millis: Long): String =
     if (millis <= 0L) "-" else SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(millis))
-
 // 弹窗草稿用 listSaver 保存，旋转后不丢输入（S3）
 private val creationDraftSaver = androidx.compose.runtime.saveable.listSaver<WorkshopSigningCreationDraft, Any>(
     save = { listOf(it.name, it.alias, it.storePassword, it.keyPassword, it.validityYears, it.organization) },

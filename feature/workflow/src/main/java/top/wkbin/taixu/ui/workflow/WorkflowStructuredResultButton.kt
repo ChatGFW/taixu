@@ -73,8 +73,8 @@ private fun WorkflowStructuredResultDialog(result: JsonObject, onDismiss: () -> 
         }
     }, dismissButton = { RuntimeTextButton(onClick = onDismiss) { Text("关闭", maxLines = 1) } }, confirmButton = {
         RuntimeTextButton(enabled = raw != null && !copying, onClick = {
-            if (copying) return@RuntimeButton
-            val text = raw ?: return@RuntimeButton
+            if (copying) return@RuntimeTextButton
+            val text = raw ?: return@RuntimeTextButton
             copying = true
             copied = false
             scope.launch {
