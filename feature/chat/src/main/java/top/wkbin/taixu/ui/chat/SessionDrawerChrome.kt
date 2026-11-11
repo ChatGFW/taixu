@@ -104,7 +104,7 @@ internal fun SessionDrawerFooter(
                 }
             }
             RuntimeTextButton(onClick = { expanded = !expanded }) {
-                RuntimeIcon(if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.Menu, Modifier.size(18.dp))
+                RuntimeExpandChevron(expanded, Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.chat_sidebar_functions), style = RuntimeTheme.typography.labelMedium)
             }
@@ -156,12 +156,11 @@ internal fun SessionSectionHeader(
             style = RuntimeTheme.typography.labelSmall,
             color = RuntimeTheme.colorScheme.outline,
         )
-        RuntimeIcon(
-            name = if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
+        RuntimeExpandChevron(
+            expanded = expanded,
             modifier = Modifier.size(14.dp),
             tint = RuntimeTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+        )    }
 }
 
 /** 跨会话的待处理提示：审批等待或执行失败的会话置顶一条，点按直接跳过去。 */

@@ -139,7 +139,7 @@ internal fun ChatMessageList(
     }
     val chatHazeState = LocalChatHazeState.current
 
-    // 列表作为 haze source；顶/底渐进模糊采样消息（背景图已在 ChatPageSurface 登记）。
+    // 列表作为 haze source，供顶边渐进模糊采样（背景图已在 ChatPageSurface 登记）。
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize().hazeSource(chatHazeState),

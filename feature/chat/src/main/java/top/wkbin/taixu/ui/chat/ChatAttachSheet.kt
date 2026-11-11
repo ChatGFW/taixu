@@ -124,7 +124,7 @@ private fun AttachListEntry(
             RuntimeIcon(
                 icon,
                 Modifier.size(20.dp),
-                if (enabled) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                if (enabled) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(

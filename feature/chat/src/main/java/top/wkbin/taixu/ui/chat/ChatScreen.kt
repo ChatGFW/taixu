@@ -66,8 +66,6 @@ import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.runtime.SessionWorkspaceCatalogState
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.MainDestination
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import top.wkbin.taixu.ui.miuix.*
@@ -75,7 +73,6 @@ import top.yukonga.miuix.kmp.basic.SnackbarDuration
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.SnackbarResult
-import top.yukonga.miuix.kmp.basic.Text
 /** 会改动工作区文件的工具：这些工具执行后「仓库」入口按需高亮提示新改动 */
 private val REPOSITORY_HIGHLIGHT_TOOLS = setOf(
     HarnessTool.WRITE,
@@ -694,13 +691,18 @@ private fun ChatPaneContent(
 ) {
     val density = LocalDensity.current
     var bottomChromePx by remember { mutableIntStateOf(0) }
+    var composerPx by remember { mutableIntStateOf(0) }
     val bottomChrome = with(density) { bottomChromePx.toDp() }
+    val composerHeight = with(density) { composerPx.toDp() }
     Box(modifier = modifier, contentAlignment = Alignment.TopCenter) {
         Box(Modifier.widthIn(max = 840.dp).fillMaxSize()) {
-            // 列表铺满整页，内容滚入底部输入区后方；渐隐靠 progressive haze，不用实色遮罩。
+            // 渐隐带 = 输入框高度 + 导航栏；上沿对齐输入框顶，不越过输入框上方正文。
+            val bottomContentFade = composerHeight + chatBottomNavFadeHeight()
             ChatMessageViewport(listState, Modifier.fillMaxSize(), bottomInset = bottomChrome) {
                 ChatMessageList(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .chatBottomContentFade(bottomContentFade),
                     listState = listState,
                     messages = messages,
                     toolResults = toolResults,
@@ -740,11 +742,6 @@ private fun ChatPaneContent(
                     bottomContentPadding = bottomChrome,
                 )
             }
-            // 贴屏幕最底（含导航栏区域）：由弱到强溶向底边；输入区叠在渐隐之上。
-            ChatBottomEdgeFade(
-                height = bottomChrome + ChatBottomEdgeFadeExtra,
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
             Column(
                 Modifier
                     .align(Alignment.BottomCenter)
@@ -778,47 +775,49 @@ private fun ChatPaneContent(
                 shareActions?.let { share ->
                     ShareQuickActionsRow(state = share, modifier = Modifier.padding(vertical = 4.dp))
                 }
-                ChatComposer(
-                    listState = listState,
-                    running = running,
-                    initializing = initializing,
-                    status = status,
-                    messages = messages,
-                    toolResults = toolResults,
-                    workspace = workspace,
-                    input = input,
-                    onInputChanged = onInputChanged,
-                    onSend = onSend,
-                    onSendWithoutAnswer = onSendWithoutAnswer,
-                    onPasteLongText = onPasteLongText,
-                    onStop = onStop,
-                    sendMode = sendMode,
-                    matchingCommands = matchingCommands,
-                    onApplyCommand = onApplyCommand,
-                    matchingMentions = matchingMentions,
-                    onApplyMention = onApplyMention,
-                    attachments = attachments,
-                    attachmentsProcessing = attachmentsProcessing,
-                    onAttachmentsPicked = onAttachmentsPicked,
-                    onRemoveAttachment = onRemoveAttachment,
-                    queuedPrompts = queuedPrompts,
-                    onEditQueuedPrompt = onEditQueuedPrompt,
-                    onRemoveQueuedPrompt = onRemoveQueuedPrompt,
-                    onConvertToSteer = onConvertToSteer,
-                    knownMentionNames = knownMentionNames,
-                    attachedMentions = attachedMentions,
-                    onRemoveMention = onRemoveMention,
-                    pinnedCapabilities = pinnedCapabilities,
-                    onUnpinMention = onUnpinMention,
-                    onOpenSkillsMcp = onOpenSkillsMcp,
-                    onCompactContext = onCompactContext,
-                    activeModel = activeModel,
-                    onOpenModels = onOpenModels,
-                    approvalMode = approvalMode,
-                    onOpenApprovalModes = onOpenApprovalModes,
-                    onUpdateReasoning = onUpdateReasoning,
-                    contextUsage = contextUsage,
-                )
+                Box(Modifier.onSizeChanged { composerPx = it.height }) {
+                    ChatComposer(
+                        listState = listState,
+                        running = running,
+                        initializing = initializing,
+                        status = status,
+                        messages = messages,
+                        toolResults = toolResults,
+                        workspace = workspace,
+                        input = input,
+                        onInputChanged = onInputChanged,
+                        onSend = onSend,
+                        onSendWithoutAnswer = onSendWithoutAnswer,
+                        onPasteLongText = onPasteLongText,
+                        onStop = onStop,
+                        sendMode = sendMode,
+                        matchingCommands = matchingCommands,
+                        onApplyCommand = onApplyCommand,
+                        matchingMentions = matchingMentions,
+                        onApplyMention = onApplyMention,
+                        attachments = attachments,
+                        attachmentsProcessing = attachmentsProcessing,
+                        onAttachmentsPicked = onAttachmentsPicked,
+                        onRemoveAttachment = onRemoveAttachment,
+                        queuedPrompts = queuedPrompts,
+                        onEditQueuedPrompt = onEditQueuedPrompt,
+                        onRemoveQueuedPrompt = onRemoveQueuedPrompt,
+                        onConvertToSteer = onConvertToSteer,
+                        knownMentionNames = knownMentionNames,
+                        attachedMentions = attachedMentions,
+                        onRemoveMention = onRemoveMention,
+                        pinnedCapabilities = pinnedCapabilities,
+                        onUnpinMention = onUnpinMention,
+                        onOpenSkillsMcp = onOpenSkillsMcp,
+                        onCompactContext = onCompactContext,
+                        activeModel = activeModel,
+                        onOpenModels = onOpenModels,
+                        approvalMode = approvalMode,
+                        onOpenApprovalModes = onOpenApprovalModes,
+                        onUpdateReasoning = onUpdateReasoning,
+                        contextUsage = contextUsage,
+                    )
+                }
             }
         }
     }

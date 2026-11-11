@@ -1263,10 +1263,11 @@ private fun NodeInspectorCard(
                     color = RuntimeTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f),
                 )
-                RuntimeIcon(
-                    name = if (showAdvancedJson) RuntimeIconName.ChevronUp else RuntimeIconName.ChevronDown,
+                top.wkbin.taixu.ui.components.RuntimeExpandChevron(
+                    expanded = showAdvancedJson,
                     modifier = Modifier.size(16.dp),
                     tint = RuntimeTheme.colorScheme.onSurface,
+                    vertical = true,
                 )
             }
             if (showAdvancedJson) {
@@ -1716,7 +1717,6 @@ private fun NodeConnectionsCard(
 }
 
 private fun WorkflowNodeType.editorLabel() = metadata().label
-
 private fun String.portLabel() = when (lowercase()) {
     "success" -> "成功 (success)"
     "failure" -> "失败 (failure)"

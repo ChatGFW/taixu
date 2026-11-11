@@ -376,7 +376,7 @@ private fun EnvironmentDoctorCard(
                     IconTile(
                         icon = if (report?.isAllHealthy == true) RuntimeIconName.Check else RuntimeIconName.Shield,
                         size = 36.dp,
-                        color = if (report?.isAllHealthy == true) healthyStatusColor() else RuntimeTheme.colorScheme.primary,
+                        color = if (report?.isAllHealthy == true) healthyStatusColor() else RuntimeTheme.colorScheme.onSurface,
                     )
                     Column(Modifier.weight(1f)) {
                         Text(
@@ -740,7 +740,7 @@ private fun AndroidEnvAcquisitionCard(
                 IconTile(
                     icon = RuntimeIconName.Android,
                     size = 36.dp,
-                    color = RuntimeTheme.colorScheme.primary,
+                    color = RuntimeTheme.colorScheme.onSurface,
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(

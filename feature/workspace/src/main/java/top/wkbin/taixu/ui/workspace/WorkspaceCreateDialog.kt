@@ -238,7 +238,7 @@ internal fun CreateProjectDialog(
                                                         TemplateProjectType.GENERAL, TemplateProjectType.TAIXU_PLUGIN -> RuntimeIconName.Code
                                                     },
                                                     Modifier.size(36.dp),
-                                                    RuntimeTheme.colorScheme.primary,
+                                                    RuntimeTheme.colorScheme.onSurface,
                                                 )
                                                 Spacer(Modifier.height(8.dp))
                                                 Text(if (type == TemplateProjectType.TAIXU_PLUGIN) stringResource(R.string.workspace_project_taixu_plugin) else type.name.lowercase().replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.Medium)
@@ -327,7 +327,7 @@ internal fun CreateProjectDialog(
                                                                     TemplateProjectType.GENERAL, TemplateProjectType.TAIXU_PLUGIN -> RuntimeIconName.Code
                                                                 },
                                                                 Modifier.size(42.dp),
-                                                                RuntimeTheme.colorScheme.primary,
+                                                                RuntimeTheme.colorScheme.onSurface,
                                                             )
                                                         }
                                                     }

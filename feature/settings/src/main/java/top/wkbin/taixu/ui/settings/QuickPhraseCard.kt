@@ -1,23 +1,31 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.selection.toggleable
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Surface
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.QuickPhrase
 import top.wkbin.taixu.feature.settings.R
-import top.wkbin.taixu.ui.components.*
+import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton
+import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.components.RuntimeSwitch
+import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.miuix.RuntimeSpacing
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
+import top.yukonga.miuix.kmp.basic.BasicComponent
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun QuickPhraseCard(
     phrase: QuickPhrase,
@@ -25,57 +33,75 @@ internal fun QuickPhraseCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val typeLabel = when (phrase.targetProjectType) {
+        "ANDROID" -> "Android"
+        "FLUTTER" -> "Flutter"
+        "REVERSE" -> "逆向分析"
+        else -> "通用"
+    }
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        shape = RuntimeTheme.shapes.extraLarge,
+        shape = RuntimeTheme.shapes.medium,
         containerColor = RuntimeTheme.colorScheme.surfaceContainer,
-        onClick = onEdit,
-        contentPadding = PaddingValues(SettingsDensity.cardPadding),
+        contentPadding = PaddingValues(0.dp),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                IconTile(parseIconName(phrase.iconName), size = 40.dp, color = RuntimeTheme.colorScheme.onSurface)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(phrase.title, style = RuntimeTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    val typeLabel = when (phrase.targetProjectType) {
-                        "ANDROID" -> "Android"
-                        "FLUTTER" -> "Flutter"
-                        "REVERSE" -> "逆向分析"
-                        else -> "通用"
+        BasicComponent(
+            startAction = {
+                RuntimeIcon(
+                    parseIconName(phrase.iconName),
+                    Modifier.padding(end = RuntimeSpacing.rowIconEnd).size(RuntimeSpacing.rowIconSize),
+                    MiuixTheme.colorScheme.onSurface,
+                )
+            },
+            endActions = {
+                RuntimeSwitch(checked = phrase.isEnabled, onCheckedChange = onToggle)
+            },
+            bottomAction = {
+                RuntimeActionRow {
+                    RuntimeFilledTonalButton(onClick = onEdit) { Text("编辑", maxLines = 1) }
+                    RuntimeTextButton(onClick = onDelete) {
+                        Text("删除", color = RuntimeTheme.colorScheme.error, maxLines = 1)
                     }
-                    Text(typeLabel, style = RuntimeTheme.typography.labelMedium, color = RuntimeTheme.colorScheme.primary)
                 }
-            }
+            },
+            onClick = onEdit,
+        ) {
+            Text(
+                phrase.title,
+                fontSize = MiuixTheme.textStyles.headline1.fontSize,
+                fontWeight = FontWeight.Medium,
+                color = MiuixTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                typeLabel + if (phrase.isEnabled) {
+                    " · " + stringResource(R.string.personal_phrase_enabled)
+                } else {
+                    " · " + stringResource(R.string.personal_phrase_disabled)
+                },
+                fontSize = MiuixTheme.textStyles.body2.fontSize,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             if (phrase.description.isNotBlank()) {
-                Text(phrase.description, style = settingsSupportingStyle(),
-                    color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                Text(
+                    phrase.description,
+                    fontSize = MiuixTheme.textStyles.body2.fontSize,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            Surface(shape = RuntimeTheme.shapes.large, color = RuntimeTheme.colorScheme.surfaceContainerHigh) {
-                Text(phrase.content, Modifier.fillMaxWidth().padding(16.dp),
-                    style = settingsSupportingStyle().copy(fontFamily = FontFamily.Monospace),
-                    color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 3, overflow = TextOverflow.Ellipsis)
-            }
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(
-                    Modifier.toggleable(phrase.isEnabled, role = Role.Switch, onValueChange = onToggle)
-                        .heightIn(min = 48.dp).padding(horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(stringResource(if (phrase.isEnabled) R.string.personal_phrase_enabled else R.string.personal_phrase_disabled),
-                        style = RuntimeTheme.typography.labelLarge)
-                    RuntimeSwitch(phrase.isEnabled, onCheckedChange = null,
-                        thumbContent = if (phrase.isEnabled) {
-                            { RuntimeIcon(RuntimeIconName.Check, Modifier.size(16.dp), RuntimeTheme.colorScheme.onPrimaryContainer) }
-                        } else null)
-                }
-                RuntimeFilledTonalButton(onClick = onEdit) { Text("编辑", maxLines = 1) }
-                RuntimeTextButton(onClick = onDelete) { Text("删除", color = RuntimeTheme.colorScheme.error, maxLines = 1) }
-            }
+            Text(
+                phrase.content,
+                fontSize = MiuixTheme.textStyles.footnote1.fontSize,
+                fontFamily = FontFamily.Monospace,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

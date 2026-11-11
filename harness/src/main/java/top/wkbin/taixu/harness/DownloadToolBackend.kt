@@ -1,6 +1,5 @@
 package top.wkbin.taixu.harness
 
-import java.util.Locale
 import kotlinx.coroutines.flow.collect
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -13,6 +12,7 @@ import top.wkbin.taixu.runtime.environment.ExecutionDownloadRequest
 import top.wkbin.taixu.runtime.environment.ExecutionDownloads
 import top.wkbin.taixu.runtime.environment.FileFingerprint
 import top.wkbin.taixu.runtime.environment.MAX_FILE_FINGERPRINT_BYTES
+import java.util.Locale
 
 data class DownloadToolRequest(
     val args: JsonObject,
@@ -152,7 +152,8 @@ class DownloadToolBackend(
             value /= 1024.0
             index += 1
         }
-        return if (value >= 100 || value % 1.0 == 0.0) "${value.toInt()} ${units[index]}" else "${"%.1f".format(Locale.US, value)} ${units[index]}"
+        return if (value >= 100 || value % 1.0 == 0.0) "${value.toInt()} ${units[index]}" else "${"%.1f".format(
+            Locale.US, value)} ${units[index]}"
     }
 
     companion object {

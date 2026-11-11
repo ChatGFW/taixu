@@ -47,6 +47,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import top.wkbin.taixu.feature.chat.R
+import top.wkbin.taixu.ui.components.RuntimeExpandChevron
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 
@@ -294,7 +295,7 @@ internal fun StickyPlanBar(
                 RuntimeIcon(
                     if (allDone) RuntimeIconName.Check else RuntimeIconName.List,
                     Modifier.size(14.dp),
-                    if (allDone) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.primary,
+                    RuntimeTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = when {
@@ -320,10 +321,10 @@ internal fun StickyPlanBar(
                         color = RuntimeTheme.colorScheme.primary,
                     )
                 }
-                RuntimeIcon(
-                    if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                    Modifier.size(12.dp),
-                    RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                RuntimeExpandChevron(
+                    expanded = expanded,
+                    modifier = Modifier.size(12.dp),
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                 )
             }
             // 细进度条（始终显示）

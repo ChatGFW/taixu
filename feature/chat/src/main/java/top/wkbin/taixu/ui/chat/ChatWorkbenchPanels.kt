@@ -84,6 +84,7 @@ import android.content.Context
 import android.widget.Toast
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeActionRow
+import top.wkbin.taixu.ui.components.RuntimeExpandChevron
 
 @Composable
 internal fun StatusDivider() {
@@ -543,7 +544,7 @@ internal fun RuntimeTimelineSheet(
                 CollapsibleRuntimeSectionCard(
                     title = stringResource(R.string.chat_memory_section, memories.size),
                     icon = RuntimeIconName.Brain,
-                    tint = RuntimeTheme.colorScheme.secondary,
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                     expanded = memoriesExpanded,
                     onToggle = { memoriesExpanded = !memoriesExpanded },
                 ) {
@@ -600,7 +601,7 @@ internal fun RuntimeTimelineSheet(
                 CollapsibleRuntimeSectionCard(
                     title = stringResource(R.string.chat_scratchpad_section, scratchpads.size),
                     icon = RuntimeIconName.File,
-                    tint = RuntimeTheme.colorScheme.tertiary,
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                     expanded = scratchpadsExpanded,
                     onToggle = { scratchpadsExpanded = !scratchpadsExpanded },
                 ) {
@@ -747,10 +748,11 @@ private fun CollapsibleRuntimeSectionCard(
                         color = RuntimeTheme.colorScheme.onSurface,
                     )
                 }
-                RuntimeIcon(
-                    name = if (expanded) RuntimeIconName.ChevronUp else RuntimeIconName.ChevronDown,
+                RuntimeExpandChevron(
+                    expanded = expanded,
                     modifier = Modifier.size(16.dp),
                     tint = RuntimeTheme.colorScheme.onSurfaceVariant,
+                    vertical = true,
                 )
             }
 
@@ -949,7 +951,7 @@ private fun RoundSection(
                     RuntimeIcon(
                         RuntimeIconName.Prompt,
                         Modifier.size(15.dp),
-                        RuntimeTheme.colorScheme.primary,
+                        RuntimeTheme.colorScheme.onSurface,
                     )
                     Text(
                         text = cleanPrompt.ifBlank { stringResource(R.string.chat_user_request_clipboard) },
@@ -972,7 +974,7 @@ private fun RoundSection(
                             RuntimeIcon(
                                 RuntimeIconName.ChevronRight,
                                 Modifier.size(13.dp),
-                                RuntimeTheme.colorScheme.primary,
+                                RuntimeTheme.colorScheme.onSurface,
                             )
                         }
                     }
@@ -1073,11 +1075,9 @@ private fun RoundEntryRow(entry: TimelineEntry, isLast: Boolean) {
                 }
             }
             if (expandable) {
-                RuntimeIcon(
-                    if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
+                RuntimeExpandChevron(expanded,
                     Modifier.size(14.dp).padding(top = 6.dp),
-                    RuntimeTheme.colorScheme.onSurfaceVariant,
-                )
+                    RuntimeTheme.colorScheme.onSurfaceVariant)
             }
         }
         AnimatedVisibility(

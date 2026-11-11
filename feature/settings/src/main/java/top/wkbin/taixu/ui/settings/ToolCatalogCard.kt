@@ -65,7 +65,7 @@ internal fun ToolCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onOpenDetail,
         containerColor = RuntimeTheme.colorScheme.surfaceContainer,
-        shape = RuntimeTheme.shapes.extraLarge,
+        shape = RuntimeTheme.shapes.medium,
         contentPadding = PaddingValues(SettingsDensity.cardPadding),
     ) {
         Column(

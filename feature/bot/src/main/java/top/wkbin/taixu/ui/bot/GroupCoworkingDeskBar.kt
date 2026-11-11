@@ -121,9 +121,10 @@ internal fun GroupCoworkingDeskBar(
                     modifier = Modifier.size(24.dp),
                     contentDescription = stringResource(if (expanded) R.string.fbot_desk_collapse else R.string.fbot_desk_expand),
                 ) {
-                    RuntimeIcon(
-                        name = if (expanded) RuntimeIconName.ChevronUp else RuntimeIconName.ChevronDown,
+                    top.wkbin.taixu.ui.components.RuntimeExpandChevron(
+                        expanded = expanded,
                         modifier = Modifier.size(16.dp),
+                        vertical = true,
                     )
                 }
             }

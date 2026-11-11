@@ -64,6 +64,7 @@
     <string name="home_qq_copied">QQ group ID copied: %1$s. Search it in QQ to join.</string>
     <string name="home_webchat_title">Desktop collaboration</string>
     <string name="home_webchat_running">LAN service enabled</string>
+    <string name="home_webchat_permission_required">Desktop collaboration needs local network access. Allow Nearby devices / Local network in system Settings → Apps → TaiXu → Permissions, then enable the service again.</string>
     <string name="home_webchat_idle">Off by default · enable on demand to save battery</string>
     <string name="home_webchat_url_label">Desktop browser access URL</string>
     <string name="home_webchat_pin_label">Pairing code (PIN)</string>

@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.AssistantText
+import top.wkbin.taixu.ui.components.RuntimeExpandChevron
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.formatRuntimeProcessDuration
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -92,10 +93,10 @@ internal fun AssistantNerdLine(message: AssistantText) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
             )
-            RuntimeIcon(
-                if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                Modifier.size(12.dp),
-                RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            RuntimeExpandChevron(
+                expanded = expanded,
+                modifier = Modifier.size(12.dp),
+                tint = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
         }
         AnimatedVisibility(

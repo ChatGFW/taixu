@@ -4,6 +4,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.theme.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
@@ -47,6 +48,29 @@ fun RuntimeIcon(
     }
     DrawableIcon(name, runtimeIconRes(name), modifier, tint)
 }
+
+/**
+ * 展开/收起指示：始终绘制同一枚 chevron，展开时旋转。
+ * 直接切换 chevron_right / keyboard_arrow_down / chevron_up 等不同字形会让两种状态视觉大小不一致。
+ * [vertical] 用于「向下展开」的段落（收起朝下、展开朝上翻 180°）。
+ */
+@Composable
+fun RuntimeExpandChevron(
+    expanded: Boolean,
+    modifier: Modifier = Modifier,
+    tint: Color = Color.Unspecified,
+    vertical: Boolean = false,
+) = RuntimeIcon(
+    if (vertical) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
+    modifier.rotate(
+        when {
+            !expanded -> 0f
+            vertical -> 180f
+            else -> 90f
+        },
+    ),
+    tint,
+)
 
 /** Glyph as a vector for slots that only take [ImageVector] (miuix navigation items). */
 @Composable

@@ -57,6 +57,7 @@ fun AppearanceSettingsScreen(
         }
         item("chat_identity") { ChatIdentitySettingsCard() }
         item("background") { ChatBackgroundSettingsCard() }
+        item("chat_top_toolbar") { ChatTopToolbarSettingsCard() }
         item("tool_status_style") { ToolStatusStyleSettingsCard() }
         item("scale") {
             PersonalizationSection(stringResource(R.string.settings_interface_scale)) {

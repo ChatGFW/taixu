@@ -422,7 +422,7 @@ private fun SponsorChip(entry: SponsorEntry) {
                             RuntimeIcon(
                                 RuntimeIconName.Sponsor,
                                 Modifier.size(14.dp),
-                                tint = RuntimeTheme.colorScheme.tertiary,
+                                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     },

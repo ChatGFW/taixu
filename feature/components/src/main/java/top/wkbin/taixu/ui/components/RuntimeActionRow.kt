@@ -34,18 +34,27 @@ fun RuntimeActionRow(
             val columns = ((width + gap) / (minWidth + gap))
                 .coerceIn(1, minOf(actions.size, maxColumns.coerceAtLeast(1)))
             val cellWidth = ((width - gap * (columns - 1)) / columns).coerceAtLeast(0)
-            val cellHeight = actions.maxOf { it.minIntrinsicHeight(cellWidth) }
+            // 行高取最高单元格，但各格按自身高度测量：confirm 里叠两个按钮时，
+            // 不要把「拒绝」强制拉成等高大方块。
+            val rowSlotHeight = actions.maxOf { it.minIntrinsicHeight(cellWidth) }
                 .coerceAtLeast(RuntimeSpacing.buttonMinHeight.roundToPx())
             val cells = actions.map {
-                it.measure(androidx.compose.ui.unit.Constraints.fixed(cellWidth, cellHeight))
+                it.measure(
+                    androidx.compose.ui.unit.Constraints(
+                        minWidth = cellWidth,
+                        maxWidth = cellWidth,
+                        minHeight = 0,
+                        maxHeight = rowSlotHeight,
+                    ),
+                )
             }
             val rows = (cells.size + columns - 1) / columns
             // 末行左齐：3 个按钮折成 2+1 时避免居中成「两眼一嘴」倒三角。
-            layout(width, rows * cellHeight + (rows - 1) * gap) {
+            layout(width, rows * rowSlotHeight + (rows - 1) * gap) {
                 cells.forEachIndexed { index, cell ->
                     val row = index / columns
                     val col = index % columns
-                    cell.placeRelative(col * (cellWidth + gap), row * (cellHeight + gap))
+                    cell.placeRelative(col * (cellWidth + gap), row * (rowSlotHeight + gap))
                 }
             }
         }

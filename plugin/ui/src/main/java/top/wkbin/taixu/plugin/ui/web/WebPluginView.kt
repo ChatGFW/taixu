@@ -24,6 +24,8 @@ internal class WebPluginView(
     private val pluginResources: WebPluginResources,
     private val bridge: WebPluginStreamBridge,
     private val streamCapabilities: Set<PluginCapability>,
+    /** Match Compose surface before CSS paints; default white WebView bg flashes on dark themes. */
+    backgroundColor: Int,
 ) : WebView(context) {
     private var disposed = false
     private var initialNavigation = true
@@ -31,6 +33,7 @@ internal class WebPluginView(
 
     init {
         check(WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER))
+        setBackgroundColor(backgroundColor)
         settings.apply {
             javaScriptEnabled = true
             allowFileAccess = false

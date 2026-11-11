@@ -70,8 +70,12 @@ class TaiXuWebChatAgentGateway(
 
     override suspend fun deleteSession(sessionId: String) = harnessLoop.deleteSession(sessionId)
 
-    override suspend fun messages(sessionId: String): List<WebChatMessage> =
-        harnessLoop.persistedMessages(sessionId).filterNot { it is TaskDelivery && !it.hasExecutionDetails }.map(::toWebMessage)
+    override suspend fun messages(sessionId: String): List<WebChatMessage> {
+        val messages = harnessLoop.persistedMessages(sessionId)
+        val running = messages.any { it is ToolCall } &&
+            harnessLoop.sessionRunStates.value[sessionId] == SessionRunState.RUNNING
+        return projectMessages(messages, running)
+    }
 
     override suspend fun pendingApprovals(sessionId: String): List<WebChatApproval> =
         approvals.pendingNow(sessionId).map(::toWebApproval)
@@ -91,7 +95,7 @@ class TaiXuWebChatAgentGateway(
         ) { messages, states, statuses, pending ->
             val state = states[sessionId]
             WebChatSessionSnapshot(
-                messages = messages.filterNot { it is TaskDelivery && !it.hasExecutionDetails }.map(::toWebMessage),
+                messages = projectMessages(messages, state == SessionRunState.RUNNING),
                 running = state == SessionRunState.RUNNING,
                 waitingApproval = state == SessionRunState.WAITING_APPROVAL,
                 approvals = pending.map(::toWebApproval),
@@ -139,6 +143,31 @@ class TaiXuWebChatAgentGateway(
         createdAt = request.createdAt,
         expiresAt = request.expiresAt,
     )
+
+    private fun projectMessages(messages: List<HarnessMessage>, running: Boolean): List<WebChatMessage> {
+        val results = messages.filterIsInstance<ToolResult>().associateBy { it.toolCallId }
+        return messages.filterNot { it is TaskDelivery && !it.hasExecutionDetails }.map { message ->
+            val projected = toWebMessage(message)
+            if (message !is ToolCall) return@map projected
+            val result = results[message.id]
+            val status = when {
+                result?.awaitingApproval == true -> "waiting_approval"
+                result?.approvalDeferred == true -> "approval_deferred"
+                result != null -> if (result.success) "success" else "error"
+                running -> "running"
+                else -> "interrupted"
+            }
+            projected.copy(
+                content = buildJsonObject {
+                    projected.content.forEach { (key, value) -> put(key, value) }
+                    put("status", status)
+                    result?.durationMs?.let { put("durationMs", it) }
+                },
+                isLoading = status == "running",
+                isError = status == "error",
+            )
+        }
+    }
 
     private fun toWebMessage(message: HarnessMessage): WebChatMessage = when (message) {
         is UserMessage -> WebChatMessage(
@@ -192,7 +221,12 @@ class TaiXuWebChatAgentGateway(
                 put("type", "agent_tool_summary")
                 put("toolTitle", "工具结果")
                 put("toolType", "tool")
-                put("status", if (message.success) "success" else "error")
+                put("status", when {
+                    message.awaitingApproval -> "waiting_approval"
+                    message.approvalDeferred -> "approval_deferred"
+                    message.success -> "success"
+                    else -> "error"
+                })
                 put("output", message.output)
                 message.durationMs?.let { put("durationMs", it) }
             },

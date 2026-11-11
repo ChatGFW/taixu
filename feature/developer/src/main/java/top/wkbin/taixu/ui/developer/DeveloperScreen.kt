@@ -144,7 +144,7 @@ internal fun LocalDeveloperScreen(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         IconTile(
                             if (result.isHealthy) RuntimeIconName.Shield else RuntimeIconName.Alert,
-                            color = if (result.isHealthy) RuntimeTheme.colorScheme.secondary else RuntimeTheme.colorScheme.error,
+                            color = if (result.isHealthy) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.error,
                         )
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(if (result.isHealthy) "健康检查通过" else "健康检查异常", style = RuntimeTheme.typography.titleLarge)

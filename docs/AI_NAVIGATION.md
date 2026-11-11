@@ -35,6 +35,7 @@
 | **外部 Agent 运行时** | [`docs/EXTERNAL_AGENT_RUNTIME.md`](EXTERNAL_AGENT_RUNTIME.md) | 电脑/服务器执行器令牌、8901 LAN HTTP、`/me`+pending 预览、领取/回执与参考轮询脚本 |
 | **已知问题与避坑指南** | [`docs/KNOWN_ISSUES.md`](KNOWN_ISSUES.md) | PRoot 沙箱环境已知限制、架构设计历史考量与规避方案 |
 | **安全边界与凭证暴露面** | [`docs/SECURITY_SURFACE.md`](SECURITY_SURFACE.md) | 权限域总览、密钥流与脱敏边界、PRoot 挂载清单、HostBridge 信任模型与风险登记 |
+| **Web 协作台与 Harness 对齐** | [`docs/WEB_HARNESS_ALIGNMENT.md`](WEB_HARNESS_ALIGNMENT.md) | 输入队列、反馈、工具状态、请求恢复与当前 Web 能力边界 |
 | **存储分类与清理边界** | [`docs/STORAGE_MANAGEMENT.md`](STORAGE_MANAGEMENT.md) | 六类空间归属、清理计划、运行时互斥与后续管理建议 |
 | **Hashline 编辑协议（v0 / M12）** | [`docs/HASHLINE_PROTOCOL.md`](HASHLINE_PROTOCOL.md) | 行内容哈希锚点、`read`/`edit` ops、`0:00` 文件头插入、legacy 默认关与观测启发式 |
 

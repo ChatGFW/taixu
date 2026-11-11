@@ -1,19 +1,23 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeInput
@@ -21,62 +25,53 @@ import dev.chrisbanes.haze.HazeProgressive
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.hazeBlur
-import top.wkbin.taixu.ui.theme.LocalChatBackgroundActive
-import top.wkbin.taixu.ui.theme.chatBackdropChrome
 
-/** 聊天毛玻璃的共享 HazeState：source 挂在背景图与消息列表上，效果挂在顶/底边缘渐隐上。 */
+/** 聊天毛玻璃的共享 HazeState：source 挂在背景图与消息列表上，效果挂在顶边渐隐上。 */
 val LocalChatHazeState = staticCompositionLocalOf { HazeState() }
 
 /** 对齐 DITING FloatingHeader：工具栏高度 + 底沿 overhang，再叠状态栏。 */
 private val ChatTopToolbarHeight = 56.dp
 private val ChatTopFadeOverhang = 20.dp
 
-/** 顶边软渐隐带：状态栏实色段 + 工具栏溶开 + overhang 尾巴。 */
+/** 顶边软渐隐带：状态栏强模糊段 + 工具栏溶开 + overhang 尾巴。 */
 @Composable
 internal fun chatTopEdgeFadeHeight(): Dp =
     WindowInsets.statusBars.asPaddingValues().calculateTopPadding() +
         ChatTopToolbarHeight + ChatTopFadeOverhang
 
-/** 底边软渐隐额外上探：从输入区上方开始，一路溶到屏幕最底（含导航栏）。 */
-internal val ChatBottomEdgeFadeExtra = 72.dp
-
 /**
- * 边缘渐进模糊。
- *
- * 顶边按 DITING `fadeStart = status/(status+toolbar)`：上段强、过工具栏后迅速变弱，
- * overhang 段几乎只靠颜色溶出，避免整条雾砖硬切。
+ * 底边导航栏 inset：渐隐下沿贴屏幕底时用，与输入框高度相加构成完整渐隐带。
  */
 @Composable
-private fun Modifier.chatEdgeHaze(topStrong: Boolean, fadeStart: Float = 0f): Modifier {
+internal fun chatBottomNavFadeHeight(): Dp =
+    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+/**
+ * 顶边渐进模糊：渐隐只靠 progressive haze，不叠实色页面色遮罩。
+ * 按 DITING `fadeStart = status/(status+toolbar)`：上段强、过工具栏后迅速变弱。
+ */
+@Composable
+private fun Modifier.chatTopEdgeHaze(solid: Float): Modifier {
     val hazeState = LocalChatHazeState.current
-    val style = remember(topStrong, fadeStart) {
-        val mask = if (topStrong) {
-            val solid = fadeStart.coerceIn(0f, 0.55f)
-            Brush.verticalGradient(
-                0.00f to Color.Black.copy(alpha = 1f),
-                solid to Color.Black.copy(alpha = 0.85f),
-                (solid + (1f - solid) * 0.45f) to Color.Black.copy(alpha = 0.28f),
-                0.88f to Color.Black.copy(alpha = 0.04f),
-                1.00f to Color.Transparent,
-            )
-        } else {
-            Brush.verticalGradient(
-                0.00f to Color.Transparent,
-                0.22f to Color.Black.copy(alpha = 0.04f),
-                0.45f to Color.Black.copy(alpha = 0.18f),
-                0.75f to Color.Black.copy(alpha = 0.55f),
-                1.00f to Color.Black.copy(alpha = 1f),
-            )
-        }
+    val style = remember(solid) {
+        val s = solid.coerceIn(0f, 0.55f)
+        val shoulder = s + (1f - s) * 0.45f
+        val mask = Brush.verticalGradient(
+            0.00f to Color.Black.copy(alpha = 1f),
+            s to Color.Black.copy(alpha = 0.85f),
+            shoulder to Color.Black.copy(alpha = 0.28f),
+            0.88f to Color.Black.copy(alpha = 0.04f),
+            1.00f to Color.Transparent,
+        )
         HazeBlurStyle {
-            blurRadius(if (topStrong) 20.dp else 16.dp)
+            blurRadius(20.dp)
             backgroundColor(Color.Transparent)
             noiseFactor(0.015f)
             progressive(
                 HazeProgressive.verticalGradient(
                     easing = LinearEasing,
-                    startIntensity = if (topStrong) 1f else 0f,
-                    endIntensity = if (topStrong) 0f else 1f,
+                    startIntensity = 1f,
+                    endIntensity = 0f,
                 ),
             )
             mask(mask)
@@ -86,65 +81,54 @@ private fun Modifier.chatEdgeHaze(topStrong: Boolean, fadeStart: Float = 0f): Mo
 }
 
 /**
- * 顶部全宽软渐隐条。仿 DITING FloatingHeader：状态栏段更实，工具栏以下溶到透明；
- * 有无自定义背景都叠页面色渐隐（壁纸时略淡），再配 progressive haze。
+ * 顶部全宽软渐隐条。仿 DITING FloatingHeader：纯 progressive haze 溶开，
+ * 状态栏段模糊最实，工具栏以下溶到透明；不叠页面色，避免压出实色块。
  */
 @Composable
 internal fun ChatTopEdgeFade(modifier: Modifier = Modifier) {
     val status = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val height = chatTopEdgeFadeHeight()
-    val fadeStart = if (height > 0.dp) {
+    val solid = if (height > 0.dp) {
         (status / height).coerceIn(0.12f, 0.45f)
     } else {
         0.2f
     }
-    val bgActive = LocalChatBackgroundActive.current
-    val chrome = chatBackdropChrome()
-    val peak = if (bgActive) 0.72f else 0.94f
     Box(
         modifier
             .fillMaxWidth()
             .height(height)
-            .chatEdgeHaze(topStrong = true, fadeStart = fadeStart)
-            .background(
-                Brush.verticalGradient(
-                    0.00f to chrome.copy(alpha = peak),
-                    fadeStart to chrome.copy(alpha = peak * 0.88f),
-                    (fadeStart + (1f - fadeStart) * 0.55f) to chrome.copy(alpha = peak * 0.22f),
-                    0.90f to chrome.copy(alpha = peak * 0.04f),
-                    1.00f to Color.Transparent,
-                ),
-            ),
+            .chatTopEdgeHaze(solid = solid),
     )
 }
 
 /**
- * 底部软渐隐条：贴屏幕底边对齐。
- * 高度 = 底栏实测高度 + [ChatBottomEdgeFadeExtra]，上沿透明、下沿（导航栏一带）最强。
+ * 底部内容渐隐：在列表最底 [fadeHeight] 做与顶部同构的溶解（通常=输入框高+导航栏），
+ * 越靠近屏幕底 alpha 越低。不绘制叠加模糊层；调用方勿让 [fadeHeight] 超过输入框顶沿。
  */
-@Composable
-internal fun ChatBottomEdgeFade(height: Dp, modifier: Modifier = Modifier) {
-    if (height <= 0.dp) return
-    val bgActive = LocalChatBackgroundActive.current
-    val chrome = chatBackdropChrome()
-    Box(
-        modifier
-            .fillMaxWidth()
-            .height(height)
-            .chatEdgeHaze(topStrong = false)
-            .then(
-                if (bgActive) {
-                    Modifier
-                } else {
-                    Modifier.background(
-                        Brush.verticalGradient(
-                            0.00f to Color.Transparent,
-                            0.35f to chrome.copy(alpha = 0.04f),
-                            0.70f to chrome.copy(alpha = 0.16f),
-                            1.00f to chrome.copy(alpha = 0.42f),
-                        ),
-                    )
-                },
-            ),
-    )
+internal fun Modifier.chatBottomContentFade(fadeHeight: Dp): Modifier {
+    if (fadeHeight <= 0.dp) return this
+    return this
+        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithCache {
+            val fadePx = fadeHeight.toPx().coerceAtMost(size.height)
+            if (fadePx <= 0f) {
+                return@drawWithCache onDrawWithContent { drawContent() }
+            }
+            // 与顶边 stops 同构：带内从上到下 1 → 0，即越靠底越渐隐。
+            val brush = Brush.verticalGradient(
+                colorStops = arrayOf(
+                    0.00f to Color.White,
+                    0.12f to Color.White.copy(alpha = 0.85f),
+                    0.45f to Color.White.copy(alpha = 0.28f),
+                    0.88f to Color.White.copy(alpha = 0.04f),
+                    1.00f to Color.Transparent,
+                ),
+                startY = size.height - fadePx,
+                endY = size.height,
+            )
+            onDrawWithContent {
+                drawContent()
+                drawRect(brush = brush, blendMode = BlendMode.DstIn)
+            }
+        }
 }

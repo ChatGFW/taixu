@@ -48,7 +48,7 @@ internal fun GroupToolCallPanel(messageId: String, steps: List<GroupToolStep>, s
                     if (failed > 0) failed else pending),
                 style = RuntimeTheme.typography.labelSmall,
                 color = if (failed > 0) RuntimeTheme.colorScheme.error else runtimeProcessColor())
-            RuntimeIcon(if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
+            top.wkbin.taixu.ui.components.RuntimeExpandChevron(expanded,
                 Modifier.size(16.dp), runtimeProcessColor())
         }
         if (expanded) Column(Modifier.fillMaxWidth().padding(start = 8.dp).drawBehind {

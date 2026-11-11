@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_chat_top_toolbar">聊天顶部快捷按钮</string>
+    <string name="settings_chat_top_toolbar_description">预览右侧胶囊；点选下方入口置顶，再点取消。最多 3 个，「更多」始终保留。</string>
+    <string name="settings_chat_top_toolbar_full">已满 3 个，请先取消一个再置顶</string>
+    <string name="settings_chat_top_toolbar_preview">聊天顶部按钮预览</string>
+    <string name="settings_chat_top_toolbar_more">更多</string>
+    <string name="settings_chat_top_toolbar_action_bots">智能体</string>
+    <string name="settings_chat_top_toolbar_action_workspace">工作区</string>
+    <string name="settings_chat_top_toolbar_action_memory">会话工作记忆</string>
+    <string name="settings_chat_top_toolbar_action_outline">大纲</string>
+    <string name="settings_chat_top_toolbar_action_export">导出 Markdown</string>
+    <string name="settings_chat_top_toolbar_action_browser">浏览器</string>
+    <string name="settings_chat_top_toolbar_action_repository">仓库</string>
+    <string name="settings_chat_top_toolbar_action_speech">自动朗读</string>
+    <string name="settings_chat_top_toolbar_action_run_mode">运行意图</string>
+    <string name="settings_chat_top_toolbar_action_branches">会话分支</string>
+    <string name="settings_chat_top_toolbar_action_runtime">运行记录</string>
+    <string name="settings_chat_top_toolbar_action_toolchain">工具链</string>
+    <string name="settings_chat_top_toolbar_action_reasoning">推理强度</string>
+    <string name="settings_chat_top_toolbar_action_floating">悬浮小窗</string>
+</resources>

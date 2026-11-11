@@ -30,6 +30,7 @@ import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.BotSessionGroupRef
 import top.wkbin.taixu.feature.chat.R
+import top.wkbin.taixu.ui.components.RuntimeExpandChevron
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.theme.semanticColors
@@ -127,7 +128,7 @@ internal fun BotSessionsSection(
                         RuntimeIcon(
                             RuntimeIconName.Chat,
                             Modifier.size(18.dp),
-                            RuntimeTheme.colorScheme.primary,
+                            RuntimeTheme.colorScheme.onSurface,
                         )
                         Text(
                             text = bucket.name ?: stringResource(R.string.chat_drawer_bot_sessions_other),
@@ -144,8 +145,8 @@ internal fun BotSessionsSection(
                             style = RuntimeTheme.typography.labelSmall,
                             color = RuntimeTheme.colorScheme.outline,
                         )
-                        RuntimeIcon(
-                            name = if (bucketExpanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
+                        RuntimeExpandChevron(
+                            expanded = bucketExpanded,
                             modifier = Modifier.size(18.dp),
                             tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )

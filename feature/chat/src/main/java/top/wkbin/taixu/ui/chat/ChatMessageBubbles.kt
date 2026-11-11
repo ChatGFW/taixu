@@ -81,6 +81,7 @@ import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.harness.ModelSwitchEvent
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.checkpoint.RewindScope
+import top.wkbin.taixu.ui.components.RuntimeExpandChevron
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -642,10 +643,10 @@ internal fun ThinkingBlock(
                 }
             }
 
-            RuntimeIcon(
-                if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                Modifier.size(16.dp),
-                chatProcessColor(),
+            RuntimeExpandChevron(
+                expanded = expanded,
+                modifier = Modifier.size(16.dp),
+                tint = chatProcessColor(),
             )
         }
 

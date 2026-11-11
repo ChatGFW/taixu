@@ -235,7 +235,7 @@ private fun BrowserStatusBar(
                 BrowserStatusItem(
                     icon = RuntimeIconName.Search,
                     label = "快照",
-                    tint = RuntimeTheme.colorScheme.tertiary,
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                     onClick = onShowSnapshot,
                 )
                 StatusDivider()
@@ -243,7 +243,7 @@ private fun BrowserStatusBar(
                 BrowserStatusItem(
                     icon = RuntimeIconName.Network,
                     label = "网络 $networkCount",
-                    tint = RuntimeTheme.colorScheme.tertiary,
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                     onClick = onShowNetwork,
                 )
                 StatusDivider()

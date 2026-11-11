@@ -120,7 +120,7 @@ private fun BuildTypeOption(
             RuntimeIcon(
                 if (selected) RuntimeIconName.Check else RuntimeIconName.Key,
                 Modifier.size(18.dp),
-                if (selected) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
+                if (selected) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant,
             )
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(title, style = RuntimeTheme.typography.titleSmall, fontWeight = FontWeight.Medium)

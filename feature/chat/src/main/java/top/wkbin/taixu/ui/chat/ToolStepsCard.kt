@@ -55,7 +55,7 @@ internal fun ToolStepsCard(item: ToolStepsItem, results: Map<String, ToolResult>
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (attention > 0) Text(stringResource(R.string.chat_tool_chain_attention, attention),
                 style = RuntimeTheme.typography.labelSmall, color = semanticColors().warning, maxLines = 1)
-            RuntimeIcon(if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
+            RuntimeExpandChevron(expanded,
                 Modifier.size(12.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
         }
         if (expanded) Column(Modifier.fillMaxWidth().padding(start = 8.dp).drawBehind {

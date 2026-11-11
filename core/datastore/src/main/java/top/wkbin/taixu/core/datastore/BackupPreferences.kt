@@ -70,7 +70,7 @@ class BackupPreferences(private val context: Context) : BackupPreferenceStore {
     companion object {
         private val operationKey = stringPreferencesKey("backup_restore_operation_id")
         private val strings = setOf("theme_mode", "theme_style", "terminal_color_scheme", "agent_default_reasoning_depth",
-            "custom_system_prompt", "agent_char_name", "agent_user_name")
+            "custom_system_prompt", "agent_char_name", "agent_user_name", "chat_top_toolbar_pinned")
         private val booleans = setOf("dynamic_color_enabled", "thinking_blocks_expanded", "thinking_auto_translate",
             "agent_local_logging_enabled", "custom_system_prompt_enabled", "environment_privacy_mode",
             "skill_evolution_suggestions", "terminal_haptics_enabled", "auto_check_updates",

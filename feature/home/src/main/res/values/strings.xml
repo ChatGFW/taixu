@@ -64,6 +64,7 @@
     <string name="home_qq_copied">已复制 QQ 群号：%1$s，可打开 QQ 搜索加入</string>
     <string name="home_webchat_title">电脑协作</string>
     <string name="home_webchat_running">局域网服务已开启</string>
+    <string name="home_webchat_permission_required">电脑协作需要本地网络权限，请在系统设置 → 应用 → 太墟 → 权限中允许“附近的设备 / 本地网络”，然后重新开启服务。</string>
     <string name="home_webchat_idle">默认关闭 · 按需开启免耗电</string>
     <string name="home_webchat_url_label">电脑浏览器访问地址</string>
     <string name="home_webchat_pin_label">配对码 (PIN)</string>
