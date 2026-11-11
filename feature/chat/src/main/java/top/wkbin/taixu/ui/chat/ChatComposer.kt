@@ -9,8 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.PaddingValues
-import top.wkbin.taixu.ui.components.RuntimeCard
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
@@ -27,7 +26,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
 import top.wkbin.taixu.feature.chat.R
@@ -51,6 +49,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import top.wkbin.taixu.harness.QueuedPrompt
 import top.wkbin.taixu.ui.components.RuntimeComposerTextField
 import top.wkbin.taixu.ui.theme.chatBackdropSurface
+import top.wkbin.taixu.ui.theme.chatSoftDropShadow
 /**
  * 输入区：斜杠/@ 弹窗、排队指令、附件预览、推理强度滑块、工具状态胶囊与一体化输入胶囊。
  */
@@ -175,19 +174,15 @@ internal fun ChatComposer(
             )
         }
     }
-    RuntimeCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp, bottom = 4.dp)
-            .clip(RuntimeTheme.shapes.extraLarge),
-        shape = RuntimeTheme.shapes.extraLarge, contentPadding = PaddingValues(0.dp),
-        containerColor = chatBackdropSurface(RuntimeTheme.colorScheme.surfaceContainer),
-        borderColor = RuntimeTheme.colorScheme.primary.copy(alpha = if (running) 0.5f else 0f),
+    val composerShape = RuntimeTheme.shapes.extraLargeIncreased
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).chatSoftDropShadow(composerShape),
+        shape = composerShape,
+        color = chatBackdropSurface(RuntimeTheme.colorScheme.surfaceContainer),
+        border = if (running) BorderStroke(1.dp, RuntimeTheme.colorScheme.primary.copy(alpha = 0.5f)) else null,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             // 显式挂载的能力才展示标签；常驻能力从 + 菜单管理。

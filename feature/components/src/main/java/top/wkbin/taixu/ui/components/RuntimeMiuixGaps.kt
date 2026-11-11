@@ -69,7 +69,7 @@ fun RuntimeFloatingToolbar(
         modifier = modifier,
         color = color,
         cornerRadius = cornerRadius,
-        shadowElevation = 0.dp,
+        shadowElevation = 6.dp,
         outSidePadding = PaddingValues(0.dp),
         content = content,
     )

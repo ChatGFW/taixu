@@ -222,7 +222,7 @@ internal fun ChatPaneContent(
                         StickyPlanBar(
                             goal = plan.goal,
                             steps = steps,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         )
                     }
                 }

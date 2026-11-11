@@ -50,6 +50,7 @@ import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.RuntimeExpandChevron
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.theme.chatSoftDropShadow
 
 /** 结构化任务规划的单条步骤展示模型（与文本正则提取的 TaskStepItem 解耦）。 */
 data class PlanStepUi(
@@ -267,16 +268,17 @@ internal fun StickyPlanBar(
     val allDone = completedCount == steps.size
     val activeStep = steps.firstOrNull { !it.isCompleted }
 
+    val planShape = RuntimeTheme.shapes.small
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RuntimeTheme.shapes.medium)
+            .chatSoftDropShadow(planShape)
             .clickable {
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 expanded = !expanded
             },
         color = RuntimeTheme.colorScheme.surfaceContainerLow,
-        shape = RuntimeTheme.shapes.medium,
+        shape = planShape,
         border = BorderStroke(
             1.dp,
             if (allDone) RuntimeTheme.colorScheme.outline.copy(alpha = 0.25f)
@@ -284,8 +286,8 @@ internal fun StickyPlanBar(
         ),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp).animateContentSize(),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp).animateContentSize(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // ── 标题行 ──
             Row(
