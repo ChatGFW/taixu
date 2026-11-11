@@ -3,12 +3,11 @@ package top.wkbin.taixu.ui.bot
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -18,7 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -27,7 +25,7 @@ import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.BotMemberGroup
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeArrowPreference
 import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
@@ -84,38 +82,37 @@ internal fun MemberGroupsDialog(
                         )
                     }
                     groups.forEach { group ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    creatingId = null
-                                    editingId = group.id
-                                }
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(group.name, style = RuntimeTheme.typography.bodyMedium)
+                        RuntimeArrowPreference(
+                            title = group.name,
+                            summary = stringResource(
+                                R.string.fbot_member_group_member_count,
+                                group.memberIds.size,
+                            ) + " · " + if (group.publishedVersion == 0) {
+                                "尚未发布"
+                            } else {
+                                "v${group.publishedVersion}"
+                            },
+                            onClick = {
+                                creatingId = null
+                                editingId = group.id
+                            },
+                            endActions = {
                                 RuntimeTextButton(onClick = { publicationId = group.id }) {
-                                    Text("发布与升级 · " + if (group.publishedVersion == 0) "尚未发布" else "v${group.publishedVersion}")
+                                    Text("发布")
                                 }
-                                Text(
-                                    stringResource(R.string.fbot_member_group_member_count, group.memberIds.size),
-                                    style = RuntimeTheme.typography.labelSmall,
-                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            RuntimeIconButton(
-                                onClick = { pendingDelete = group },
-                                contentDescription = stringResource(R.string.fbot_delete),
-                            ) {
-                                RuntimeIcon(
-                                    RuntimeIconName.Trash,
-                                    Modifier.size(18.dp),
-                                    tint = RuntimeTheme.colorScheme.error,
-                                )
-                            }
-                        }
+                                RuntimeIconButton(
+                                    onClick = { pendingDelete = group },
+                                    contentDescription = stringResource(R.string.fbot_delete),
+                                ) {
+                                    RuntimeIcon(
+                                        RuntimeIconName.Trash,
+                                        Modifier.size(18.dp),
+                                        tint = RuntimeTheme.colorScheme.error,
+                                    )
+                                }
+                            },
+                            insideMargin = PaddingValues(horizontal = 0.dp, vertical = 12.dp),
+                        )
                     }
                     RuntimeFilledTonalButton(
                         onClick = {
@@ -129,7 +126,7 @@ internal fun MemberGroupsDialog(
                 }
             },
             confirmButton = {
-                RuntimeButton(onClick = onDismiss) { Text(stringResource(R.string.fbot_close)) }
+                RuntimeTextButton(onClick = onDismiss) { Text(stringResource(R.string.fbot_close)) }
             },
         )
     } else {
@@ -152,7 +149,7 @@ internal fun MemberGroupsDialog(
             title = { Text(stringResource(R.string.fbot_member_group_delete_title)) },
             text = { Text(stringResource(R.string.fbot_member_group_delete_confirm, group.name)) },
             confirmButton = {
-                RuntimeButton(onClick = {
+                RuntimeTextButton(onClick = {
                     onDelete(group)
                     pendingDelete = null
                 }) { Text(stringResource(R.string.fbot_delete)) }

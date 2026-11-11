@@ -4,8 +4,6 @@ import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
-import java.util.UUID
-
 /**
  * RFC 6455 WebSocket 帧编解码（纯 JVM，可单测）。
  *

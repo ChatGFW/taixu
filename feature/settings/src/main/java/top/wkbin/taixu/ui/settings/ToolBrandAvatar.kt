@@ -4,7 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Box
@@ -24,7 +23,6 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.feature.components.R as ComponentsR
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
-
 @Composable
 internal fun ToolBrandAvatar(
     toolId: String,

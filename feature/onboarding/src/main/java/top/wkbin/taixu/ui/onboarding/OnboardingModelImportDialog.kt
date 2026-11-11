@@ -32,7 +32,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
@@ -146,7 +145,7 @@ internal fun OnboardingModelImportDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = { onImportJson(jsonText) },
                 enabled = jsonText.isNotBlank(),
             ) {

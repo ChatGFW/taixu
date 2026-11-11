@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Surface
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -28,7 +26,6 @@ import top.wkbin.taixu.feature.onboarding.R
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-
 @Composable
 internal fun OnboardingWelcomePage(modifier: Modifier = Modifier) {
     Box(modifier.verticalScroll(rememberScrollState()), contentAlignment = Alignment.Center) {

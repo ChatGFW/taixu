@@ -5,6 +5,7 @@ import androidx.compose.runtime.setValue
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -21,8 +22,8 @@ import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.harness.AskUserQuestions
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
+import top.wkbin.taixu.ui.components.RuntimeRadioPreference
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 
 /** Decisions use the existing Harness broker; this view never changes execution authority. */
@@ -55,9 +56,13 @@ internal fun GroupApprovalDialog(
                 } else questions.forEachIndexed { index, question ->
                     Text(question.question)
                     question.options.forEach { option ->
-                        RuntimeTextButton(onClick = { answers[index] = option.label }) {
-                            Text(option.label + option.description?.let { " · $it" }.orEmpty())
-                        }
+                        RuntimeRadioPreference(
+                            title = option.label,
+                            summary = option.description,
+                            selected = answers[index] == option.label,
+                            onClick = { answers[index] = option.label },
+                            insideMargin = PaddingValues(horizontal = 0.dp, vertical = 12.dp),
+                        )
                     }
                     if (question.allowCustom) {
                         RuntimeFilledTextField(
@@ -71,7 +76,7 @@ internal fun GroupApprovalDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(enabled = !isQuestion || answered, onClick = {
+            RuntimeTextButton(enabled = !isQuestion || answered, onClick = {
                 if (!isQuestion) onDecide(true) else onAnswer(AskUserQuestions.answersJson(
                     questions.indices.map { answers[it].orEmpty() },
                 ))

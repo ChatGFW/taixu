@@ -36,7 +36,7 @@ private fun SettingsDensityPreview() {
                         stringResource(R.string.settings_nav_phrases_summary), onClick = {})
                 }
                 PreferenceSurface(first = false) {
-                    SettingsRow(RuntimeIconName.Speed, "数据统计与用量分析",
+                    SettingsRow(RuntimeIconName.NavDashboard, "数据统计与用量分析",
                         stringResource(R.string.settings_nav_stats_summary), onClick = {})
                 }
             }

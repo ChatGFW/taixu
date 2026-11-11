@@ -134,7 +134,7 @@ fun SystemDevSettingsScreen(
                     )
                 }
                 SettingsRow(
-                    icon = RuntimeIconName.Speed,
+                    icon = RuntimeIconName.Cpu,
                     title = "Android 12 子进程限制",
                     subtitle = "解除 Phantom Process 最多 32 个的后台限制",
                     onClick = {
@@ -350,7 +350,7 @@ private fun PhantomProcessLimitDialog(
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                RuntimeIcon(RuntimeIconName.Speed, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.onSurface)
+                RuntimeIcon(RuntimeIconName.Cpu, Modifier.size(24.dp), tint = RuntimeTheme.colorScheme.onSurface)
                 Text("Android 12 子进程限制", fontWeight = FontWeight.Medium)
             }
         },

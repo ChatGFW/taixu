@@ -38,7 +38,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.wkbin.taixu.runtime.FtpServiceState
 import top.wkbin.taixu.ui.components.NoticeBanner
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -393,7 +392,7 @@ private fun FtpPasswordDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = { onSave(password) },
                 enabled = password.length >= 4 && matches,
             ) { Text("保存") }
@@ -430,7 +429,7 @@ private fun FtpUsernameDialog(
             )
         } },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = { onSave(username.trim().ifBlank { "root" }) },
                 enabled = username.isNotBlank(),
             ) { Text("保存") }

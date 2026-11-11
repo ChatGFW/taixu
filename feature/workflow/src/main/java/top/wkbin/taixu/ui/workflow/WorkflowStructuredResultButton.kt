@@ -71,10 +71,10 @@ private fun WorkflowStructuredResultDialog(result: JsonObject, onDismiss: () -> 
             error?.let { Text(it, color = RuntimeTheme.colorScheme.error, style = RuntimeTheme.typography.bodySmall) }
             if (copied) Text("完整结果 JSON 已复制", style = RuntimeTheme.typography.bodySmall)
         }
-    }, dismissButton = { RuntimeOutlinedButton(onClick = onDismiss) { Text("关闭", maxLines = 1) } }, confirmButton = {
-        RuntimeButton(enabled = raw != null && !copying, onClick = {
-            if (copying) return@RuntimeButton
-            val text = raw ?: return@RuntimeButton
+    }, dismissButton = { RuntimeTextButton(onClick = onDismiss) { Text("关闭", maxLines = 1) } }, confirmButton = {
+        RuntimeTextButton(enabled = raw != null && !copying, onClick = {
+            if (copying) return@RuntimeTextButton
+            val text = raw ?: return@RuntimeTextButton
             copying = true
             copied = false
             scope.launch {

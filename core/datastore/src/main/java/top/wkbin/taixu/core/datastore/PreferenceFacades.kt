@@ -3,6 +3,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import top.wkbin.taixu.core.model.ChatTopToolbarAction
 import top.wkbin.taixu.core.model.EnvironmentVariable
 import top.wkbin.taixu.core.model.ExecutionMode
 import top.wkbin.taixu.core.model.RunningSendMode
@@ -12,6 +13,12 @@ class AppearancePreferences(private val store: SettingsDataStore) {
     private val toolStatusStore = ToolStatusPreferences(store.appearanceDataStore)
     val classicToolStatusDots = toolStatusStore.classicDots
     suspend fun setClassicToolStatusDots(value: Boolean) = toolStatusStore.setClassicDots(value)
+    private val topToolbarStore = ChatTopToolbarPreferences(store.appearanceDataStore)
+    val chatTopToolbarPinned = topToolbarStore.pinnedActions
+    suspend fun setChatTopToolbarPinned(actions: List<ChatTopToolbarAction>) =
+        topToolbarStore.setPinnedActions(actions)
+    suspend fun setChatTopToolbarPinned(action: ChatTopToolbarAction, pin: Boolean): Boolean =
+        topToolbarStore.setPinned(action, pin)
     private val paletteStore = ThemePalettePreferences(store.appearanceDataStore)
     val themePalette get() = paletteStore.palette
     suspend fun selectThemeColor(id: String) = paletteStore.selectColor(id)

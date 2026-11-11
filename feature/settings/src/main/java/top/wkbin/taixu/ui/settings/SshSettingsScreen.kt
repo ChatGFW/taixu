@@ -11,7 +11,6 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,7 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import top.wkbin.taixu.ui.miuix.SwitchDefaults
@@ -361,7 +359,7 @@ private fun PasswordSettingsDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = { onSave(password) },
                 enabled = password.length >= 8 && matches && ':' !in password,
             ) { Text("保存并启用") }

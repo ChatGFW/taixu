@@ -19,7 +19,6 @@ fun AgentEcoSettingsScreen(
     onOpenQuickPhrases: () -> Unit,
     onOpenStats: () -> Unit,
     onOpenPhoneAgent: () -> Unit,
-    onOpenCcSwitch: () -> Unit = {},
 ) {
     PersonalizationScaffold(stringResource(R.string.personal_agents_title), onBack) {
         item {
@@ -50,7 +49,7 @@ fun AgentEcoSettingsScreen(
                 }
                 PreferenceSurface(first = false, last = true) {
                     SettingsRow(
-                        icon = RuntimeIconName.Speed,
+                        icon = RuntimeIconName.NavDashboard,
                         title = "数据统计与用量分析",
                         subtitle = stringResource(R.string.settings_nav_stats_summary),
                         onClick = onOpenStats, tonalIcon = true,
@@ -70,14 +69,6 @@ fun AgentEcoSettingsScreen(
         item {
             PersonalizationSection("智能体能力") {
                 PreferenceSurface(first = true, last = false) {
-                    SettingsRow(
-                        icon = RuntimeIconName.Sparkles,
-                        title = "智能体中枢 (CC-Switch)",
-                        subtitle = stringResource(R.string.settings_nav_cc_summary),
-                        onClick = onOpenCcSwitch, tonalIcon = true,
-                    )
-                }
-                PreferenceSurface(first = false, last = false) {
                     SettingsRow(icon = RuntimeIconName.Bot, title = "Agent 执行与上下文", subtitle = stringResource(R.string.settings_nav_execution_summary), onClick = onOpenAgentSettings, tonalIcon = true)
                 }
                 PreferenceSurface(first = false, last = false) {

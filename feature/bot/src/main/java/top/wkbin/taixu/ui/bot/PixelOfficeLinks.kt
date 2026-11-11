@@ -1,6 +1,5 @@
 package top.wkbin.taixu.ui.bot
 
-import android.os.SystemClock
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -27,7 +26,6 @@ import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
-
 /** Worker → report recipient edge. The report recipient is persisted on BotAssignment. */
 internal data class OfficeReportLink(
     val taskId: String,

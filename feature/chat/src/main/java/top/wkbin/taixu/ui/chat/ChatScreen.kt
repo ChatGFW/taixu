@@ -66,8 +66,6 @@ import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.runtime.SessionWorkspaceCatalogState
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.MainDestination
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import top.wkbin.taixu.ui.miuix.*
@@ -75,7 +73,6 @@ import top.yukonga.miuix.kmp.basic.SnackbarDuration
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.SnackbarResult
-import top.yukonga.miuix.kmp.basic.Text
 /** 会改动工作区文件的工具：这些工具执行后「仓库」入口按需高亮提示新改动 */
 private val REPOSITORY_HIGHLIGHT_TOOLS = setOf(
     HarnessTool.WRITE,
@@ -84,7 +81,7 @@ private val REPOSITORY_HIGHLIGHT_TOOLS = setOf(
     HarnessTool.PROCESS,
 )
 @Composable
-private fun chatBottomInsets(): WindowInsets = WindowInsets.navigationBars.union(WindowInsets.ime)
+internal fun chatBottomInsets(): WindowInsets = WindowInsets.navigationBars.union(WindowInsets.ime)
 /** 太墟 · 智枢对话界面 (TaiXu Agent)：智能结对编程、工具自动化调用与代码生成 */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, )
 @Composable
@@ -156,6 +153,8 @@ fun ChatScreen(
     val onboardingPrivilege by viewModel?.privilegeOnboarding?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val attachmentsProcessing by viewModel?.attachmentsProcessing?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val notice by viewModel?.notice?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val canManualCompact by viewModel?.canManualCompact?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val compactingContext by viewModel?.compactingContext?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val subagentResult by viewModel?.subagentResult?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     // 弹窗开关与编辑目标：用 rememberSaveable 保存，旋转 / 进程重建后不丢失
     var showModels by rememberSaveable { mutableStateOf(false) }; var showApprovalModes by rememberSaveable { mutableStateOf(false) }
@@ -294,11 +293,15 @@ fun ChatScreen(
         }
     }
 
-    // VM 层轻量通知（附件处理失败 / 模型档案已存在 / 新会话已创建等）以 Toast 上抛
+    // VM 层轻量通知（附件处理失败 / 模型档案已存在 / 压缩进度与结果等）以 Toast 上抛。
+    // 清除时核对仍是本条：手动压缩会先发「正在压缩…」再发结果，若无条件 clear 会抹掉结果 → 像点了没反应。
     LaunchedEffect(notice) {
-        notice?.let {
-            Toast.makeText(appContext, it, Toast.LENGTH_SHORT).show()
-            viewModel?.clearNotice()
+        val text = notice ?: return@LaunchedEffect
+        val duration = if (text.length > 40) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
+        Toast.makeText(appContext, text, duration).show()
+        delay(if (duration == Toast.LENGTH_LONG) 3500 else 2000)
+        if (viewModel?.notice?.value == text) {
+            viewModel.clearNotice()
         }
     }
 
@@ -427,7 +430,9 @@ fun ChatScreen(
                     initializing = initializing,
                     pinnedCapabilities = pinnedCapabilities,
                     onOpenSkillsMcp = { showSkillsMcpSheet = true },
-                    onCompactContext = { viewModel?.compactContextNow() },
+                    canCompactContext = canManualCompact,
+                    compactingContext = compactingContext,
+                    onCompactContext = { done -> viewModel?.compactContextNow(done) ?: done() },
                     onUnpinMention = { arg0 -> viewModel?.unpinMention(arg0) },
                     activePlan = activePlan,
                     pendingApprovals = pendingApprovals,
@@ -611,215 +616,4 @@ fun ChatScreen(
             onCreate = { id, name -> viewModel?.createBranch(id, name); branchFromMessageId = null })
     }
     } // CompositionLocalProvider(LocalSandboxHostRoots)
-}
-
-@Composable
-private fun ChatPaneContent(
-    modifier: Modifier = Modifier,
-    messages: List<HarnessMessage>,
-    onboardingPrivilege: OnboardingPrivilege? = null,
-    listState: LazyListState,
-    running: Boolean,
-    status: String?,
-    thinkingExpanded: Boolean,
-    thinkingAutoTranslate: Boolean = false,
-    chatRoundCollapse: Boolean = false,
-    thinkingLive: Boolean,
-    liveThinkingMessageId: String?,
-    onNavigateToSettings: (() -> Unit)? = null,
-    toolResults: Map<String, ToolResult>,
-    workspace: String,
-    workspaceProject: WorkspaceProject? = null,
-    onOpenFile: ((projectName: String, relativePath: String) -> Unit)?,
-    onEditMessage: (UserMessage) -> Unit,
-    onDeleteMessage: (String) -> Unit,
-    onRewindMessage: (String, RewindScope) -> Unit = { _, _ -> },
-    error: String?,
-    onClearError: () -> Unit,
-    matchingCommands: List<SlashCommandItem>,
-    matchingMentions: List<MentionItem> = emptyList(),
-    attachedMentions: List<MentionItem> = emptyList(),
-    knownMentionNames: List<String> = emptyList(),
-    queuedPrompts: List<QueuedPrompt>,
-    onEditQueuedPrompt: (QueuedPrompt) -> Unit,
-    onRemoveQueuedPrompt: (QueuedPrompt) -> Unit,
-    onConvertToSteer: (QueuedPrompt) -> Unit = {},
-    sendMode: ComposerSendMode,
-    input: String,
-    shareActions: ShareQuickActionsState? = null,
-    onInputChanged: (String) -> Unit,
-    onApplyCommand: (SlashCommandItem) -> Unit,
-    onApplyMention: (MentionItem) -> Unit = {},
-    onRemoveMention: (MentionItem) -> Unit = {},
-    attachments: List<ChatAttachment> = emptyList(),
-    attachmentsProcessing: Boolean = false,
-    onAttachmentsPicked: (List<Uri>, Boolean) -> Unit = { _, _ -> },
-    onRemoveAttachment: (ChatAttachment) -> Unit = {},
-    onSend: () -> Unit, onSendWithoutAnswer: () -> Unit, onPasteLongText: (String) -> Unit,
-    onStop: () -> Unit,
-    lastAssistantMessageId: String?,
-    onRegenerate: () -> Unit,
-    onCreateBranch: (String) -> Unit,
-    onRetryTool: (String) -> Unit,
-    initializing: Boolean = false,
-    pinnedCapabilities: List<MentionItem> = emptyList(),
-    onOpenSkillsMcp: () -> Unit = {},
-    onCompactContext: () -> Unit = {},
-    onUnpinMention: (String) -> Unit = {},
-    activeModel: AiModelEntity? = null,
-    onOpenModels: () -> Unit, approvalMode: ApprovalMode, onOpenApprovalModes: () -> Unit,
-    onUpdateReasoning: (mode: String?, effort: String?) -> Unit = { _, _ -> },
-    pendingApprovals: List<AgentApprovalRequestEntity> = emptyList(),
-    activePlan: AgentPlanEntity? = null,
-    activeCompaction: CompactionSnapshot? = null,
-    mcpRecommendations: List<McpWorkspaceRecommender.Recommendation> = emptyList(),
-    onEnableMcpRecommendation: (String) -> Unit = {},
-    onInstallMcpRecommendation: () -> Unit = {},
-    onDismissMcpRecommendation: (String) -> Unit = {},
-    workflowSuggestions: List<ProactiveWorkflowSuggestion> = emptyList(),
-    onLaunchWorkflowSuggestion: (ProactiveWorkflowSuggestion) -> Unit = {},
-    onDismissWorkflowSuggestion: (String) -> Unit = {},
-    btwQueries: List<BtwQuery> = emptyList(),
-    btwStreaming: String = "",
-    onCancelBtw: () -> Unit = {},
-    onResolveApproval: (String, Boolean, Boolean) -> Unit = { _, _, _ -> },
-    onResolveQuestion: (String, String) -> Unit = { _, _ -> },
-    contextUsage: ContextUsage = ContextUsage(),
-    onViewSubagentLanes: () -> Unit = {},
-    subagentBranches: List<ConversationBranch> = emptyList(),
-    onOpenSubagentBranch: (ConversationBranch) -> Unit = {},
-    hiddenSkillSuggestions: Set<String> = emptySet(),
-    onApplySkillSuggestion: (SkillSuggestion, Boolean) -> Unit = { _, _ -> },
-    onDismissSkillSuggestion: (String) -> Unit = {},
-) {
-    val density = LocalDensity.current
-    var bottomChromePx by remember { mutableIntStateOf(0) }
-    val bottomChrome = with(density) { bottomChromePx.toDp() }
-    Box(modifier = modifier, contentAlignment = Alignment.TopCenter) {
-        Box(Modifier.widthIn(max = 840.dp).fillMaxSize()) {
-            // 列表铺满整页，内容滚入底部输入区后方；渐隐靠 progressive haze，不用实色遮罩。
-            ChatMessageViewport(listState, Modifier.fillMaxSize(), bottomInset = bottomChrome) {
-                ChatMessageList(
-                    modifier = Modifier.fillMaxSize(),
-                    listState = listState,
-                    messages = messages,
-                    toolResults = toolResults,
-                    initializing = initializing,
-                    running = running,
-                    status = status,
-                    workspace = workspace,
-                    workspaceProject = workspaceProject,
-                    onboardingPrivilege = onboardingPrivilege,
-                    thinkingExpanded = thinkingExpanded,
-                    thinkingAutoTranslate = thinkingAutoTranslate,
-                    chatRoundCollapse = chatRoundCollapse,
-                    thinkingLive = thinkingLive,
-                    liveThinkingMessageId = liveThinkingMessageId,
-                    lastAssistantMessageId = lastAssistantMessageId,
-                    onNavigateToSettings = onNavigateToSettings,
-                    knownMentionNames = knownMentionNames,
-                    onSelectCommand = onApplyCommand,
-                    onEditMessage = onEditMessage,
-                    onDeleteMessage = onDeleteMessage,
-                    onRewindMessage = onRewindMessage,
-                    onCreateBranch = onCreateBranch,
-                    onRegenerate = onRegenerate,
-                    onRetryTool = onRetryTool,
-                    onOpenFile = onOpenFile,
-                    activeCompaction = activeCompaction,
-                    activePlan = activePlan,
-                    pendingApprovals = pendingApprovals,
-                    onResolveApproval = onResolveApproval,
-                    onResolveQuestion = onResolveQuestion,
-                    onViewSubagentLanes = onViewSubagentLanes,
-                    subagentBranches = subagentBranches,
-                    onOpenSubagent = onOpenSubagentBranch,
-                    hiddenSkillSuggestions = hiddenSkillSuggestions,
-                    onApplySkillSuggestion = onApplySkillSuggestion,
-                    onDismissSkillSuggestion = onDismissSkillSuggestion,
-                    bottomContentPadding = bottomChrome,
-                )
-            }
-            // 贴屏幕最底（含导航栏区域）：由弱到强溶向底边；输入区叠在渐隐之上。
-            ChatBottomEdgeFade(
-                height = bottomChrome + ChatBottomEdgeFadeExtra,
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
-            Column(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .onSizeChanged { bottomChromePx = it.height }
-                    .windowInsetsPadding(chatBottomInsets()),
-            ) {
-                activePlan?.let { plan ->
-                    val steps = remember(plan.stepsJson) { PlanStepParser.parse(plan.stepsJson) }
-                    if (steps.isNotEmpty()) {
-                        StickyPlanBar(
-                            goal = plan.goal,
-                            steps = steps,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        )
-                    }
-                }
-                error?.let { ChatErrorBanner(error = it, onClear = onClearError) }
-                McpRecommendationBanner(
-                    recommendations = mcpRecommendations,
-                    onEnable = onEnableMcpRecommendation,
-                    onInstall = onInstallMcpRecommendation,
-                    onDismiss = onDismissMcpRecommendation,
-                )
-                ProactiveWorkflowBanner(
-                    suggestions = workflowSuggestions,
-                    onLaunch = onLaunchWorkflowSuggestion,
-                    onDismiss = onDismissWorkflowSuggestion,
-                )
-                BtwPanel(queries = btwQueries, streaming = btwStreaming, onCancel = onCancelBtw)
-                shareActions?.let { share ->
-                    ShareQuickActionsRow(state = share, modifier = Modifier.padding(vertical = 4.dp))
-                }
-                ChatComposer(
-                    listState = listState,
-                    running = running,
-                    initializing = initializing,
-                    status = status,
-                    messages = messages,
-                    toolResults = toolResults,
-                    workspace = workspace,
-                    input = input,
-                    onInputChanged = onInputChanged,
-                    onSend = onSend,
-                    onSendWithoutAnswer = onSendWithoutAnswer,
-                    onPasteLongText = onPasteLongText,
-                    onStop = onStop,
-                    sendMode = sendMode,
-                    matchingCommands = matchingCommands,
-                    onApplyCommand = onApplyCommand,
-                    matchingMentions = matchingMentions,
-                    onApplyMention = onApplyMention,
-                    attachments = attachments,
-                    attachmentsProcessing = attachmentsProcessing,
-                    onAttachmentsPicked = onAttachmentsPicked,
-                    onRemoveAttachment = onRemoveAttachment,
-                    queuedPrompts = queuedPrompts,
-                    onEditQueuedPrompt = onEditQueuedPrompt,
-                    onRemoveQueuedPrompt = onRemoveQueuedPrompt,
-                    onConvertToSteer = onConvertToSteer,
-                    knownMentionNames = knownMentionNames,
-                    attachedMentions = attachedMentions,
-                    onRemoveMention = onRemoveMention,
-                    pinnedCapabilities = pinnedCapabilities,
-                    onUnpinMention = onUnpinMention,
-                    onOpenSkillsMcp = onOpenSkillsMcp,
-                    onCompactContext = onCompactContext,
-                    activeModel = activeModel,
-                    onOpenModels = onOpenModels,
-                    approvalMode = approvalMode,
-                    onOpenApprovalModes = onOpenApprovalModes,
-                    onUpdateReasoning = onUpdateReasoning,
-                    contextUsage = contextUsage,
-                )
-            }
-        }
-    }
 }

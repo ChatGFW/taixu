@@ -48,7 +48,7 @@ internal fun GroupToolCallPanel(messageId: String, steps: List<GroupToolStep>, s
                     if (failed > 0) failed else pending),
                 style = RuntimeTheme.typography.labelSmall,
                 color = if (failed > 0) RuntimeTheme.colorScheme.error else runtimeProcessColor())
-            RuntimeIcon(if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
+            top.wkbin.taixu.ui.components.RuntimeExpandChevron(expanded,
                 Modifier.size(16.dp), runtimeProcessColor())
         }
         if (expanded) Column(Modifier.fillMaxWidth().padding(start = 8.dp).drawBehind {
@@ -97,8 +97,9 @@ private fun GroupToolStepRow(step: GroupToolStep, streaming: Boolean, onClick: (
 private fun GroupToolStepDetails(step: GroupToolStep, streaming: Boolean, onDismiss: () -> Unit) {
     RuntimeModalBottomSheet(onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        // 底 inset 由 ModalBottomSheet 统一处理，勿再 navigationBarsPadding。
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)
-            .navigationBarsPadding().padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            .padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RuntimeProcessIcon(groupToolIcon(step.name))
                 Text(groupToolTitle(step.name), Modifier.weight(1f), style = RuntimeTheme.typography.titleMedium)

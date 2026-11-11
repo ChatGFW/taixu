@@ -6,12 +6,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.ui.components.*
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
-
 @Composable
 internal fun AddSkillDialog(
     onDismiss: () -> Unit,

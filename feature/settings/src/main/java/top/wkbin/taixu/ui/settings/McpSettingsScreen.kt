@@ -271,7 +271,7 @@ fun McpSettingsScreen(
                 Text("确定要删除「${server.name}」吗？删除后将停止向智枢 Agent 注入该服务的工具能力；系统核心 MCP 重新开启即可恢复。")
             },
             confirmButton = {
-                Button(
+                TextButton(
                     onClick = {
                         viewModel?.deleteMcpServer(server.id)
                         pendingDeleteServerId = null
@@ -416,7 +416,7 @@ private fun LocalMcpDiscoveryDialog(
         confirmButton = {
             when (state) {
                 LocalMcpDiscoveryState.Scanning -> Unit
-                else -> Button(onClick = onRetry) { Text("重新探测") }
+                else -> TextButton(onClick = onRetry) { Text("重新探测") }
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("关闭") } },

@@ -3,7 +3,6 @@ package top.wkbin.taixu.ui.settings
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -13,7 +12,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -23,6 +21,7 @@ import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
+import top.wkbin.taixu.ui.components.RuntimeIconMenu
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
@@ -32,10 +31,11 @@ import top.wkbin.taixu.ui.components.runtimeScrollViewport
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Scaffold
 import top.wkbin.taixu.ui.miuix.TopAppBarDefaults
+import top.yukonga.miuix.kmp.basic.DropdownEntry
+import top.yukonga.miuix.kmp.basic.DropdownItem
 import top.yukonga.miuix.kmp.basic.Text
-/**
- * 模型档案管理全屏独立页面
- */
+
+/** 模型档案管理全屏独立页面 */
 @Composable
 fun ModelProfilesScreen(
     onBack: () -> Unit,
@@ -55,7 +55,6 @@ fun ModelProfilesScreen(
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = RuntimeTheme.colorScheme.surface,
         topBar = {
             RuntimeTopBar(
@@ -66,42 +65,42 @@ fun ModelProfilesScreen(
                     RuntimeIconButton(onClick = onCreate, contentDescription = "新增模型档案") {
                         RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp))
                     }
-                    // 📥 导入按钮
-                    RuntimeIconButton(
-                        onClick = { showImportDialog = true },
-                        contentDescription = "导入模型配置",
+                    RuntimeIconMenu(
+                        entries = listOf(
+                            DropdownEntry(
+                                items = listOf(
+                                    DropdownItem(
+                                        text = "导入模型配置",
+                                        icon = { mod -> RuntimeIcon(RuntimeIconName.Download, mod) },
+                                        onClick = { showImportDialog = true },
+                                    ),
+                                    DropdownItem(
+                                        text = "导出全部配置",
+                                        icon = { mod -> RuntimeIcon(RuntimeIconName.OpenInNew, mod) },
+                                        onClick = {
+                                            if (models.isEmpty()) {
+                                                Toast.makeText(context, "暂无模型档案可导出", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                showExportAllDialog = true
+                                            }
+                                        },
+                                    ),
+                                ),
+                            ),
+                        ),
+                        modifier = Modifier.size(40.dp),
                     ) {
-                        RuntimeIcon(
-                            name = RuntimeIconName.Download,
-                            modifier = Modifier.size(20.dp),
-                            tint = RuntimeTheme.colorScheme.onSurface,
-                        )
-                    }
-                    // 📤 导出全部按钮
-                    RuntimeIconButton(
-                        onClick = {
-                            if (models.isEmpty()) {
-                                Toast.makeText(context, "暂无模型档案可导出", Toast.LENGTH_SHORT).show()
-                            } else {
-                                showExportAllDialog = true
-                            }
-                        },
-                        contentDescription = "导出全部模型配置",
-                    ) {
-                        RuntimeIcon(
-                            name = RuntimeIconName.OpenInNew,
-                            modifier = Modifier.size(20.dp),
-                            tint = RuntimeTheme.colorScheme.onSurface,
-                        )
+                        RuntimeIcon(RuntimeIconName.More, Modifier.size(20.dp))
                     }
                 },
             )
         },
     ) { padding ->
         ModelProfilesContent(
-            modifier = runtimeScrollViewport(padding), bottomPadding = padding.calculateBottomPadding(),
+            modifier = runtimeScrollViewport(padding),
+            scaffoldPadding = padding,
+            topBarScroll = scrollBehavior.nestedScrollConnection,
             models = models,
-            onCreate = onCreate,
             onEdit = { model -> onEdit(model.id) },
             onActivate = { arg0 -> viewModel?.setActiveModel(arg0) },
             onDelete = { model -> modelPendingDelete = model },
@@ -109,7 +108,6 @@ fun ModelProfilesScreen(
         )
     }
 
-    // 导入弹窗
     if (showImportDialog) {
         ModelImportDialog(
             onDismiss = { showImportDialog = false },
@@ -129,14 +127,13 @@ fun ModelProfilesScreen(
                         },
                         onFailure = { _ ->
                             Toast.makeText(context, "导入失败：JSON 无法解析或配置无效，请检查后重试", Toast.LENGTH_LONG).show()
-                        }
+                        },
                     )
                 }
             },
         )
     }
 
-    // 批量导出弹窗
     if (showExportAllDialog) {
         ModelExportDialog(
             title = "批量导出模型档案",
@@ -148,7 +145,6 @@ fun ModelProfilesScreen(
         )
     }
 
-    // 单项导出弹窗
     singleExportModel?.let { targetModel ->
         ModelExportDialog(
             title = "导出模型档案配置",
@@ -161,7 +157,6 @@ fun ModelProfilesScreen(
         )
     }
 
-    // 删除确认弹窗
     modelPendingDelete?.let { target ->
         RuntimeAlertDialog(
             onDismissRequest = { modelPendingDelete = null },

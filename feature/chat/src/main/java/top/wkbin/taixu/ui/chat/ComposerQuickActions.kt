@@ -27,6 +27,13 @@ internal fun ComposerQuickActions(
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         RuntimeIconButton(
+            onClick = onOpenAttachSheet,
+            modifier = Modifier.size(ComposerActionSize),
+            contentDescription = stringResource(R.string.chat_add_attachment),
+        ) {
+            RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
+        }
+        RuntimeIconButton(
             onClick = onOpenModels,
             modifier = Modifier.size(ComposerActionSize),
             contentDescription = stringResource(R.string.chat_select_model),
@@ -53,13 +60,6 @@ internal fun ComposerQuickActions(
             contentDescription = modeLabel,
         ) {
             RuntimeIcon(RuntimeIconName.Shield, Modifier.size(20.dp), modeColor)
-        }
-        RuntimeIconButton(
-            onClick = onOpenAttachSheet,
-            modifier = Modifier.size(ComposerActionSize),
-            contentDescription = stringResource(R.string.chat_add_attachment),
-        ) {
-            RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

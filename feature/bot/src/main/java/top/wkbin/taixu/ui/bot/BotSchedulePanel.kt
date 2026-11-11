@@ -229,7 +229,7 @@ private fun AddScheduleDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = { onAdd(cron.trim(), instruction, groupId) },
                 enabled = !busy && instruction.isNotBlank() && cronError == null,
             ) { Text(stringResource(R.string.fbot_create)) }

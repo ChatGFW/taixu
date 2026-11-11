@@ -134,7 +134,7 @@ internal fun RemotePluginsScreen(onBack: () -> Unit, model: RemotePluginsViewMod
                 Text("导入后可在外部 Web 插件页打开，页面能力仍需原生授权。")
                 pending.preview.manifest.plugin?.capabilities?.forEach { Text("${it.name} · ${it.target}") }
             } },
-            confirmButton = { RuntimeButton(onClick = { model.confirmWeb(pending) }, enabled = !state.busy) { Text("确认导入") } },
+            confirmButton = { RuntimeTextButton(onClick = { model.confirmWeb(pending) }, enabled = !state.busy) { Text("确认导入") } },
             dismissButton = { RuntimeTextButton(onClick = model::cancelWeb, enabled = !state.busy) { Text("取消") } })
     }
 }

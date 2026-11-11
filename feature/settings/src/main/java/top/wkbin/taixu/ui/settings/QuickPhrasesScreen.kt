@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
-import top.wkbin.taixu.core.model.QuickPhrase
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeFilterChip

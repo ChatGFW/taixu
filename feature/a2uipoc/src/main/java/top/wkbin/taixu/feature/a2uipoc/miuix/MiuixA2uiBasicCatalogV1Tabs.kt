@@ -29,14 +29,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import top.wkbin.taixu.ui.miuix.Tab
 import top.wkbin.taixu.feature.a2uipoc.miuix.MiuixA2uiDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 
 internal object MiuixA2uiBasicCatalogV1Tabs : A2uiBasicCatalogV1.Tabs {
@@ -99,6 +97,5 @@ internal object MiuixA2uiBasicCatalogV1Tabs : A2uiBasicCatalogV1.Tabs {
     }
 }
 
-private val TabItemModifier = Modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
 private val TabContainerModifier = Modifier.fillMaxWidth().padding(top = 16.dp)
 private val TabLoadingModifier = Modifier.fillMaxWidth().height(120.dp)

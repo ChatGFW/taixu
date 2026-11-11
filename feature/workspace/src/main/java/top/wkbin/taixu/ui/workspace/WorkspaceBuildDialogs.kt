@@ -21,7 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Surface
 import top.yukonga.miuix.kmp.basic.Text
-import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -42,11 +41,9 @@ import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeActionRow
-
 /**
  * 后台构建常驻状态栏（列表首项 Banner）：
  * 进行中显示可点击进度条，结束后显示成功/失败与安装、详情操作。
@@ -478,43 +475,36 @@ internal fun BuildProgressDialog(
         },
         confirmButton = {
             if (!progress.isRunning) {
-                RuntimeActionRow() {
-                    // 缺少环境时展示前往插件中心准备环境按钮
-                    if (progress.suggestedSuiteId != null) {
-                        Button(
-                            onClick = {
-                                onDismissProgress()
-                                onOpenToolCenter()
-                            },
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                RuntimeIcon(RuntimeIconName.Package, Modifier.size(14.dp), tint = RuntimeTheme.colorScheme.onPrimary)
-                                Text(stringResource(R.string.workspace_prepare_environment))
-                            }
+                // 缺少环境时展示前往插件中心准备环境按钮
+                if (progress.suggestedSuiteId != null) {
+                    TextButton(
+                        onClick = {
+                            onDismissProgress()
+                            onOpenToolCenter()
+                        },
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            RuntimeIcon(RuntimeIconName.Package, Modifier.size(14.dp), tint = RuntimeTheme.colorScheme.onPrimary)
+                            Text(stringResource(R.string.workspace_prepare_environment))
                         }
                     }
+                }
 
-                    val path = progress.apkPath
-                    if (progress.isSuccess == true && path != null) {
-                        Button(onClick = { onLaunchInstaller(path) }) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                RuntimeIcon(RuntimeIconName.Download, Modifier.size(14.dp), tint = RuntimeTheme.colorScheme.onPrimary)
-                                Text(stringResource(R.string.workspace_launch_install))
-                            }
+                val path = progress.apkPath
+                if (progress.isSuccess == true && path != null) {
+                    TextButton(onClick = { onLaunchInstaller(path) }) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            RuntimeIcon(RuntimeIconName.Download, Modifier.size(14.dp), tint = RuntimeTheme.colorScheme.onPrimary)
+                            Text(stringResource(R.string.workspace_launch_install))
                         }
-                    }
-                    TextButton(onClick = onDismissProgress) {
-                        Text(stringResource(R.string.workspace_done))
                     }
                 }
             } else {
-                RuntimeActionRow() {
-                    TextButton(onClick = onCancelBuild) {
-                        Text(stringResource(R.string.workspace_stop_build), fontWeight = FontWeight.Medium)
-                    }
-                    TextButton(onClick = onHideDialog) {
-                        Text(stringResource(R.string.workspace_background), fontWeight = FontWeight.Medium)
-                    }
+                TextButton(onClick = onCancelBuild) {
+                    Text(stringResource(R.string.workspace_stop_build), fontWeight = FontWeight.Medium)
+                }
+                TextButton(onClick = onHideDialog) {
+                    Text(stringResource(R.string.workspace_background), fontWeight = FontWeight.Medium)
                 }
             }
         },
@@ -522,6 +512,10 @@ internal fun BuildProgressDialog(
             if (progress.isRunning) {
                 TextButton(onClick = onHideDialog) {
                     Text(stringResource(R.string.workspace_collapse))
+                }
+            } else {
+                TextButton(onClick = onDismissProgress) {
+                    Text(stringResource(R.string.workspace_done))
                 }
             }
         },

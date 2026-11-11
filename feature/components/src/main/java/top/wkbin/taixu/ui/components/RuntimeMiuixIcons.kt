@@ -35,7 +35,6 @@ internal fun runtimeIconVector(name: RuntimeIconName): ImageVector? = when (name
     RuntimeIconName.Phone -> MiuixIcons.Phone
     RuntimeIconName.ChevronRight -> MiuixIcons.ChevronForward
     RuntimeIconName.NavDashboard -> MiuixIcons.GridView
-    RuntimeIconName.Shield -> MiuixIcons.Lock
     RuntimeIconName.Trash -> MiuixIcons.Delete
     RuntimeIconName.Check -> MiuixIcons.Ok
     RuntimeIconName.Plus -> MiuixIcons.Add

@@ -4,14 +4,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,7 +35,6 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
@@ -47,7 +44,6 @@ import top.wkbin.taixu.ui.components.runtimeContentPadding
 import top.wkbin.taixu.ui.components.runtimeScrollContentPadding
 import top.wkbin.taixu.ui.components.runtimeScrollViewport
 import top.wkbin.taixu.ui.miuix.ButtonDefaults
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.wkbin.taixu.ui.miuix.RuntimeSpacing
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Scaffold
@@ -55,7 +51,6 @@ import top.wkbin.taixu.ui.miuix.SwitchDefaults
 import top.wkbin.taixu.ui.miuix.TopAppBarDefaults
 import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
-
 /**
  * 宿主与沙箱存储挂载管理 (Storage Mounts & Bindings)
  * 基于 PRoot -b 机制，实现 Android 宿主目录与 Linux 容器内的无缝双向访问
@@ -287,7 +282,7 @@ fun StorageMountSettingsScreen(
                 Text("确定要删除挂载点「${binding.name}」（${binding.hostPath} ➔ ${binding.guestPath}）吗？删除后新建的终端 / 构建任务将不再映射该目录。")
             },
             confirmButton = {
-                Button(
+                TextButton(
                     onClick = {
                         viewModel?.removeCustomMountBinding(binding.id)
                         pendingDeleteBindingId = null

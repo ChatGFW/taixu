@@ -220,9 +220,9 @@ internal fun WorkflowStartDialog(
                 }
             }
         },
-        dismissButton = { RuntimeOutlinedButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { RuntimeTextButton(onClick = onDismiss) { Text("取消") } },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = {
                     val payload = values.toMutableMap()
                     if (needsModel && selectedModelId.isNotBlank()) {
@@ -347,9 +347,10 @@ private fun ApkSelectorSection(
                 onClick = { showManualInput = !showManualInput },
                 contentPadding = PaddingValues(0.dp),
             ) {
-                RuntimeIcon(
-                    if (showManualInput) RuntimeIconName.ChevronUp else RuntimeIconName.ChevronDown,
-                    Modifier.size(14.dp),
+                top.wkbin.taixu.ui.components.RuntimeExpandChevron(
+                    expanded = showManualInput,
+                    modifier = Modifier.size(14.dp),
+                    vertical = true,
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
@@ -397,7 +398,6 @@ private fun formatApkSize(bytes: Long): String = when {
     bytes < 1024L * 1024L -> "%.1f KB".format(bytes / 1024.0)
     else -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
 }
-
 private fun formatApkTime(timestamp: Long): String {
     if (timestamp <= 0L) return ""
     val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())

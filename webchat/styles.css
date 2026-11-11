@@ -1,6 +1,41 @@
 /* ---------------------------------------------------------------------------
  * 太墟 WebChat 设计令牌，与 Android 端深浅色表面保持一致。
  * ------------------------------------------------------------------------- */
+.input-mode {
+  max-width: 160px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+.input-mode-help, .session-workspace {
+  margin: 0 0 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.message-feedback { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.message-feedback button {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.message-feedback button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.message-feedback span { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 600px) {
+  .composer-actions { flex-wrap: wrap; }
+  .composer-actions .composer-hint { display: none; }
+}
 :root {
   color-scheme: light;
 

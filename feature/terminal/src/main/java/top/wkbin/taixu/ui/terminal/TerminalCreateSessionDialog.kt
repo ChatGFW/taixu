@@ -127,7 +127,7 @@ internal fun CreateTerminalDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = { onCreate(label.ifBlank { defaultLabel }, selectedDir, selectedDistroId) },
                 shape = RuntimeTheme.shapes.medium,
             ) {

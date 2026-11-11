@@ -28,7 +28,6 @@ enum class SettingsSearchTarget {
     STATS,
     TOOL_CENTER,
     PLUGIN_LIBRARY,
-    CC_SWITCH,
     AGENT_EXECUTION,
     AGENT_SUBAGENTS,
     AGENT_SKILLS,

@@ -5,6 +5,7 @@ import androidx.compose.runtime.setValue
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,7 +25,7 @@ import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.core.model.bot.GroupReplyMode
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeArrowPreference
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.core.model.bot.Bot
@@ -105,34 +106,59 @@ internal fun GroupInfoDialog(
                 BackgroundStyleRow(background) { background = it }
                 UnifiedApprovalModeRow(unifiedApprovalMode) { unifiedApprovalMode = it }
                 HorizontalDivider(Modifier.padding(vertical = 4.dp, horizontal = 0.dp))
-                RuntimeTextButton(onClick = onManageMembers, enabled = !deleting && group.teamGroupId == null) {
-                    Text(stringResource(R.string.fbot_manage_members))
-                }
-                RuntimeTextButton(
+                val rowMargin = PaddingValues(horizontal = 0.dp, vertical = 12.dp)
+                RuntimeArrowPreference(
+                    title = stringResource(R.string.fbot_manage_members),
+                    onClick = onManageMembers,
+                    enabled = !deleting && group.teamGroupId == null,
+                    insideMargin = rowMargin,
+                )
+                RuntimeArrowPreference(
+                    title = "移交管理员",
                     onClick = { showTransfer = true },
                     enabled = !deleting && group.teamGroupId == null && members.count { it.id != group.adminBotId } > 0,
-                ) { Text("移交管理员") }
-                RuntimeTextButton(onClick = onImportTeam, enabled = !deleting) { Text("引用团队组") }
-                RuntimeTextButton(onClick = onManageGovernance, enabled = !deleting) { Text("本群审议记录") }
-                RuntimeTextButton(onClick = onManageTeam, enabled = !deleting) {
-                    Text("查看团队架构")
-                }
-                RuntimeTextButton(onClick = onManageBudget, enabled = !deleting) {
-                    Text(stringResource(R.string.fbot_budget_title))
-                }
-                RuntimeTextButton(onClick = onClearMessages, enabled = !deleting) {
-                    Text(stringResource(R.string.fbot_clear_messages))
-                }
-                RuntimeTextButton(onClick = { confirmDelete = true }, enabled = !deleting) {
-                    Text(
-                        text = stringResource(R.string.fbot_group_disband),
-                        color = RuntimeTheme.colorScheme.error,
-                    )
-                }
+                    insideMargin = rowMargin,
+                )
+                RuntimeArrowPreference(
+                    title = "引用团队组",
+                    onClick = onImportTeam,
+                    enabled = !deleting,
+                    insideMargin = rowMargin,
+                )
+                RuntimeArrowPreference(
+                    title = "本群审议记录",
+                    onClick = onManageGovernance,
+                    enabled = !deleting,
+                    insideMargin = rowMargin,
+                )
+                RuntimeArrowPreference(
+                    title = "查看团队架构",
+                    onClick = onManageTeam,
+                    enabled = !deleting,
+                    insideMargin = rowMargin,
+                )
+                RuntimeArrowPreference(
+                    title = stringResource(R.string.fbot_budget_title),
+                    onClick = onManageBudget,
+                    enabled = !deleting,
+                    insideMargin = rowMargin,
+                )
+                RuntimeArrowPreference(
+                    title = stringResource(R.string.fbot_clear_messages),
+                    onClick = onClearMessages,
+                    enabled = !deleting,
+                    insideMargin = rowMargin,
+                )
+                RuntimeArrowPreference(
+                    title = stringResource(R.string.fbot_group_disband),
+                    onClick = { confirmDelete = true },
+                    enabled = !deleting,
+                    insideMargin = rowMargin,
+                )
             }
         },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = { onSave(name, description, background, replyMode, unifiedApprovalMode) },
                 enabled = name.isNotBlank() && !deleting,
             ) { Text(stringResource(R.string.fbot_save)) }
@@ -158,7 +184,7 @@ internal fun GroupInfoDialog(
             title = { Text(stringResource(R.string.fbot_group_disband)) },
             text = { Text(stringResource(R.string.fbot_group_disband_confirm)) },
             confirmButton = {
-                RuntimeButton(
+                RuntimeTextButton(
                     onClick = {
                         confirmDelete = false
                         onDelete()

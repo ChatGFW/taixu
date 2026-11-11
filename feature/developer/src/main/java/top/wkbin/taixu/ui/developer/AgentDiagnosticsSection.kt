@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,7 +44,6 @@ import top.wkbin.taixu.ui.components.RuntimeSwitch as Switch
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.RuntimeActionRow
-
 /**
  * 智能体诊断区：本地调试日志 + 消息反馈只读视图。
  *

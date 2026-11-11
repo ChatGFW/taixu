@@ -53,9 +53,11 @@ object ButtonDefaults {
     ) = buttonColors(containerColor, contentColor, disabledContainerColor, disabledContentColor)
 
     /**
-     * Text actions follow placement: a dialog's action row uses the miuix filled pair (primary
-     * confirm, grey dismiss); anywhere else they are borderless accent text, so inline actions do
-     * not stack grey pills next to content.
+     * Text actions follow placement:
+     * - dialog/sheet action row confirm → primary fill ([LocalDialogPrimaryAction])
+     * - dialog/sheet action row dismiss, or any TextButton on a raised dialog/sheet body →
+     *   grey fill ([LocalDialogAction] / [LocalRaisedSurface])
+     * - elsewhere → borderless accent text (no grey pills next to page content)
      */
     @Composable
     fun textButtonColors(
@@ -63,7 +65,11 @@ object ButtonDefaults {
         disabledContentColor: Color = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.disabledOnSecondaryVariant,
     ) = when {
         LocalDialogPrimaryAction.current -> buttonColors()
-        LocalDialogAction.current -> outlinedButtonColors(disabledContainerColor = disabledContainerColor, disabledContentColor = disabledContentColor)
+        LocalDialogAction.current || LocalRaisedSurface.current ->
+            outlinedButtonColors(
+                disabledContainerColor = disabledContainerColor,
+                disabledContentColor = disabledContentColor,
+            )
         else -> RuntimeTheme.colorScheme.primary.let { accent ->
             ButtonColors(Color.Transparent, Color.Transparent, accent, accent.copy(alpha = 0.38f))
         }
@@ -81,13 +87,14 @@ fun Button(
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     content: @Composable RowScope.() -> Unit,
 ) {
-    val buttonShape = if (LocalDialogAction.current) ButtonDefaults.shape else shape
+    val dialogChrome = LocalDialogAction.current || LocalRaisedSurface.current
+    val buttonShape = if (dialogChrome) ButtonDefaults.shape else shape
     val radius = buttonShape.uniformRadius()
     MiuixButton(onClick, modifier.clip(buttonShape).cardOutline(buttonShape, radius, border), enabled,
         minHeight = RuntimeSpacing.buttonMinHeight,
         cornerRadius = radius ?: top.yukonga.miuix.kmp.basic.ButtonDefaults.CornerRadius,
         colors = colors,
-        insideMargin = if (LocalDialogAction.current) ButtonDefaults.ContentPadding else contentPadding,
+        insideMargin = if (dialogChrome) ButtonDefaults.ContentPadding else contentPadding,
         content = content)
 }
 

@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.feature.chat.R
+import top.wkbin.taixu.ui.components.RuntimeExpandChevron
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearProgressIndicator
@@ -138,9 +139,9 @@ internal fun TaskPlanCard(steps: List<TaskStepItem>, modifier: Modifier = Modifi
                     )
                 }
 
-                RuntimeIcon(
-                    if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                    Modifier.size(14.dp),
+                RuntimeExpandChevron(
+                    expanded = expanded,
+                    modifier = Modifier.size(14.dp),
                     tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }

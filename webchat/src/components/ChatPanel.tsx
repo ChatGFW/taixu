@@ -6,10 +6,11 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
-import { isRecord } from "../api";
+import { MessageFeedbackActions } from "./MessageFeedbackActions";
+import { request, isRecord } from "../api";
 import { diffLines, type DiffRow } from "../diff";
 import { formatBytes, markdownToHtml, messageContent, messageTime } from "../format";
-import type { ApprovalRequest, Attachment, ChatMessage, Conversation, QuickPhrase } from "../types";
+import type { ApprovalRequest, Attachment, ChatMessage, Conversation, QuickPhrase, InputMode, MessageFeedback } from "../types";
 import {
   ComposerAttachmentIcon,
   ComposerSendIcon,
@@ -26,7 +27,7 @@ interface ChatPanelProps {
   activeTaskId: string | null;
   onOpenConversations: () => void;
   onDelete: () => void;
-  onSend: (text: string, attachments: Attachment[]) => Promise<boolean>;
+  onSend: (text: string, attachments: Attachment[], inputMode: InputMode) => Promise<boolean>;
   onCancel: () => void;
   onResolveApproval: (requestId: string, approved: boolean) => void;
   onClearError: () => void;
@@ -141,6 +142,8 @@ function MessageAttachments({ attachments }: { attachments: Record<string, unkno
 function statusLabel(status: unknown): string {
   return ({
     running: "运行中",
+    waiting_approval: "待审批",
+    approval_deferred: "待主智能体审批",
     completed: "已完成",
     success: "已完成",
     error: "失败",
@@ -158,7 +161,7 @@ function statusClass(status: unknown): string {
   if (value === "error") return "error";
   if (value === "timeout") return "timeout";
   if (value === "interrupted" || value === "cancelled") return "interrupted";
-  if (value === "unverified") return "unverified";
+  if (value === "unverified" || value === "waiting_approval" || value === "approval_deferred") return "unverified";
   return "running";
 }
 
@@ -213,9 +216,13 @@ function toolDiffRows(card: Record<string, unknown>): DiffRow[] | null {
 function Message({
   message,
   active = false,
+  feedback,
+  onFeedback,
 }: {
   message: ChatMessage;
   active?: boolean;
+  feedback?: MessageFeedback;
+  onFeedback: (rating: "up" | "down", note?: string) => Promise<void>;
 }) {
   const content = messageContent(message);
   const isUser = Number(message.user) === 1;
@@ -244,6 +251,7 @@ function Message({
                 <strong className={running ? "shimmer" : ""}>{String(title)}</strong>
               </span>
               <span className="tool-status-toggle">
+                {typeof card.durationMs === "number" && <span className="tool-status">{(card.durationMs / 1000).toFixed(1)}s</span>}
                 <span className="tool-status">{running ? toolTypeLabel(card) : statusLabel(status)}</span>
                 <Icon className="tool-chevron" name="chevron-down" size={14} />
               </span>
@@ -299,6 +307,7 @@ function Message({
           )
         )}
         <MessageAttachments attachments={attachments} />
+        {!isUser && text && !active && !message.isLoading && <MessageFeedbackActions feedback={feedback} onSave={onFeedback} />}
       </div>
     </article>
   );
@@ -320,6 +329,8 @@ export function ChatPanel({
   onAttachmentError,
   quickPhrases,
 }: ChatPanelProps) {
+  const [inputMode, setInputMode] = useState<InputMode>("next_run");
+  const [feedbacks, setFeedbacks] = useState<MessageFeedback[]>([]);
   const [draft, setDraft] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const messageListRef = useRef<HTMLDivElement>(null);
@@ -330,13 +341,33 @@ export function ChatPanel({
     ? [...sortedMessages].reverse().find((message) => Number(message.user) !== 1) ?? null
     : null;
   const canManageConversation = String(conversation?.id ?? "").trim().length > 0;
-  const isProcessing = sending || Boolean(activeTaskId);
-  const canSend = !isProcessing && Boolean(draft.trim() || attachments.length);
+  const canSend = !sending && Boolean(draft.trim() || attachments.length);
 
+  const followingTail = useRef(true);
   useEffect(() => {
     const list = messageListRef.current;
-    if (list) list.scrollTop = list.scrollHeight;
+    if (list && followingTail.current) list.scrollTop = list.scrollHeight;
   }, [messages, activeTaskId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFeedbacks([]);
+    followingTail.current = true;
+    if (!conversation?.id) return;
+    void request<{ feedbacks: MessageFeedback[] }>(`/conversations/${encodeURIComponent(conversation.id)}/feedback`)
+      .then((result) => { if (!cancelled) setFeedbacks(result.feedbacks); })
+      .catch((error) => { if (!cancelled) onAttachmentError(error); });
+    return () => { cancelled = true; };
+  }, [conversation?.id]);
+
+  async function saveFeedback(messageId: string, rating: "up" | "down", note?: string) {
+    try {
+      const result = await request<{ feedback: MessageFeedback }>(`/conversations/${encodeURIComponent(String(conversation?.id))}/feedback`, {
+        method: "POST", body: { messageId, rating, note },
+      });
+      setFeedbacks((current) => [...current.filter((item) => item.messageId !== messageId), result.feedback]);
+    } catch (error) { onAttachmentError(error); }
+  }
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -349,7 +380,7 @@ export function ChatPanel({
     event?.preventDefault();
     if (!canSend) return;
     onClearError();
-    const sent = await onSend(draft.trim(), attachments);
+    const sent = await onSend(draft.trim(), attachments, inputMode);
     if (sent) {
       setDraft("");
       setAttachments([]);
@@ -374,6 +405,9 @@ export function ChatPanel({
     event.target.value = "";
     if (!files.length) return;
     try {
+      if (files.some((file) => !file.type.startsWith("image/"))) {
+        throw new Error("聊天接口目前支持图片附件；其他文件请从工作区上传后引用路径。");
+      }
       const nextAttachments = await Promise.all(files.map(fileToAttachment));
       setAttachments((current) => [...current, ...nextAttachments]);
     } catch (error) {
@@ -408,11 +442,16 @@ export function ChatPanel({
 
       {globalError && <div className="global-error" role="alert">{globalError}</div>}
 
-      <div className="message-list" aria-live="polite" ref={messageListRef}>
+      <div className="message-list" aria-live="polite" ref={messageListRef} onScroll={(event) => {
+        const list = event.currentTarget;
+        followingTail.current = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+      }}>
         {!sortedMessages.length && <EmptyGreeting />}
         {sortedMessages.map((message, index) => (
           <Message
             message={message}
+            feedback={feedbacks.find((item) => item.messageId === String(message.id))}
+            onFeedback={(rating, note) => saveFeedback(String(message.id), rating, note)}
             active={message === activeTailMessage}
             key={String(message.id ?? `${messageTime(message)}-${index}`)}
           />
@@ -440,6 +479,8 @@ export function ChatPanel({
       </div>
 
       <div className="composer-region">
+        {conversation?.workspace && <div className="session-workspace" title={conversation.workspace}>工作区：{conversation.workspace}</div>}
+        {activeTaskId && <p className="input-mode-help" role="status">执行中 · 可继续发送引导或排队消息</p>}
         <form className="composer" onSubmit={(event) => void submit(event)}>
           {!!attachments.length && (
             <div className="attachment-list">
@@ -500,17 +541,21 @@ export function ChatPanel({
             >
               <ComposerAttachmentIcon />
             </button>
-            <input ref={attachmentInputRef} type="file" multiple hidden onChange={(event) => void addAttachments(event)} />
+            <input ref={attachmentInputRef} type="file" accept="image/*" multiple hidden onChange={(event) => void addAttachments(event)} />
+            <select className="input-mode" aria-label="输入模式" value={inputMode} onChange={(event) => setInputMode(event.target.value as InputMode)}>
+              <option value="next_run">新一轮 / 排队</option>
+              <option value="steer">引导当前执行</option>
+              <option value="follow_up">执行后续问</option>
+            </select>
             <span className="composer-hint">Enter 发送 · Shift + Enter 换行</span>
-            {activeTaskId ? (
+            {activeTaskId && (
               <button className="send-button stop" type="button" aria-label="停止" title="停止" onClick={onCancel}>
                 <ComposerStopIcon />
               </button>
-            ) : (
+            )}
               <button className={`send-button${sending ? " loading" : ""}`} type="submit" aria-label="发送" disabled={!canSend}>
                 <ComposerSendIcon />
               </button>
-            )}
           </div>
         </form>
       </div>

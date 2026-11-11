@@ -10,7 +10,6 @@ import java.io.FileOutputStream
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.Inet4Address
-import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.NetworkInterface
 import java.net.ServerSocket
@@ -33,7 +32,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
 /** Configuration options for [AndroidFtpServer]. */
 data class FtpServerConfig(
     val port: Int = 2121,

@@ -181,11 +181,11 @@ internal fun SessionsDialog(
                             shape = RuntimeTheme.shapes.small,
                             color = if (isCurrent) RuntimeTheme.colorScheme.surfaceContainer
                                 else RuntimeTheme.colorScheme.surfaceContainerLow,
-                            border = androidx.compose.foundation.BorderStroke(
-                                if (isCurrent) 1.5.dp else 1.dp,
-                                if (isCurrent) RuntimeTheme.colorScheme.primary
-                                else RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                            ),
+                            border = if (isCurrent) {
+                                BorderStroke(1.5.dp, RuntimeTheme.colorScheme.primary)
+                            } else {
+                                null
+                            },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Row(
@@ -293,7 +293,7 @@ internal fun SessionsDialog(
             }
         },
         confirmButton = {
-            Button(onClick = onNew, shape = RuntimeTheme.shapes.medium) {
+            TextButton(onClick = onNew, shape = RuntimeTheme.shapes.medium) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     RuntimeIcon(RuntimeIconName.Plus, Modifier.size(16.dp), RuntimeTheme.colorScheme.onPrimary)
                     Text(stringResource(R.string.chat_new_session))
@@ -332,7 +332,7 @@ internal fun SessionsDialog(
                 }
             },
             confirmButton = {
-                Button(
+                TextButton(
                     onClick = {
                         deleteTargetId = null
                         onDelete(targetId)

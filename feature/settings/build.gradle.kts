@@ -10,7 +10,6 @@ android {
 tasks.withType<Test>().configureEach { forkEvery = 1 }
 
 dependencies {
-    implementation(libs.miuix.preference)
     implementation(project(":plugin:ui"))
     implementation(project(":feature:theme"))
     implementation(project(":core:datastore"))

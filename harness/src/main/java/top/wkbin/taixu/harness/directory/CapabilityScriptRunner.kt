@@ -15,11 +15,9 @@ import org.mozilla.javascript.BaseFunction
 import org.mozilla.javascript.ClassShutter
 import org.mozilla.javascript.Context
 import org.mozilla.javascript.ContextFactory
-import org.mozilla.javascript.Function
 import org.mozilla.javascript.Scriptable
 import org.mozilla.javascript.ScriptableObject
 import org.mozilla.javascript.Undefined
-
 /**
  * codemode 脚本运行器（借鉴 pi 的 codemode 暴露级别，Rhino 引擎）。
  *

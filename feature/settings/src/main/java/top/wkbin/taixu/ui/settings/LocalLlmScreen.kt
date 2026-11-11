@@ -550,7 +550,7 @@ private fun DownloadModelDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(onClick = { onDownload(url, sha256.ifBlank { null }) }, enabled = urlValid) { Text("开始下载") }
+            RuntimeTextButton(onClick = { onDownload(url, sha256.ifBlank { null }) }, enabled = urlValid) { Text("开始下载") }
         },
         dismissButton = { RuntimeTextButton(onClick = onDismiss) { Text("取消") } },
     )
@@ -590,7 +590,7 @@ private fun ImportPathDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(onClick = { onImport(path) }, enabled = pathValid) { Text("导入") }
+            RuntimeTextButton(onClick = { onImport(path) }, enabled = pathValid) { Text("导入") }
         },
         dismissButton = { RuntimeTextButton(onClick = onDismiss) { Text("取消") } },
     )
@@ -635,7 +635,7 @@ private fun DeleteModelConfirmDialog(
             }
         },
         confirmButton = {
-            RuntimeButton(
+            RuntimeTextButton(
                 onClick = onConfirm,
                 enabled = countdown == 0,
                 colors = ButtonDefaults.buttonColors(

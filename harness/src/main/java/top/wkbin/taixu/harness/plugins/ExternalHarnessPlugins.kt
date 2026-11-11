@@ -5,7 +5,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.core.model.McpServerConfig
 import top.wkbin.taixu.core.model.PluginExecutionIdentity
@@ -20,7 +19,6 @@ import top.wkbin.taixu.plugin.api.PluginExtension
 import top.wkbin.taixu.plugin.api.PluginExtensionPoint
 import top.wkbin.taixu.plugin.packages.PackageHarnessPolicy
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext
-
 /** Metadata discovery has no process side effects. Each approved call owns one MCP instance. */
 class ExternalHarnessPlugins(private val installed: InstalledPluginCatalog, private val transport: McpTransport,
     private val close: suspend (String) -> Unit) {

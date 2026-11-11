@@ -35,6 +35,10 @@ internal fun ChatWorkbenchControls(
     onRunMode: () -> Unit, onBranches: () -> Unit, onRuntime: () -> Unit, onTools: () -> Unit,
     toolchainHighlight: Boolean, onReasoning: (() -> Unit)? = null, onFloatingChat: (() -> Unit)? = null,
     speech: ChatSpeechToggle? = null,
+    hideRunMode: Boolean = false,
+    hideBranches: Boolean = false,
+    hideRuntime: Boolean = false,
+    hideToolchain: Boolean = false,
 ) {
     val rounds = events.count { it is HarnessEvent.ProviderRoundStarted }
     val actions = buildList {
@@ -42,16 +46,24 @@ internal fun ChatWorkbenchControls(
             if (toggle.enabled) RuntimeIconName.VolumeOn else RuntimeIconName.VolumeOff,
             stringResource(if (toggle.enabled) R.string.chat_speech_disable else R.string.chat_speech_enable),
             onClick = toggle.onToggle, highlighted = toggle.enabled)) }
-        add(WorkbenchAction(runModeIcon(runMode), stringResource(R.string.chat_menu_run_mode),
-            stringResource(if (runMode == RunMode.PLAN) R.string.chat_run_mode_plan else R.string.chat_run_mode_build), onRunMode))
-        add(WorkbenchAction(RuntimeIconName.GitBranch, stringResource(R.string.chat_branches_title),
-            branch?.name ?: stringResource(R.string.chat_main_line), onBranches))
-        add(WorkbenchAction(RuntimeIconName.Logs, stringResource(R.string.chat_runtime_overview),
-            if (running) stringResource(R.string.chat_round_number, rounds)
-            else stringResource(R.string.chat_menu_runtime_subtitle, events.size), onRuntime, highlighted = running))
-        add(WorkbenchAction(RuntimeIconName.Wrench, stringResource(R.string.chat_toolchain_entry),
-            if (toolchainHighlight) stringResource(R.string.chat_workbench_tools_attention) else null,
-            onTools, highlighted = toolchainHighlight))
+        if (!hideRunMode) {
+            add(WorkbenchAction(runModeIcon(runMode), stringResource(R.string.chat_menu_run_mode),
+                stringResource(if (runMode == RunMode.PLAN) R.string.chat_run_mode_plan else R.string.chat_run_mode_build), onRunMode))
+        }
+        if (!hideBranches) {
+            add(WorkbenchAction(RuntimeIconName.GitBranch, stringResource(R.string.chat_branches_title),
+                branch?.name ?: stringResource(R.string.chat_main_line), onBranches))
+        }
+        if (!hideRuntime) {
+            add(WorkbenchAction(RuntimeIconName.Logs, stringResource(R.string.chat_runtime_overview),
+                if (running) stringResource(R.string.chat_round_number, rounds)
+                else stringResource(R.string.chat_menu_runtime_subtitle, events.size), onRuntime, highlighted = running))
+        }
+        if (!hideToolchain) {
+            add(WorkbenchAction(RuntimeIconName.Wrench, stringResource(R.string.chat_toolchain_entry),
+                if (toolchainHighlight) stringResource(R.string.chat_workbench_tools_attention) else null,
+                onTools, highlighted = toolchainHighlight))
+        }
         if (onReasoning != null) add(WorkbenchAction(RuntimeIconName.Sparkles,
             stringResource(R.string.chat_reasoning_effort), onClick = onReasoning))
         if (onFloatingChat != null) add(WorkbenchAction(RuntimeIconName.OpenInNew,

@@ -53,7 +53,7 @@ class ModelProfilesMaterialRenderTest : ModelEditorRenderSupport() {
                 createdAt = 0, contextTokens = 128_000),
         )
         render("round2-model-profiles", dark = true, scale = 1.3f, width = 360, height = 800, content = {
-            ModelProfilesContent(Modifier.fillMaxSize(), models = profiles, onCreate = {}, onEdit = {},
+            ModelProfilesContent(Modifier.fillMaxSize(), models = profiles, onEdit = {},
                 onActivate = { activated = it }, onDelete = {}, onExportSingle = {})
         }) { root ->
             val defaultFilter = nodes(root).single {

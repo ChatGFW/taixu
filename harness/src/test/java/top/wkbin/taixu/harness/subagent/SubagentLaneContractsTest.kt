@@ -503,6 +503,16 @@ class SubagentLaneContractsTest {
     }
 
     @Test
+    fun `stderr and combined redirects to files are suspected writes`() {
+        for (command in listOf("ls 2>errors.log", "ls 2>>errors.log", "ls &>all.log", "ls >/dev/null.log")) {
+            assertTrue(command, looksLikeShellWrite(command))
+        }
+        for (command in listOf("ls 2>&1", "ls 2>/dev/null", "ls >'/dev/null'", "ls >\"/dev/null\"")) {
+            assertFalse(command, looksLikeShellWrite(command))
+        }
+    }
+
+    @Test
     fun `failed commands are not counted`() {
         val transcript = baseCall("c1", "rm -rf build/", success = false)
         assertTrue(detectSuspectedShellWrites(transcript, writePaths = emptyList()).isEmpty())

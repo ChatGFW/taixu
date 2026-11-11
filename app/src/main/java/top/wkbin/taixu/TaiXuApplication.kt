@@ -5,7 +5,6 @@ import android.app.Application
 import android.database.CursorWindow
 import android.util.Log
 import androidx.work.Configuration
-import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -44,7 +43,6 @@ import top.wkbin.taixu.service.WorkflowForegroundService
 import top.wkbin.taixu.workflow.AppForegroundTracker
 import top.wkbin.taixu.workflow.WorkflowApprovalNotifier
 import top.wkbin.taixu.workflow.WorkflowRunUiController
-
 class TaiXuApplication : Application(), Configuration.Provider {
 
     companion object {

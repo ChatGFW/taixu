@@ -21,7 +21,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
-
 data class ScreenObservation(
     val packageName: String,
     val activityName: String,

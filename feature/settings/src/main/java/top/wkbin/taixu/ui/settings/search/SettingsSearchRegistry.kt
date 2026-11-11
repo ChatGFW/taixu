@@ -32,7 +32,7 @@ object SettingsSearchRegistry {
     /**
      * 全局功能及深度子功能全量清单（覆盖所有一级、二级、三级功能及具体参数项）
      */
-    val allItems: List<SettingsSearchItem> = listOf(firstResponseTimeoutSearchItem, pluginLibrarySearchItem) + listOf(
+    val allItems: List<SettingsSearchItem> = listOf(firstResponseTimeoutSearchItem, pluginLibrarySearchItem, chatTopToolbarSearchItem) + listOf(
         // ==================== 1. 智能体与 AI 模型生态 ====================
         SettingsSearchItem(
             id = "agent_model_profiles",
@@ -81,7 +81,7 @@ object SettingsSearchRegistry {
             subtitle = "设置模型的最大上下文 Token 上限与单次回复 Max Tokens",
             category = SettingsSearchCategory.AGENT,
             target = SettingsSearchTarget.MODEL_PROFILES,
-            icon = RuntimeIconName.Speed,
+            icon = RuntimeIconName.Tune,
             keywords = listOf("context window", "max tokens", "tokens", "token", "上下文窗口", "输出长度", "peie"),
             breadcrumb = "智能体与 AI 模型 > 模型档案 > Token 配额",
         ),
@@ -152,7 +152,7 @@ object SettingsSearchRegistry {
             subtitle = "查看 Token 消耗、活跃度热力图、模型与话题排行",
             category = SettingsSearchCategory.AGENT,
             target = SettingsSearchTarget.STATS,
-            icon = RuntimeIconName.Speed,
+            icon = RuntimeIconName.NavDashboard,
             keywords = listOf("token", "stats", "usage", "用量", "统计", "热力图", "消耗", "费用", "tongji"),
             breadcrumb = "智能体与 AI 模型 > 数据统计",
         ),
@@ -166,16 +166,6 @@ object SettingsSearchRegistry {
             keywords = listOf("tools", "plugin", "qemu", "python", "node", "工具中心", "插件管理", "插件", "安装", "导入文件", "txplugin", "内置功能", "gongju", "chajian"),
             badge = "生态",
             breadcrumb = "设置 > 插件中心",
-        ),
-        SettingsSearchItem(
-            id = "agent_cc_switch",
-            title = "智能体中枢 (CC-Switch)",
-            subtitle = "统一管理 Claude Code、OpenClaw、Hermes 版本与模型多源热切",
-            category = SettingsSearchCategory.AGENT,
-            target = SettingsSearchTarget.CC_SWITCH,
-            icon = RuntimeIconName.Sparkles,
-            keywords = listOf("claude code", "openclaw", "hermes", "cc-switch", "切换", "中枢", "多源", "zhinengti"),
-            breadcrumb = "智能体与 AI 模型 > CC-Switch",
         ),
         SettingsSearchItem(
             id = "agent_thinking_display",
@@ -244,7 +234,7 @@ object SettingsSearchRegistry {
             subtitle = "设置前台命令的默认超时时间 (1~60分钟)，防止命令死锁",
             category = SettingsSearchCategory.AGENT,
             target = SettingsSearchTarget.AGENT_EXECUTION,
-            icon = RuntimeIconName.Speed,
+            icon = RuntimeIconName.Alarm,
             keywords = listOf("timeout", "command timeout", "超时", "命令超时", "chaoshi"),
             breadcrumb = "智能体与 AI 模型 > Agent 执行参数 > 命令超时",
         ),
@@ -749,7 +739,7 @@ object SettingsSearchRegistry {
             subtitle = "基于 DAG 的自动化任务流程编排、步骤审批与无人值守流水线",
             category = SettingsSearchCategory.WORKSHOP,
             target = SettingsSearchTarget.WORKFLOWS,
-            icon = RuntimeIconName.Speed,
+            icon = RuntimeIconName.Hub,
             keywords = listOf("workflow", "dag", "pipeline", "工作流", "自动化", "流水线", "gongzuoliu"),
             breadcrumb = "工坊与离线构建 > 自动化工作流",
         ),

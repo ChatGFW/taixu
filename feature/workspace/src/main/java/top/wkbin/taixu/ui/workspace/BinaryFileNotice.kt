@@ -2,7 +2,6 @@ package top.wkbin.taixu.ui.workspace
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -24,7 +23,6 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
-
 /**
  * 二进制产物的编辑器占位：不再把字节流当 UTF-8 文本塞进 BasicTextField
  * （乱码、卡顿，且保存会把原文件写坏），改用系统应用打开/分享。

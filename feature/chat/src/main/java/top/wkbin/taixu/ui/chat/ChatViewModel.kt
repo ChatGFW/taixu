@@ -41,7 +41,6 @@ import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.harness.session.ConversationBranchKind
 import top.wkbin.taixu.harness.session.LaneManager
 import top.wkbin.taixu.runtime.WorkspaceManager
-import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.core.tools.AgentModelDiscovery
 import top.wkbin.taixu.core.tools.AgentProviderCatalog
 import top.wkbin.taixu.core.tools.ProviderEndpointPolicy
@@ -110,7 +109,6 @@ import top.wkbin.taixu.harness.operation.OperationCoordinator
 import top.wkbin.taixu.harness.session.SessionTitleGenerator
 import top.wkbin.taixu.runtime.SessionWorkspaceCatalog
 import top.wkbin.taixu.runtime.SessionWorkspaceCatalogState
-
 private const val MAX_RUNTIME_EVENTS = 160
 private const val TAG = "ChatViewModel"
 
@@ -965,11 +963,50 @@ class ChatViewModel(
     val attachmentsProcessing: StateFlow<Boolean> = composerDrafts.processing
 
     /** 需要以 Toast 提示用户的轻量通知（附件失败、模型档案已存在等），展示后调用 clearNotice() */
-    /** 手动压缩当前会话历史为结构化摘要（"+" 附件弹窗入口）。 */
-    fun compactContextNow() {
-        viewModelScope.launch {
-            val (ok, message) = contextMemoryBackend.manualCompact(currentSessionId.value)
-            _notice.value = if (ok) message else "压缩失败：$message"
+    /**
+     * 当前会话是否还能再手动压缩：基于真实压缩投影（与引擎同源），不是 UI 全量转写条数。
+     * 已折叠后的保留窗若不足一轮，按钮应禁用，避免点了只关弹窗、无任何反馈。
+     */
+    val canManualCompact: StateFlow<Boolean> = compactedContext
+        .map { ctx -> ctx != null && contextMemoryBackend.canManualCompact(ctx.messages) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    private val compactInFlight = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val _compactingContext = MutableStateFlow(false)
+    /** 手动压缩进行中：附件弹窗据此展示加载态，并在结束前禁止关闭。 */
+    val compactingContext: StateFlow<Boolean> = _compactingContext.asStateFlow()
+
+    /**
+     * 手动压缩当前会话历史为结构化摘要（"+" 附件弹窗入口）。
+     * [onFinished] 在成功/失败后于主线程回调，供 UI 关闭弹窗；若已有压缩在飞则立即回调且不重复启动。
+     */
+    fun compactContextNow(onFinished: (() -> Unit)? = null) {
+        // 已在压缩：保留弹窗加载态，不回调 onFinished（避免二次点击把仍在跑的任务弹窗关掉）。
+        if (!compactInFlight.compareAndSet(false, true)) return
+        _compactingContext.value = true
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val (ok, message) = contextMemoryBackend.manualCompact(currentSessionId.value)
+                _notice.value = when {
+                    ok -> message
+                    message.contains("无需压缩") || message.contains("不足") -> message
+                    else -> "压缩失败：$message"
+                }
+            } catch (cancellation: kotlinx.coroutines.CancellationException) {
+                throw cancellation
+            } catch (failure: Exception) {
+                Log.w("ChatViewModel", "手动压缩失败：${failure.message}", failure)
+                _notice.value = "压缩失败：${failure.message ?: "unknown"}"
+            } finally {
+                _compactingContext.value = false
+                compactInFlight.set(false)
+                // NonCancellable：协程被取消时仍要关弹窗，否则加载态会卡住。
+                if (onFinished != null) {
+                    kotlinx.coroutines.withContext(
+                        kotlinx.coroutines.NonCancellable + Dispatchers.Main.immediate,
+                    ) { onFinished() }
+                }
+            }
         }
     }
 
@@ -1364,109 +1401,6 @@ class ChatViewModel(
     }
 }
 
-internal fun mergeHistoricalAndLiveEvents(
-    sessionId: String,
-    messages: List<HarnessMessage>,
-    live: List<HarnessEvent>,
-): List<HarnessEvent> {
-    if (sessionId.isBlank()) return emptyList()
-    if (live.isEmpty()) return synthesizeHistoricalEvents(sessionId, messages)
-    if (messages.isEmpty()) return live
-
-    val liveEntryIds = mutableSetOf<String>()
-    live.forEach { event ->
-        when (event) {
-            is HarnessEvent.ProviderRoundSettled -> event.entryId?.let { liveEntryIds.add(it) }
-            is HarnessEvent.ToolCallStarted -> liveEntryIds.add(event.toolCallId)
-            is HarnessEvent.ToolCallSettled -> liveEntryIds.add(event.toolCallId)
-            else -> Unit
-        }
-    }
-
-    val liveMinTimestamp = live.minOfOrNull { it.timestamp } ?: Long.MAX_VALUE
-    val priorMessages = messages.filter { msg ->
-        msg.createdAt < liveMinTimestamp && !liveEntryIds.contains(msg.id)
-    }
-
-    if (priorMessages.isEmpty()) return live
-
-    val priorEvents = synthesizeHistoricalEvents(sessionId, priorMessages)
-    return priorEvents + live
-}
-private fun synthesizeHistoricalEvents(sessionId: String, messages: List<HarnessMessage>): List<HarnessEvent> {
-    if (sessionId.isBlank() || messages.isEmpty()) return emptyList()
-    val events = mutableListOf<HarnessEvent>()
-    var currentRound = 0
-    var opId = "hist-$sessionId"
-    val toolCallMap = messages.filterIsInstance<ToolCall>().associateBy { it.id }
-    messages.forEach { msg ->
-        when (msg) {
-            is UserMessage -> {
-                currentRound++
-                opId = "hist-${msg.id}"
-                events.add(
-                    HarnessEvent.OperationStarted(
-                        sessionId = sessionId,
-                        timestamp = msg.createdAt,
-                        operationId = opId,
-                        laneName = "main",
-                    )
-                )
-            }
-            is AssistantText -> {
-                events.add(
-                    HarnessEvent.ProviderRoundStarted(
-                        sessionId = sessionId,
-                        timestamp = msg.createdAt,
-                        operationId = opId,
-                        round = currentRound,
-                        attempt = 1,
-                        modelId = null,
-                    )
-                )
-                events.add(
-                    HarnessEvent.ProviderRoundSettled(
-                        sessionId = sessionId,
-                        timestamp = msg.createdAt,
-                        operationId = opId,
-                        round = currentRound,
-                        entryId = msg.id,
-                        inputTokens = 0L,
-                        outputTokens = msg.text.length.toLong(),
-                    )
-                )
-            }
-            is ToolCall -> {
-                events.add(
-                    HarnessEvent.ToolCallStarted(
-                        sessionId = sessionId,
-                        timestamp = msg.createdAt,
-                        operationId = opId,
-                        toolCallId = msg.id,
-                        toolName = msg.tool.name.lowercase(),
-                    )
-                )
-            }
-            is ToolResult -> {
-                val call = toolCallMap[msg.toolCallId]
-                val toolName = call?.tool?.name?.lowercase() ?: "tool"
-                events.add(
-                    HarnessEvent.ToolCallSettled(
-                        sessionId = sessionId,
-                        timestamp = msg.createdAt,
-                        operationId = opId,
-                        toolCallId = msg.toolCallId,
-                        toolName = toolName,
-                        success = msg.success,
-                        durationMs = msg.durationMs,
-                    )
-                )
-            }
-            else -> Unit
-        }
-    }
-    return events
-}
 /** 聊天发送键语义：仅驱动发送键配色。实际投递行为由「运行中发送方式」偏好（RunningSendMode）决定。 */
 enum class ComposerSendMode { STEER, NEXT_RUN }
 private data class ContextUsageInputs(

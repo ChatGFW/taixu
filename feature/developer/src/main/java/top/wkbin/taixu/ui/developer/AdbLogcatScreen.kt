@@ -110,7 +110,7 @@ fun AdbLogcatScreen(
                 ) {
                     IconTile(
                         icon = RuntimeIconName.Terminal,
-                        color = if (connected != null) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
+                        color = if (connected != null) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("内置无线 ADB 客户端", style = RuntimeTheme.typography.titleMedium)

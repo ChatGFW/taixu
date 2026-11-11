@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { request, setAuthToken, uploadWorkspaceFile, workspaceItemAction } from "./api";
-import { TaskReceiptTracker, taskEventEffect } from "./taskEvents";
+import { taskEventEffect } from "./taskEvents";
+import { SessionTasks } from "./sessionTasks";
 import { ChatPanel } from "./components/ChatPanel";
 import { TerminalPane } from "./components/TerminalPane";
 import { ContextPane } from "./components/ContextPane";
@@ -24,6 +25,7 @@ import type {
   ConversationCreateTarget,
   ConversationMode,
   MobileSection,
+  InputMode,
   QuickPhrase,
   RealtimeEventData,
   RealtimeEventName,
@@ -72,8 +74,9 @@ export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
   const [sending, setSending] = useState(false);
-  const [activeTaskId, setActiveTaskIdState] = useState<string | null>(null);
-  const [activeRenderTaskId, setActiveRenderTaskId] = useState<string | null>(null);
+  const [, refreshTasks] = useState(0);
+  const sessionTasks = useRef(new SessionTasks());
+  const activeTaskId = sessionTasks.current.active(String(selectedConversation?.id ?? ""));
   const [workspaceInfo, setWorkspaceInfo] = useState<WorkspaceInfo | null>(null);
   const [workspacePath, setWorkspacePath] = useState("");
   const [workspaceItems, setWorkspaceItems] = useState<WorkspaceItem[]>([]);
@@ -90,16 +93,12 @@ export default function App() {
   const selectedRef = useRef<Conversation | null>(null);
   const conversationHistoryRef = useRef<string[]>([]);
   const conversationHistoryIndexRef = useRef(-1);
-  const taskReceiptsRef = useRef(new TaskReceiptTracker());
-  const activeTaskIdRef = useRef<string | null>(null);
+
   const workspacePathRef = useRef("");
   const toastTimerRef = useRef<number | null>(null);
   const autoLoginToken = useRef(initialToken());
 
-  function setActiveTaskId(taskId: string | null) {
-    activeTaskIdRef.current = taskId;
-    setActiveTaskIdState(taskId);
-  }
+  function refreshTaskControls() { refreshTasks((version) => version + 1); }
   function showError(error: unknown) {
     setGlobalError(errorMessage(error));
   }
@@ -187,8 +186,8 @@ export default function App() {
       if (conversationKey(conversation) === conversationKey(selectedRef.current)) {
         setApprovals(Array.isArray(payload) ? payload : []);
       }
-    } catch {
-      setApprovals([]);
+    } catch (error) {
+      if (conversationKey(conversation) === conversationKey(selectedRef.current)) showError(error);
     }
   }
 
@@ -203,10 +202,12 @@ export default function App() {
           body: { approved },
         },
       );
-      setApprovals((current) => current.filter((item) => item.id !== requestId));
+      if (conversationKey(conversation) === conversationKey(selectedRef.current)) {
+        setApprovals((current) => current.filter((item) => item.id !== requestId));
+      }
       if (result?.taskId) {
-        setActiveTaskId(result.taskId);
-        setActiveRenderTaskId(result.taskId);
+        sessionTasks.current.resume(String(conversation.id), result.taskId);
+        refreshTaskControls();
       }
       showToast(approved ? "已批准并继续执行" : "已拒绝执行");
       await loadMessages(conversation);
@@ -234,6 +235,10 @@ export default function App() {
       ?? nextConversations[0]
       ?? null;
     const selectionChanged = conversationKey(nextSelected) !== previousKey;
+    for (const item of nextConversations) {
+      if (item.activeTaskId) sessionTasks.current.resume(String(item.id), item.activeTaskId);
+    }
+    refreshTaskControls();
     setConversations(nextConversations);
     selectedRef.current = nextSelected;
     setSelectedConversation(nextSelected);
@@ -311,8 +316,6 @@ export default function App() {
     setSelectedConversation(draftConversation);
     setMessages([]);
     setApprovals([]);
-    setActiveTaskId(null);
-    setActiveRenderTaskId(null);
     setConversationsOpen(false);
   }
 
@@ -341,9 +344,11 @@ export default function App() {
     }
   }
 
-  async function sendMessage(text: string, attachments: Attachment[]): Promise<boolean> {
+  async function sendMessage(text: string, attachments: Attachment[], inputMode: InputMode): Promise<boolean> {
+    if (sending) return false;
     setGlobalError("");
     setSending(true);
+    const originConversation = selectedRef.current;
     let conversationCreatedForSend: Conversation | null = null;
     let optimisticUserEntryId: string | null = null;
     let pendingReceiptId: string | null = null;
@@ -367,8 +372,10 @@ export default function App() {
           mode: draftMode,
         };
         conversationCreatedForSend = conversation;
-        selectedRef.current = conversation;
-        setSelectedConversation(conversation);
+        if (selectedRef.current === originConversation) {
+          selectedRef.current = conversation;
+          setSelectedConversation(conversation);
+        }
         applyConversationSnapshot(conversation);
         recordConversationNavigation(conversation);
       }
@@ -388,11 +395,12 @@ export default function App() {
         },
         createAt: userMessageCreatedAt,
       };
-      taskReceiptsRef.current.begin(taskId);
+      sessionTasks.current.start(String(conversation.id), taskId);
       pendingReceiptId = taskId;
-      setActiveTaskId(taskId);
-      setActiveRenderTaskId(taskId);
-      setMessages((current) => [...current, optimisticUserMessage]);
+      refreshTaskControls();
+      if (conversationKey(conversation) === conversationKey(selectedRef.current)) {
+        setMessages((current) => [...current, optimisticUserMessage]);
+      }
       const result = await request<RunResult>(`/conversations/${conversation.id}/runs`, {
         method: "POST",
         body: {
@@ -400,6 +408,7 @@ export default function App() {
           userMessage: text,
           userMessageCreatedAt,
           conversationMode,
+          inputMode,
           attachments,
         },
       });
@@ -408,25 +417,18 @@ export default function App() {
           ...result.conversation,
           mode: result.conversationMode ?? conversationMode,
         };
-        selectedRef.current = updatedConversation;
-        setSelectedConversation(updatedConversation);
         applyConversationSnapshot(updatedConversation);
       }
-      const acceptedTaskId = String(result?.taskId ?? taskId);
-      const activeAfterAcceptance = taskReceiptsRef.current.accept(acceptedTaskId);
-      taskReceiptsRef.current.discard(taskId);
-      setActiveTaskId(activeAfterAcceptance);
-      setActiveRenderTaskId(
-        activeAfterAcceptance === null
-          ? null
-          : String(result?.turnId ?? acceptedTaskId),
-      );
+      // SSE may settle this request before its HTTP receipt arrives. Never resurrect it here.
+      if (result.input?.disposition === "queued") {
+        showToast(inputMode === "steer" ? "引导已排队，将在安全边界处理" : "消息已加入队列");
+      }
       void loadConversations(true).catch(showError);
       return true;
     } catch (error) {
       showError(error);
-      setActiveTaskId(null);
-      setActiveRenderTaskId(null);
+      if (pendingReceiptId) sessionTasks.current.remove(pendingReceiptId);
+      refreshTaskControls();
       if (optimisticUserEntryId) {
         const failedEntryId = optimisticUserEntryId;
         setMessages((current) => current.filter((message) => (
@@ -467,17 +469,16 @@ export default function App() {
       }
       return false;
     } finally {
-      if (pendingReceiptId) taskReceiptsRef.current.discard(pendingReceiptId);
       setSending(false);
     }
   }
 
   async function cancelRun() {
-    if (!activeTaskId) return;
+    const taskId = sessionTasks.current.active(String(selectedRef.current?.id ?? ""));
+    if (!taskId) return;
     try {
-      await request(`/tasks/${encodeURIComponent(activeTaskId)}/cancel`, { method: "POST" });
-      setActiveTaskId(null);
-      setActiveRenderTaskId(null);
+      const result = await request<{ cancelled: boolean }>(`/tasks/${encodeURIComponent(taskId)}/cancel`, { method: "POST" });
+      showToast(result.cancelled ? "已请求停止，等待执行结束" : "任务已结束或已请求停止");
     } catch (error) {
       showError(error);
     }
@@ -609,12 +610,9 @@ export default function App() {
       return;
     }
     if (eventName === "chat_task_event") {
-      const effect = taskEventEffect(data, activeTaskIdRef.current, sameSelectedConversation(data));
-      taskReceiptsRef.current.observe(data);
-      if (effect.clearActive) {
-        setActiveTaskId(null);
-        setActiveRenderTaskId(null);
-      }
+      const effect = taskEventEffect(data, sessionTasks.current.active(String(selectedRef.current?.id ?? "")), sameSelectedConversation(data));
+      sessionTasks.current.observe(String(data.conversationId ?? ""), String(data.taskId ?? ""), String(data.kind ?? ""));
+      refreshTaskControls();
       if (effect.clearApprovals) setApprovals([]);
       if (effect.showApprovals) {
         if (effect.approvals) setApprovals(effect.approvals);
@@ -627,6 +625,9 @@ export default function App() {
   }
 
   const connectionStatus = useRealtime(authenticated, handleRealtimeEvent);
+  useEffect(() => {
+    if (authenticated && connectionStatus === "online") void loadConversations(true).catch(showError);
+  }, [authenticated, connectionStatus]);
 
   function selectMobileSection(section: MobileSection) {
     setMobileSectionState(section);
@@ -760,7 +761,7 @@ export default function App() {
             approvals={approvals}
             globalError={globalError}
             sending={sending}
-            activeTaskId={activeRenderTaskId ?? activeTaskId}
+            activeTaskId={activeTaskId}
             onOpenConversations={() => setConversationsOpen(true)}
             onDelete={() => void deleteConversation()}
             onSend={sendMessage}

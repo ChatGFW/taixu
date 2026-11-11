@@ -1,8 +1,12 @@
 package top.wkbin.taixu.plugin.ui.web
 
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import top.wkbin.taixu.ui.miuix.EmptyScaffoldTopBar
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Scaffold
 import top.yukonga.miuix.kmp.basic.Text
@@ -95,29 +99,49 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
             }
         }
     }
-    var view by remember(session) { mutableStateOf<WebPluginView?>(null) }
+    // Hold the dedicated WebView outside AndroidView so recomposition only re-parents into a
+    // stable FrameLayout host (same anti-flash pattern as the browser pane).
+    val viewHolder = remember(session) { arrayOfNulls<WebPluginView>(1) }
     DisposableEffect(session) {
-        onDispose { bridge.close(); session.close(); view?.dispose(); view = null }
+        onDispose {
+            bridge.close()
+            session.close()
+            viewHolder[0]?.dispose()
+            viewHolder[0] = null
+        }
     }
     // 说明与授权范围放进底部抽屉：页面本体（WebView）不再被一张常驻卡片切掉三分之一屏幕。
     var showScope by remember(session) { mutableStateOf(false) }
     val grants by session.grantCount.collectAsState()
-    Scaffold(topBar = {
-        RuntimeTopBar(
-            plugin.title(),
-            request.onBack,
-            statusText = stringResource(R.string.ui_web_plugin_scope_status),
-            actions = {
-                RuntimeIconButton(
-                    onClick = { showScope = true },
-                    contentDescription = stringResource(R.string.ui_web_plugin_scope_title),
-                ) {
-                    RuntimeIcon(RuntimeIconName.Info, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurfaceVariant)
-                }
-            },
-        )
-    }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+    val surfaceArgb = colors.surface.toArgb()
+    // WebView must stay out of Scaffold's layerBackdrop tree: textureBlur sampling a hardware
+    // WebView flickers continuously on API 33+. EmptyScaffoldTopBar skips backdrop creation;
+    // solid RuntimeTopBar sits in content and owns status-bar insets (do not also pad top here).
+    Scaffold(
+        topBar = EmptyScaffoldTopBar,
+        containerColor = colors.surface,
+        contentWindowInsets = WindowInsets.systemBars.union(WindowInsets.displayCutout)
+            .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+    ) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .background(colors.surface),
+        ) {
+            RuntimeTopBar(
+                plugin.title(),
+                request.onBack,
+                statusText = stringResource(R.string.ui_web_plugin_scope_status),
+                actions = {
+                    RuntimeIconButton(
+                        onClick = { showScope = true },
+                        contentDescription = stringResource(R.string.ui_web_plugin_scope_title),
+                    ) {
+                        RuntimeIcon(RuntimeIconName.Info, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurfaceVariant)
+                    }
+                },
+            )
             if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
                 Text(stringResource(R.string.ui_web_plugin_unavailable), Modifier.padding(16.dp))
             } else if (resources == null) {
@@ -125,13 +149,49 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
             } else if (resources?.isFailure == true) {
                 Text(stringResource(R.string.ui_web_plugin_load_failed), Modifier.padding(16.dp))
             } else key(session) {
+                val pluginResources = resources!!.getOrThrow()
                 AndroidView(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     factory = { androidContext ->
-                        WebPluginView(androidContext, policy, session, scope, resources!!.getOrThrow(), bridge, streamCapabilities)
-                            .also { view = it }
+                        FrameLayout(androidContext).also { host ->
+                            host.setBackgroundColor(surfaceArgb)
+                            val existing = viewHolder[0]
+                            val webView = existing ?: WebPluginView(
+                                androidContext,
+                                policy,
+                                session,
+                                scope,
+                                pluginResources,
+                                bridge,
+                                streamCapabilities,
+                                surfaceArgb,
+                            ).also { viewHolder[0] = it }
+                            (webView.parent as? ViewGroup)?.removeView(webView)
+                            host.addView(
+                                webView,
+                                FrameLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                ),
+                            )
+                        }
                     },
-                    onRelease = { it.dispose() },
+                    update = { host ->
+                        host.setBackgroundColor(surfaceArgb)
+                        val webView = viewHolder[0] ?: return@AndroidView
+                        webView.setBackgroundColor(surfaceArgb)
+                        if (webView.parent === host) return@AndroidView
+                        (webView.parent as? ViewGroup)?.removeView(webView)
+                        host.removeAllViews()
+                        host.addView(
+                            webView,
+                            FrameLayout.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                            ),
+                        )
+                    },
+                    onRelease = { host -> host.removeAllViews() },
                 )
             }
         }
@@ -192,17 +252,23 @@ internal fun WebPluginPage(plugin: WebPagePlugin, request: PluginPageRequest) {
                 }
             },
             confirmButton = {
-                Column {
-                    RuntimeTextButton(onClick = { session.decide(pending.token, PluginGrantChoice.ONCE) }) {
-                        Text(stringResource(R.string.ui_web_plugin_allow_once))
-                    }
-                    if (capability.allowSession) RuntimeTextButton(onClick = { session.decide(pending.token, PluginGrantChoice.SESSION) }) {
+                RuntimeTextButton(
+                    onClick = { session.decide(pending.token, PluginGrantChoice.ONCE) },
+                ) {
+                    Text(stringResource(R.string.ui_web_plugin_allow_once))
+                }
+                if (capability.allowSession) {
+                    RuntimeTextButton(
+                        onClick = { session.decide(pending.token, PluginGrantChoice.SESSION) },
+                    ) {
                         Text(stringResource(R.string.ui_web_plugin_allow_session))
                     }
                 }
             },
             dismissButton = {
-                RuntimeTextButton(onClick = { session.decide(pending.token, PluginGrantChoice.DENY) }) {
+                RuntimeTextButton(
+                    onClick = { session.decide(pending.token, PluginGrantChoice.DENY) },
+                ) {
                     Text(stringResource(R.string.ui_web_plugin_deny))
                 }
             },

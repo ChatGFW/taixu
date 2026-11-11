@@ -73,7 +73,7 @@ internal fun GroupReasoningPanel(messageId: String, reasoning: String, streaming
                     modifier = Modifier.weight(1f).then(runtimeProcessPulse(streaming)),
                 )
                 RuntimeProcessTimer("reasoning:$messageId", streaming, startedAtMs.takeIf { waiting })
-                RuntimeIcon(if (expanded) RuntimeIconName.ChevronUp else RuntimeIconName.ChevronDown, Modifier.size(16.dp), runtimeProcessColor())
+                RuntimeExpandChevron(expanded, Modifier.size(16.dp), runtimeProcessColor(), vertical = true)
             }
             if (expanded && reasoning.isNotBlank()) {
                 Box(

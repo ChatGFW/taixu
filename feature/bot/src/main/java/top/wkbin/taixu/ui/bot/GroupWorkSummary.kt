@@ -58,7 +58,7 @@ internal fun GroupWorkSummaryBar(summary: GroupWorkSummary, onOpen: () -> Unit) 
     RuntimeTextButton(onClick = onOpen, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RuntimeIcon(if (summary.attention > 0) RuntimeIconName.Alert else RuntimeIconName.Checklist,
-                Modifier.size(18.dp), if (summary.attention > 0) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.primary)
+                Modifier.size(18.dp), if (summary.attention > 0) RuntimeTheme.colorScheme.error else RuntimeTheme.colorScheme.onSurfaceVariant)
             Text(labels.joinToString(" · "), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
                 style = RuntimeTheme.typography.labelMedium)
             RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(16.dp))

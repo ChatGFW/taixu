@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.compaction.CompactionSnapshot
+import top.wkbin.taixu.ui.components.RuntimeExpandChevron
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 
@@ -74,10 +75,10 @@ internal fun CompactionBanner(
                     color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
-                RuntimeIcon(
-                    if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                    Modifier.size(14.dp),
-                    RuntimeTheme.colorScheme.onSurfaceVariant,
+                RuntimeExpandChevron(
+                    expanded = expanded,
+                    modifier = Modifier.size(14.dp),
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
             }
             AnimatedVisibility(visible = expanded && snapshot.summary.isNotBlank()) {

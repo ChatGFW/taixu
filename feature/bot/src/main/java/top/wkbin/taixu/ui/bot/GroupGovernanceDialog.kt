@@ -66,7 +66,7 @@ internal fun GroupGovernanceDialog(policy: GroupGovernance, team: GroupTeam, mem
                 error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
             }
         },
-        confirmButton = { RuntimeButton(enabled = !saving, onClick = {
+        confirmButton = { RuntimeTextButton(enabled = !saving, onClick = {
             saving = true
             scope.launch {
                 try { val next = GroupGovernance(draft); next.validate(team); onSave(next); onDismiss() }

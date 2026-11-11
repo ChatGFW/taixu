@@ -1,7 +1,5 @@
 package top.wkbin.taixu.ui.chat
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,7 +27,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.ui.components.RuntimeIcon
 
-/** 输入框上方的斜杠指令 / @能力 快捷弹窗。 */
+/**
+ * 输入框上方的斜杠指令 / @能力 内联建议面板（非 WindowListPopup）。
+ * 锚定在 Composer 内容区，故意不用独立 window popup。
+ */
 @Composable
 internal fun SlashCommandPopup(
     commands: List<SlashCommandItem>,
@@ -38,8 +39,6 @@ internal fun SlashCommandPopup(
     Surface(
         color = RuntimeTheme.colorScheme.surfaceContainerLow,
         shape = RuntimeTheme.shapes.small,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RuntimeTheme.colorScheme.outlineVariant),
-        shadowElevation = 6.dp,
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 6.dp),
@@ -84,8 +83,6 @@ internal fun MentionPopup(
     Surface(
         color = RuntimeTheme.colorScheme.surfaceContainer,
         shape = RuntimeTheme.shapes.medium,
-        border = androidx.compose.foundation.BorderStroke(1.dp, RuntimeTheme.colorScheme.outlineVariant),
-        shadowElevation = 10.dp,
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 6.dp),

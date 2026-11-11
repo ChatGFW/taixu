@@ -1,7 +1,5 @@
 package top.wkbin.taixu.ui.settings
 
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,7 +23,6 @@ import top.wkbin.taixu.runtime.bridge.SandboxCredentialStore
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
-
 @Composable
 internal fun DeveloperAccessSettings(developer: Boolean, change: (Boolean) -> Unit, onOpenDeveloper: () -> Unit, hostControls: Boolean = true) {
     ToggleRow(icon = RuntimeIconName.Bug, title = stringResource(R.string.host_access_developer),

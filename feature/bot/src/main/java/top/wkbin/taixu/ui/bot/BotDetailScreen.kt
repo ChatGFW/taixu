@@ -33,7 +33,6 @@ import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeIcon
@@ -204,7 +203,7 @@ fun BotDetailScreen(
             title = { Text(stringResource(R.string.fbot_delete_bot_title)) },
             text = { Text(stringResource(R.string.fbot_delete_bot_confirm, bot.name)) },
             confirmButton = {
-                RuntimeButton(onClick = {
+                RuntimeTextButton(onClick = {
                     confirmDelete = false
                     viewModel.deleteBot()
                 }) { Text(stringResource(R.string.fbot_delete)) }

@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,7 +47,6 @@ import top.wkbin.taixu.ui.components.RuntimeLinearProgressIndicator as LinearPro
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import top.wkbin.taixu.ui.components.RuntimeActionRow
-
 /**
  * 套件子组件装配弹窗。已装配的组件可以卸载，或清掉旧文件后重新安装。
  */
@@ -162,9 +160,9 @@ internal fun BundleComponentSetupDialog(
         confirmButton = {
             val uninstalled = bundle.components.filter { it.id !in installedComponentIds }
             if (uninstalled.isEmpty()) {
-                Button(onClick = onDismiss) { Text("完成") }
+                TextButton(onClick = onDismiss) { Text("完成") }
             } else {
-                Button(
+                TextButton(
                     onClick = onInstall,
                     enabled = !isInstallingComponents && selectedComponents.isNotEmpty(),
                 ) {
@@ -182,7 +180,7 @@ internal fun BundleComponentSetupDialog(
             title = { Text(stringResource(R.string.settings_component_uninstall_title, component.name), fontWeight = FontWeight.Medium) },
             text = { Text(stringResource(R.string.settings_component_uninstall_body)) },
             confirmButton = {
-                Button(
+                TextButton(
                     onClick = {
                         pendingUninstallId = null
                         onUninstall(component)

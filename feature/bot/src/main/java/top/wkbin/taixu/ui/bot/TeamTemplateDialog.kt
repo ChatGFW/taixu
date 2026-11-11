@@ -55,7 +55,7 @@ internal fun TeamTemplateDialog(onDismiss: () -> Unit,
                 error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
             }
         },
-        confirmButton = { RuntimeButton(enabled = !saving && name.isNotBlank(), onClick = {
+        confirmButton = { RuntimeTextButton(enabled = !saving && name.isNotBlank(), onClick = {
             saving = true
             scope.launch {
                 try { onImport(selected, name); onDismiss() } catch (failure: Exception) { error = failure.message }

@@ -22,7 +22,6 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import okhttp3.HttpUrl
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Call
@@ -40,7 +39,6 @@ import top.wkbin.taixu.harness.mcp.server.BuiltinBrowserMcpAccess
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.time.Duration.Companion.milliseconds
-
 /**
  * 远程 MCP 传输：同时支持 Streamable HTTP（2025-03-26+）与 legacy HTTP+SSE（2024-11-05）。
  *

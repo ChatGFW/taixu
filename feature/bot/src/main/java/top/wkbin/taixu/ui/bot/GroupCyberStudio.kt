@@ -8,7 +8,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -54,7 +53,6 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeActionRow
-
 /**
  * Full-screen pixel office. Members walk to a desk, the whiteboard, the racks or the sofa
  * as their run state changes. Tap a character to mention them or open their profile.

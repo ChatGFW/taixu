@@ -23,7 +23,6 @@ import top.wkbin.taixu.core.model.bot.PixelAvatarArt
 import top.wkbin.taixu.core.model.bot.PixelAvatarRecipe
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 
@@ -105,7 +104,7 @@ internal fun PixelAvatarDesigner(
             }
         },
         confirmButton = {
-            RuntimeButton(onClick = { onSave(draft) }) { Text(stringResource(R.string.fbot_pixel_apply)) }
+            RuntimeTextButton(onClick = { onSave(draft) }) { Text(stringResource(R.string.fbot_pixel_apply)) }
         },
         dismissButton = {
             RuntimeTextButton(onClick = onDismiss) { Text(stringResource(R.string.fbot_cancel)) }

@@ -35,7 +35,7 @@ internal fun TeamReferenceDialog(groups: List<BotMemberGroup>, members: List<Bot
             }
             error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
         }
-    }, confirmButton = { RuntimeButton(enabled = !saving && available.any { it.id == selected }, onClick = {
+    }, confirmButton = { RuntimeTextButton(enabled = !saving && available.any { it.id == selected }, onClick = {
         saving = true
         scope.launch {
             try { onSelect(requireNotNull(selected)); onDismiss() } catch (failure: Exception) { error = failure.message }

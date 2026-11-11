@@ -2,7 +2,6 @@ package top.wkbin.taixu.ui.settings
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -23,7 +22,6 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
-
 /**
  * 工具品牌专属视觉 Avatar（复用 ToolCenterScreen 的映射逻辑）
  */

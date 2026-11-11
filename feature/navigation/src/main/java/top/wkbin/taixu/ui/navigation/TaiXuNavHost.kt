@@ -39,9 +39,6 @@ import org.koin.compose.koinInject
 import top.wkbin.taixu.ui.workspace.CodeEditorScreen
 import top.wkbin.taixu.ui.workspace.WorkspaceExplorerScreen
 import top.wkbin.taixu.ui.workspace.WorkspaceScreen
-import android.content.Intent
-import android.net.Uri
-import android.widget.Toast
 import top.wkbin.taixu.core.common.navigation.AppNavigationTarget
 import top.wkbin.taixu.core.common.navigation.GlobalNavigationBus
 import top.wkbin.taixu.feature.a2uipoc.A2uiPocScreen
@@ -53,7 +50,6 @@ import top.wkbin.taixu.ui.settings.AgentEcoSettingsScreen
 import top.wkbin.taixu.ui.settings.AgentSettingsCategory
 import top.wkbin.taixu.ui.settings.AppManagementScreen
 import top.wkbin.taixu.ui.settings.AppearanceSettingsScreen
-import top.wkbin.taixu.ui.settings.CcSwitchScreen
 import top.wkbin.taixu.ui.settings.DistroManagementScreen
 import top.wkbin.taixu.ui.settings.EnvironmentVariableSettingsScreen
 import top.wkbin.taixu.ui.settings.FtpSettingsScreen
@@ -327,7 +323,6 @@ fun TaiXuNavHost(
                                 SettingsSearchTarget.STATS -> activeStack.push(SettingsSearchDestination, StatsDestination)
                                 SettingsSearchTarget.PLUGIN_LIBRARY -> activeStack.push(SettingsSearchDestination, RemotePluginLibraryDestination)
                                 SettingsSearchTarget.TOOL_CENTER -> activeStack.push(SettingsSearchDestination, ToolCenterDestination)
-                                SettingsSearchTarget.CC_SWITCH -> activeStack.push(SettingsSearchDestination, CcSwitchDestination)
                                 SettingsSearchTarget.AGENT_EXECUTION -> activeStack.push(SettingsSearchDestination, AgentSettingsDestination)
                                 SettingsSearchTarget.AGENT_SUBAGENTS -> activeStack.push(SettingsSearchDestination, AgentSubagentSettingsDestination)
                                 SettingsSearchTarget.AGENT_SKILLS -> activeStack.push(SettingsSearchDestination, AgentSkillSettingsDestination)
@@ -405,7 +400,6 @@ fun TaiXuNavHost(
                         onBack = ::popBack,
                         onOpenModelProfiles = { activeStack.push(AgentEcoSettingsDestination, ModelProfilesDestination) },
                         onOpenLocalLlm = { activeStack.push(AgentEcoSettingsDestination, LocalLlmDestination) },
-                        onOpenCcSwitch = { activeStack.push(AgentEcoSettingsDestination, CcSwitchDestination) },
                         onOpenAgentSettings = { activeStack.push(AgentEcoSettingsDestination, AgentSettingsDestination) },
                         onOpenSubagentSettings = { activeStack.push(AgentEcoSettingsDestination, AgentSubagentSettingsDestination) },
                         onOpenSkillSettings = { activeStack.push(AgentEcoSettingsDestination, AgentSkillSettingsDestination) },
@@ -512,26 +506,6 @@ fun TaiXuNavHost(
                         onOpenLibrary = { activeStack.pushRaw(RemotePluginLibraryDestination) },
                         onOpenBuiltinFeatures = { activeStack.pushRaw(PluginManagerDestination) },
                         onOpenWebPlugins = { activeStack.pushRaw(WebPluginManagerDestination) },
-                    )
-                }
-            }
-            entry<CcSwitchDestination> {
-                GuardedEntry(CcSwitchDestination) {
-                    val context = androidx.compose.ui.platform.LocalContext.current
-                    CcSwitchScreen(
-                        onBack = ::popBack,
-                        onLaunchTerminal = { executable -> activeStack.push(CcSwitchDestination, TerminalDestination(toolId = executable)) },
-                        onOpenBrowser = { url ->
-                            val targetUrl = url.ifBlank { "http://127.0.0.1:19870" }
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            runCatching {
-                                context.startActivity(intent)
-                            }.onFailure {
-                                Toast.makeText(context, "无法唤起外部浏览器: ${it.localizedMessage}", Toast.LENGTH_SHORT).show()
-                            }
-                        },
                     )
                 }
             }

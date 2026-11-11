@@ -217,7 +217,8 @@ class SubagentLaneRunner(
                     )
                 }
 
-                toolRoundRunner.execute(
+                // 流式响应可能耗时数分钟，派工具前重核预算：进入收尾窗口就不再执行，交给下一轮强制收束。
+                if (!SubagentTimeBudget.shouldWrapUp(deadlineAtMs, now())) toolRoundRunner.execute(
                     specs = roundCalls, sessionId = sessionId, workspace = workspace,
                     model = model, operationId = operationId, round = round,
                     reasoning = result.reasoningContent, writePaths = writePaths,
@@ -381,8 +382,7 @@ internal fun isolatedProviderMessages(
         ""
     }
     add(ApiMessage(role = "system", content = systemPrompt + finalInstruction))
-    val taskStart = messages.indexOfLast { it is UserMessage }
-        .takeIf { it >= 0 } ?: messages.size
+    val taskStart = subagentTaskStartIndex(messages) ?: messages.size
     val task = budgetedLaneMessages(messages.drop(taskStart), historyBudgetTokens)
     addAll(ApiMessageProjector.project(task, toolCallMode, visionEnabled = true))
     if (failureMemory.isNotBlank()) add(ApiMessage(role = "user", content = failureMemory))

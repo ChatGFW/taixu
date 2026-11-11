@@ -54,6 +54,7 @@ import top.wkbin.taixu.ui.components.NoticeBanner
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeExpandChevron
 import top.wkbin.taixu.ui.components.RuntimeFilledTonalButton
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -148,7 +149,7 @@ fun StorageUsageScreen(
                         }
                     },
                     confirmButton = {
-                        RuntimeButton(
+                        RuntimeTextButton(
                             onClick = { viewModel?.quickSafeClean() },
                         ) {
                             Text("立即清理")
@@ -179,7 +180,7 @@ fun StorageUsageScreen(
                         }
                     },
                     confirmButton = {
-                        RuntimeButton(
+                        RuntimeTextButton(
                             onClick = { viewModel?.cleanProjectBuilds() },
                         ) {
                             Text("确认清理")
@@ -216,7 +217,7 @@ fun StorageUsageScreen(
                         }
                     },
                     confirmButton = {
-                        RuntimeButton(
+                        RuntimeTextButton(
                             onClick = { viewModel?.clearCategory(category.id) },
                         ) {
                             Text("确认清理")
@@ -251,7 +252,7 @@ fun StorageUsageScreen(
                         }
                     },
                     confirmButton = {
-                        RuntimeButton(
+                        RuntimeTextButton(
                             onClick = { viewModel?.clearEntry(target.categoryId, entry.id, entry.name) },
                         ) {
                             Text("确认清理")
@@ -837,10 +838,11 @@ private fun StorageCategoryDetailCard(
                     fontWeight = FontWeight.Medium,
                 )
                 if (category.entries.isNotEmpty()) {
-                    RuntimeIcon(
-                        name = if (expanded) RuntimeIconName.ChevronUp else RuntimeIconName.ChevronDown,
+                    RuntimeExpandChevron(
+                        expanded = expanded,
                         modifier = Modifier.size(18.dp),
                         tint = RuntimeTheme.colorScheme.onSurfaceVariant,
+                        vertical = true,
                     )
                 }
             }
@@ -1098,6 +1100,3 @@ private fun Long.readableSize(): String = when {
     this < 1024L * 1024 * 1024 -> String.format(Locale.US, "%.1f MB", this / (1024.0 * 1024))
     else -> String.format(Locale.US, "%.2f GB", this / (1024.0 * 1024 * 1024))
 }
-
-
-

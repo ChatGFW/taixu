@@ -2,7 +2,6 @@ package com.ai.assistance.showerclient
 
 import android.content.Context
 import android.os.DeadObjectException
-import android.os.IBinder
 import android.os.RemoteException
 import com.ai.assistance.shower.IShowerService
 import com.ai.assistance.shower.IShowerVideoSink
@@ -11,7 +10,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-
 /**
  * Lightweight controller to talk to the Shower server running locally on the device.
  *

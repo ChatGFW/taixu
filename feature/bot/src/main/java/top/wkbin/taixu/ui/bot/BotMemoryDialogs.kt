@@ -70,8 +70,8 @@ internal fun BotMemoryEditorDialog(path: String, onDismiss: () -> Unit,
             }
         },
         confirmButton = {
-            RuntimeButton(enabled = !saving && !loading && document != null && draft != null && revision != null, onClick = {
-                val source = document?.copy(revision = revision ?: return@RuntimeButton) ?: return@RuntimeButton
+            RuntimeTextButton(enabled = !saving && !loading && document != null && draft != null && revision != null, onClick = {
+                val source = document?.copy(revision = revision ?: return@RuntimeTextButton) ?: return@RuntimeTextButton
                 saving = true
                 scope.launch {
                     try { save(source, draft.orEmpty()); onDismiss() }

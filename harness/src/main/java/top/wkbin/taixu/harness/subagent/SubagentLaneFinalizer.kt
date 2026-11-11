@@ -16,8 +16,13 @@ internal class SubagentLaneFinalizer(
     }
     suspend fun interrupted(sessionId: String, laneName: String, operationId: String, outcome: String, details: String?): String? =
         withContext(NonCancellable) {
-            val operation = operations.active(sessionId, laneName) ?: return@withContext null
-            check(operation.id == operationId) { "Interrupted lane operation changed" }
+            val operation = operations.active(sessionId, laneName)
+            // 活动操作已消失或已换人：只释放本 Lane 自己的资源（closeOwner 幂等），
+            // 不去 finish 别人的操作，也不抛异常吞掉原始取消。
+            if (operation == null || operation.id != operationId) {
+                releaseResources()
+                return@withContext null
+            }
             val repairOutput = operations.settleInterruptedTool(operationId)
             // Read/commit errors escape before this point, leaving the operation recoverable.
             finish(sessionId, outcome, details = details, laneName = laneName)

@@ -13,7 +13,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -145,6 +147,7 @@ fun OutlinedTextField(
     interactionSource: MutableInteractionSource? = null,
     shape: Shape = RuntimeTheme.shapes.medium,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
+    cursorBrush: Brush = SolidColor(MiuixTheme.colorScheme.primary),
     labelText: String? = null,
 ) {
     val source = interactionSource ?: remember { MutableInteractionSource() }
@@ -158,6 +161,7 @@ fun OutlinedTextField(
             cornerRadius = radius,
             enabled = enabled, readOnly = readOnly, textStyle = textStyle,
             colors = fieldColors(colors, focused, isError),
+            cursorBrush = cursorBrush,
             keyboardOptions = keyboardOptions, keyboardActions = keyboardActions,
             leadingIcon = leading, trailingIcon = trailing,
             singleLine = singleLine, maxLines = maxLines, minLines = minLines,
@@ -191,10 +195,12 @@ fun TextField(
     interactionSource: MutableInteractionSource? = null,
     shape: Shape = RuntimeTheme.shapes.medium,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
+    cursorBrush: Brush = SolidColor(MiuixTheme.colorScheme.primary),
     labelText: String? = null,
 ) = OutlinedTextField(value, onValueChange, modifier, enabled, readOnly, textStyle, label, placeholder,
     leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, visualTransformation,
-    keyboardOptions, keyboardActions, singleLine, maxLines, minLines, interactionSource, shape, colors, labelText)
+    keyboardOptions, keyboardActions, singleLine, maxLines, minLines, interactionSource, shape, colors,
+    cursorBrush, labelText)
 
 @Composable
 fun OutlinedTextField(
@@ -221,6 +227,7 @@ fun OutlinedTextField(
     interactionSource: MutableInteractionSource? = null,
     shape: Shape = RuntimeTheme.shapes.medium,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
+    cursorBrush: Brush = SolidColor(MiuixTheme.colorScheme.primary),
     labelText: String? = null,
 ) {
     val source = interactionSource ?: remember { MutableInteractionSource() }
@@ -234,6 +241,7 @@ fun OutlinedTextField(
             cornerRadius = radius,
             enabled = enabled, readOnly = readOnly, textStyle = textStyle,
             colors = fieldColors(colors, focused, isError),
+            cursorBrush = cursorBrush,
             keyboardOptions = keyboardOptions, keyboardActions = keyboardActions,
             leadingIcon = leading, trailingIcon = trailing,
             singleLine = singleLine, maxLines = maxLines, minLines = minLines,
@@ -267,7 +275,9 @@ fun TextField(
     interactionSource: MutableInteractionSource? = null,
     shape: Shape = RuntimeTheme.shapes.medium,
     colors: TextFieldColors = OutlinedTextFieldDefaults.colors(),
+    cursorBrush: Brush = SolidColor(MiuixTheme.colorScheme.primary),
     labelText: String? = null,
 ) = OutlinedTextField(value, onValueChange, modifier, enabled, readOnly, textStyle, label, placeholder,
     leadingIcon, trailingIcon, prefix, suffix, supportingText, isError, visualTransformation,
-    keyboardOptions, keyboardActions, singleLine, maxLines, minLines, interactionSource, shape, colors, labelText)
+    keyboardOptions, keyboardActions, singleLine, maxLines, minLines, interactionSource, shape, colors,
+    cursorBrush, labelText)

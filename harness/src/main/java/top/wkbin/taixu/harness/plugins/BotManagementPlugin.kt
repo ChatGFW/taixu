@@ -4,7 +4,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -13,15 +12,12 @@ import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.Bot
-import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
-import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.harness.bot.BotAssignmentRuntime
 import top.wkbin.taixu.harness.bot.BotAssignmentTracker
 import top.wkbin.taixu.harness.bot.BotModelManager
 import top.wkbin.taixu.harness.bot.BotOrchestrator
 import top.wkbin.taixu.harness.groupchat.GroupChatDispatcher
-
 /**
  * 主控 Bot 的团队管理工具：孵化新 Bot、向指定 Bot 派发后台子任务、查看名册。
  *

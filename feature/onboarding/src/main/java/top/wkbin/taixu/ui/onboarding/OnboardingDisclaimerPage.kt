@@ -11,7 +11,6 @@ import androidx.compose.foundation.background
 import top.wkbin.taixu.ui.components.RuntimeButton
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
@@ -27,7 +26,6 @@ import top.wkbin.taixu.feature.components.R as ComponentsR
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeUsageNoticeContent
 import top.wkbin.taixu.ui.components.runtimeContentPadding
-
 @Composable
 internal fun OnboardingDisclaimerPage(
     modifier: Modifier = Modifier,

@@ -5,7 +5,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 internal val firstResponseTimeoutSearchItem = SettingsSearchItem(
     id = "agent_first_response_timeout",
     title = "等待模型首个响应",
-    subtitle = "首个响应超时默认 90 秒，可调高或关闭。超时不代表上游报错",
+    subtitle = "开启后默认为 90 秒，可调高。超时不代表上游报错",
     category = SettingsSearchCategory.AGENT,
     target = SettingsSearchTarget.AGENT_EXECUTION,
     icon = RuntimeIconName.Alarm,

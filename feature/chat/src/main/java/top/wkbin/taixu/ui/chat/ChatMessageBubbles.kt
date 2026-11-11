@@ -77,12 +77,11 @@ import coil3.request.ImageRequest
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.CapabilityEvent
 import top.wkbin.taixu.harness.SkillSuggestion
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.FlowRow
 import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
 import top.wkbin.taixu.harness.ModelSwitchEvent
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.checkpoint.RewindScope
+import top.wkbin.taixu.ui.components.RuntimeExpandChevron
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -95,7 +94,6 @@ import top.wkbin.taixu.core.common.navigation.GlobalNavigationBus
 import top.wkbin.taixu.core.common.translation.TranslationManager
 import top.wkbin.taixu.core.common.translation.TranslationModelStatus
 import top.wkbin.taixu.ui.components.RuntimeActionRow
-
 /** 消息气泡：用户/助手气泡、思考块、任务计划卡、能力事件卡。 */
 @Composable
 internal fun UserBubble(
@@ -124,6 +122,7 @@ internal fun UserBubble(
 
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
         Column(
+            modifier = Modifier.fillMaxWidth(0.88f),
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
@@ -149,8 +148,8 @@ internal fun UserBubble(
                 Box(
                     modifier = Modifier
                         .widthIn(max = 560.dp)
-                        .clipBubbleShape(RoundedCornerShape(20.dp, 6.dp, 20.dp, 20.dp))
-                        .background(RuntimeTheme.colorScheme.secondaryContainer)
+                        .clipBubbleShape(RoundedCornerShape(16.dp, 4.dp, 16.dp, 16.dp))
+                        .background(RuntimeTheme.colorScheme.primaryContainer)
                         .clickable { showMenu = true },
                 ) {
                     val mentionColor = RuntimeTheme.colorScheme.primary
@@ -161,9 +160,9 @@ internal fun UserBubble(
                     SelectionContainer {
                         Text(
                             text = annotatedText,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                             style = RuntimeTheme.typography.bodyMedium,
-                            color = RuntimeTheme.colorScheme.onSurface,
+                            color = RuntimeTheme.colorScheme.onPrimaryContainer,
                         )
                     }
                 }
@@ -231,7 +230,7 @@ internal fun UserBubble(
                 )
             },
             confirmButton = {
-                Button(
+                TextButton(
                     onClick = {
                         showDeleteConfirm = false
                         onDelete()
@@ -279,8 +278,7 @@ internal fun UserBubble(
                     )
                 }
             },
-            confirmButton = {},
-            dismissButton = {
+            confirmButton = {
                 TextButton(onClick = { showRewindScopeDialog = false }) { Text(stringResource(R.string.chat_cancel)) }
             },
         )
@@ -645,10 +643,10 @@ internal fun ThinkingBlock(
                 }
             }
 
-            RuntimeIcon(
-                if (expanded) RuntimeIconName.ChevronDown else RuntimeIconName.ChevronRight,
-                Modifier.size(16.dp),
-                chatProcessColor(),
+            RuntimeExpandChevron(
+                expanded = expanded,
+                modifier = Modifier.size(16.dp),
+                tint = chatProcessColor(),
             )
         }
 
@@ -766,7 +764,7 @@ internal fun ThinkingBlock(
                 )
             },
             confirmButton = {
-                Button(
+                TextButton(
                     onClick = {
                         showMissingModelDialog = false
                         if (onNavigateToSettings != null) {

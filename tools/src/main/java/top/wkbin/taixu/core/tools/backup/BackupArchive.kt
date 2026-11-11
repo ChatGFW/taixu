@@ -9,7 +9,6 @@ import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
-
 internal object BackupArchive {
     const val MAX_BYTES = 256L * 1024 * 1024
     const val MAX_FILE_BYTES = 64L * 1024 * 1024

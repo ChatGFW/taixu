@@ -8,7 +8,6 @@ import top.wkbin.taixu.harness.core.ToolBackend
 import top.wkbin.taixu.harness.workflow.WorkflowSignal
 import top.wkbin.taixu.harness.workflow.WorkflowSignalBus
 import top.wkbin.taixu.runtime.LinuxRuntime
-import top.wkbin.taixu.runtime.shell.ProcessType
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import top.wkbin.taixu.runtime.shell.CommandResourcePolicy
 import top.wkbin.taixu.runtime.shell.CommandOutputCapture
@@ -16,7 +15,6 @@ import top.wkbin.taixu.runtime.environment.BoundLinuxCommands
 import top.wkbin.taixu.runtime.environment.ExecutionCommands
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironment
 import top.wkbin.taixu.harness.environment.SessionExecutionEnvironments
-
 data class LinuxCommandRequest(
     val tool: HarnessTool,       // BASE 或 PROCESS
     val args: JsonObject,

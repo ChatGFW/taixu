@@ -10,7 +10,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import top.yukonga.miuix.kmp.basic.Text
@@ -33,11 +32,8 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 import java.io.File
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.components.RuntimeActionRow
-
 private data class SketchStroke(val points: List<Offset>)
 
 /**
@@ -94,28 +90,19 @@ internal fun ChatSketchSheet(
                     }
                 }
 
-                RuntimeActionRow() {
-                    RuntimeTextButton(
-                        onClick = { strokes.clear() },
-                        modifier = Modifier,
-                    ) {
-                        Text("清空")
-                    }
-                    RuntimeButton(
-                        onClick = {
-                            if (canvasSize.width <= 0 || strokes.isEmpty()) return@RuntimeButton
-                            val uri = exportSketch(context, strokes, canvasSize) ?: return@RuntimeButton
-                            onConfirm(uri)
-                        },
-                        enabled = strokes.isNotEmpty() && canvasSize.width > 0,
-                        modifier = Modifier,
-                    ) {
-                        Text("添加为附件")
-                    }
-                }
+                RuntimeTextButton(onClick = { strokes.clear() }) { Text("清空") }
             }
         },
-        confirmButton = {},
+        confirmButton = {
+            RuntimeTextButton(
+                onClick = {
+                    if (canvasSize.width <= 0 || strokes.isEmpty()) return@RuntimeTextButton
+                    val uri = exportSketch(context, strokes, canvasSize) ?: return@RuntimeTextButton
+                    onConfirm(uri)
+                },
+                enabled = strokes.isNotEmpty() && canvasSize.width > 0,
+            ) { Text("添加为附件") }
+        },
         dismissButton = {
             RuntimeTextButton(onClick = onDismiss) { Text("取消") }
         },

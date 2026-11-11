@@ -626,7 +626,7 @@ internal fun LocalToolCenterContent(
                 confirmButton = {
 
                         if (hasErrors) {
-                            Button(
+                            TextButton(
                                 onClick = {
                                     val fullLogs = toolLogs.map { "[${it.event}] ${it.message}" }
                                     viewModel?.viewLogs(null)
@@ -753,11 +753,4 @@ internal fun LocalToolCenterContent(
     }
 
     } // Box
-}
-
-private fun formatBytes(bytes: Long): String = when {
-    bytes >= 1024L * 1024L * 1024L -> "%.2f GB".format(bytes / (1024.0 * 1024.0 * 1024.0))
-    bytes >= 1024L * 1024L -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
-    bytes >= 1024L -> "%.1f KB".format(bytes / 1024.0)
-    else -> "$bytes B"
 }

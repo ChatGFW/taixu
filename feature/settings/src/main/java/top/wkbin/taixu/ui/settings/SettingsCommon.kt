@@ -7,6 +7,8 @@ import android.content.Context
 import android.os.Build
 import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,10 +17,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -33,7 +36,8 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeSwitch
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.runtime.webchat.WebChatServerStatus
-
+import top.wkbin.taixu.runtime.remote.LocalNetworkAccess
+import top.wkbin.taixu.runtime.remote.needsLocalNetworkPermission
 @Composable
 fun WebChatBridgeDialog(
     status: WebChatServerStatus,
@@ -42,6 +46,11 @@ fun WebChatBridgeDialog(
     onDismiss: () -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val currentOnToggle by rememberUpdatedState(onToggle)
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) currentOnToggle(true)
+        else Toast.makeText(context, top.wkbin.taixu.feature.settings.R.string.settings_local_network_permission_required, Toast.LENGTH_LONG).show()
+    }
     RuntimeAlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -79,7 +88,11 @@ fun WebChatBridgeDialog(
                                 }
                                 RuntimeSwitch(
                                     checked = status.isRunning,
-                                    onCheckedChange = onToggle,
+                                    onCheckedChange = { enabled ->
+                                        if (enabled && context.needsLocalNetworkPermission()) {
+                                            permissionLauncher.launch(LocalNetworkAccess.PERMISSION)
+                                        } else currentOnToggle(enabled)
+                                    },
                                     enabled = !toggling,
                                 )
                             }

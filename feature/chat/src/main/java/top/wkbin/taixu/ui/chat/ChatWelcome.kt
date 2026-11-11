@@ -12,20 +12,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.*
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Surface
 import top.wkbin.taixu.ui.theme.chatBackdropSurface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.icon.basic.ArrowRight
-
 @Composable
 internal fun EmptyChatGuidance(
     workspaceProject: WorkspaceProject? = null,
@@ -72,95 +69,102 @@ internal fun EmptyChatGuidance(
     ) {
         Column(
             modifier = Modifier
-                .widthIn(max = 640.dp)
+                .widthIn(max = 560.dp)
                 .fillMaxWidth()
-                .padding(vertical = 20.dp),
+                .padding(vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // 1. Hero 品牌与问候徽章
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                TaiXuBrandBadge(size = 48.dp)
+                TaiXuBrandBadge(size = 56.dp)
                 Text(
-                    text = greeting, modifier = chatGreetingModifier(),
+                    text = greeting,
+                    modifier = chatGreetingModifier(),
+                    style = RuntimeTheme.typography.headlineSmall,
+                    color = RuntimeTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = stringResource(R.string.chat_welcome_subtitle),
                     style = RuntimeTheme.typography.bodyMedium,
                     color = RuntimeTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
                 )
             }
 
-            // 2. Linux 沙箱与工作区实时微胶囊
-            Surface(
-                shape = CircleShape,
-                color = RuntimeTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
-                            .background(RuntimeTheme.colorScheme.primary),
-                    )
-                    Text(
-                        text = "Linux 沙箱就绪",
-                        style = RuntimeTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                        color = RuntimeTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = "•",
-                        style = RuntimeTheme.typography.labelSmall,
-                        color = RuntimeTheme.colorScheme.outlineVariant,
-                    )
-                    RuntimeIcon(
-                        name = RuntimeIconName.Folder,
-                        modifier = Modifier.size(13.dp),
-                        tint = RuntimeTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = workspaceProject?.name ?: "默认全局沙箱",
-                        style = RuntimeTheme.typography.labelSmall,
-                        color = RuntimeTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(RuntimeTheme.colorScheme.primary),
+                )
+                Text(
+                    text = "Linux 沙箱就绪",
+                    modifier = Modifier.padding(start = 6.dp),
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "·",
+                    modifier = Modifier.padding(horizontal = 6.dp),
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.outlineVariant,
+                )
+                Text(
+                    text = workspaceProject?.name ?: stringResource(R.string.chat_default_workspace),
+                    modifier = Modifier.weight(1f, fill = false),
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
 
-            // 3. 核心场景快捷动作列表 (统一优雅卡片)
-            RuntimeCard(
-                modifier = Modifier.fillMaxWidth(),
-                containerColor = chatBackdropSurface(),
-                contentPadding = PaddingValues(0.dp),
-            ) {
-                quickCommands.forEach { cmd ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelectCommand(cmd) }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RuntimeIcon(cmd.icon, Modifier.padding(end = 14.dp).size(22.dp),
-                            RuntimeTheme.colorScheme.onSurface.copy(alpha = 0.8f))
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(cmd.label, style = RuntimeTheme.typography.titleMedium,
-                                color = RuntimeTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(cmd.description, style = top.yukonga.miuix.kmp.theme.MiuixTheme.textStyles.body2,
-                                color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = stringResource(R.string.chat_welcome_suggestions),
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                    style = RuntimeTheme.typography.labelMedium,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
+                )
+                RuntimeCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RuntimeTheme.shapes.chip,
+                    containerColor = chatBackdropSurface(),
+                    contentPadding = PaddingValues(0.dp),
+                ) {
+                    quickCommands.forEach { cmd ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 44.dp)
+                                .clickable { onSelectCommand(cmd) }
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = cmd.label,
+                                modifier = Modifier.weight(1f),
+                                style = RuntimeTheme.typography.bodyMedium,
+                                color = RuntimeTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            top.yukonga.miuix.kmp.basic.Icon(
+                                imageVector = top.yukonga.miuix.kmp.icon.MiuixIcons.Basic.ArrowRight,
+                                contentDescription = null,
+                                modifier = Modifier.padding(start = 8.dp).size(width = 10.dp, height = 16.dp),
+                                tint = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.onSurfaceVariantActions,
+                            )
                         }
-                        top.yukonga.miuix.kmp.basic.Icon(
-                            imageVector = top.yukonga.miuix.kmp.icon.MiuixIcons.Basic.ArrowRight,
-                            contentDescription = null,
-                            modifier = Modifier.padding(start = 8.dp).size(width = 10.dp, height = 16.dp),
-                            tint = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.onSurfaceVariantActions,
-                        )
                     }
                 }
             }

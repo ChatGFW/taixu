@@ -1,17 +1,12 @@
 package top.wkbin.taixu.runtime.webchat
 
-import android.R
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.PowerManager
-import androidx.core.app.NotificationCompat
 import java.io.File
 import java.io.InputStream
 import java.net.InetSocketAddress
-import java.net.URLDecoder
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
@@ -29,17 +24,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import top.wkbin.taixu.core.common.logging.AppLogger
-import top.wkbin.taixu.core.common.result.AppResult
 import top.wkbin.taixu.core.database.AgentMessageFeedbackEntity
 import top.wkbin.taixu.core.database.AiModelRepository
 import top.wkbin.taixu.core.database.HarnessSessionEntity
@@ -49,6 +39,8 @@ import top.wkbin.taixu.core.database.WorkspaceRepository
 import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.WorkspaceFileService
 import top.wkbin.taixu.runtime.WorkspaceManager
+import top.wkbin.taixu.runtime.remote.LocalNetworkAccess
+import top.wkbin.taixu.runtime.remote.needsLocalNetworkPermission
 
 const val DEFAULT_WEBCHAT_PORT = 8899
 
@@ -101,12 +93,13 @@ class WebChatBridgeServer(
     private var wifiLock: WifiManager.WifiLock? = null
 
     fun start(port: Int = DEFAULT_WEBCHAT_PORT, pin: String? = null): Boolean {
+        if (context.needsLocalNetworkPermission()) {
+            logger.w(LocalNetworkAccess.USER_HINT)
+            return false
+        }
         if (_status.value.isRunning) return true
         return try {
             val generatedPin = pin ?: generatePin()
-            // 工作线程池由 AndroidHttpServer 自己持有：stop() 时随服务一起回收，
-            // 不再让本类持有一个永不 shutdown 的 fixedThreadPool。
-            // 显式 IPv4 0.0.0.0：避免双栈 :: 在部分 OEM 上出现 accept 队列堆积、局域网无响应。
             val server = AndroidHttpServer.create(InetSocketAddress("0.0.0.0", port), 0)
             server.createContext("/webchat/api/session/bootstrap", SessionBootstrapHandler())
             server.createContext("/webchat/api/bootstrap", BootstrapHandler())
@@ -137,6 +130,7 @@ class WebChatBridgeServer(
             logger.i("太墟智枢 Web 协作服务启动成功：http://$localIp:$port")
             true
         } catch (exception: Exception) {
+            stop()
             logger.e("太墟智枢 Web 协作服务启动失败", exception)
             false
         }
@@ -496,6 +490,7 @@ class WebChatBridgeServer(
         put("createdAt", session.createdAt)
         put("updatedAt", session.updatedAt)
         put("workspace", session.workspace)
+        runTracker.requestForSession(session.id)?.let { put("activeTaskId", it) }
     }
 
     private fun messageArray(messages: List<WebChatMessage>) = buildJsonArray {

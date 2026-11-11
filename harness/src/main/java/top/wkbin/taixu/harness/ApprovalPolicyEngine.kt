@@ -394,7 +394,7 @@ class ApprovalPolicyEngine(
 
     private fun isSafeReadFilter(command: String): Boolean {
         if (!SAFE_READ_FILTER.containsMatchIn(command)) return false
-        if (hasDynamicShellSyntax(command)) return false
+        if (hasDynamicShellSyntax(command) || "&&" in command) return false // 过滤段须单条只读命令：`head && rm x` 的 && 后变更不受首段黑名单约束
         return !UNSAFE_EXEC_FEATURES.containsMatchIn(shellDeobfuscated(command))
     }
 

@@ -5,7 +5,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.util.Base64
@@ -16,7 +15,6 @@ import top.wkbin.taixu.runtime.browser.hook.HookHitRecord
 import top.wkbin.taixu.runtime.browser.hook.HookRuleStore
 import top.wkbin.taixu.runtime.browser.hook.HookType
 import top.wkbin.taixu.runtime.browser.hook.NetworkBodyStore
-
 /**
  * Fetch 域拦截器：CDP 引擎级网络改写（覆盖 Worker 与子资源——注入层够不到的范围）。
  *

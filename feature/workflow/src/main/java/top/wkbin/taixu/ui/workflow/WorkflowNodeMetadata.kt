@@ -30,7 +30,7 @@ fun WorkflowNodeType.metadata(): NodeTypeMeta = when (this) {
     WorkflowNodeType.PROCESS_SERVICE -> NodeTypeMeta(
         type = this,
         label = "后台常驻服务",
-        icon = RuntimeIconName.Settings,
+        icon = RuntimeIconName.Server,
         summary = "启动沙箱后台常驻守护进程，不阻塞后续流程继续执行",
         guide = "适用于启动 http-server、Web 服务或监听器进程。进程 ID 会自动保存在变量 \${PROCESS_ID} 中供后续流程引用。",
     )
@@ -58,7 +58,7 @@ fun WorkflowNodeType.metadata(): NodeTypeMeta = when (this) {
     WorkflowNodeType.CONDITION_BRANCH -> NodeTypeMeta(
         type = this,
         label = "条件分支路由",
-        icon = RuntimeIconName.Link,
+        icon = RuntimeIconName.GitBranch,
         summary = "求值表达式并按成立/不成立分流",
         guide = "支持 exitCode、output contains、\${变量} 比较，以及 && / ||。成立时 exitCode=0，否则为 1；请用边上的条件或 success/failure 端口承接分支。",
     )
@@ -79,7 +79,7 @@ fun WorkflowNodeType.metadata(): NodeTypeMeta = when (this) {
     WorkflowNodeType.DELAY -> NodeTypeMeta(
         type = this,
         label = "延时等待",
-        icon = RuntimeIconName.Speed,
+        icon = RuntimeIconName.Alarm,
         summary = "暂停若干秒后再继续后续节点",
         guide = "用于等待界面切换、广播落地或给人工留出观察时间。",
     )

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_chat_top_toolbar">Chat top shortcuts</string>
+    <string name="settings_chat_top_toolbar_description">Preview the right capsule. Tap chips to pin or unpin. Up to 3 pins; More always stays.</string>
+    <string name="settings_chat_top_toolbar_full">3 pins already used. Unpin one first.</string>
+    <string name="settings_chat_top_toolbar_preview">Chat top shortcuts preview</string>
+    <string name="settings_chat_top_toolbar_more">More</string>
+    <string name="settings_chat_top_toolbar_action_bots">Bots</string>
+    <string name="settings_chat_top_toolbar_action_workspace">Workspace</string>
+    <string name="settings_chat_top_toolbar_action_memory">Session memory</string>
+    <string name="settings_chat_top_toolbar_action_outline">Outline</string>
+    <string name="settings_chat_top_toolbar_action_export">Export Markdown</string>
+    <string name="settings_chat_top_toolbar_action_browser">Browser</string>
+    <string name="settings_chat_top_toolbar_action_repository">Repository</string>
+    <string name="settings_chat_top_toolbar_action_speech">Auto-read</string>
+    <string name="settings_chat_top_toolbar_action_run_mode">Run intent</string>
+    <string name="settings_chat_top_toolbar_action_branches">Branches</string>
+    <string name="settings_chat_top_toolbar_action_runtime">Run history</string>
+    <string name="settings_chat_top_toolbar_action_toolchain">Toolchain</string>
+    <string name="settings_chat_top_toolbar_action_reasoning">Reasoning effort</string>
+    <string name="settings_chat_top_toolbar_action_floating">Floating window</string>
+</resources>

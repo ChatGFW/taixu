@@ -45,8 +45,9 @@ fun RuntimeSelectionSheet(
             confirmValueChange = { canDismiss || it != SheetValue.Hidden }),
         shape = RuntimeTheme.shapes.extraLarge,
     ) {
+        // 底 inset / ime 由 ModalBottomSheet 统一处理，这里只留内容边距。
         Column(
-            Modifier.fillMaxWidth().imePadding().padding(horizontal = 24.dp).padding(bottom = 16.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
@@ -67,7 +68,7 @@ fun RuntimeSelectionSheet(
     }
 }
 
-/** 模型、供应商和预设使用同一密度；只有选中行染色，次级信息不再逐个套色块。 */
+/** 模型、供应商和预设使用同一密度；选中靠勾选图标与淡 primary 底，不用 M3 secondaryContainer。 */
 @Composable
 fun RuntimeSelectionRow(
     headline: String,
@@ -86,7 +87,7 @@ fun RuntimeSelectionRow(
             else { this.selected = selected; role = Role.RadioButton }
         },
         onClick = onClick,
-        containerColor = if (selected) RuntimeTheme.colorScheme.secondaryContainer else Color.Transparent,
+        containerColor = if (selected) RuntimeTheme.colorScheme.primary.copy(alpha = 0.10f) else Color.Transparent,
         shape = RuntimeTheme.shapes.large,
         contentPadding = PaddingValues(0.dp),
     ) {

@@ -9,7 +9,9 @@ import top.wkbin.taixu.harness.UserMessage
 internal fun chatTimelineItemSpacing(previous: ChatRenderItem?, current: ChatRenderItem): Int {
     if (previous == null) return 0
     val message = (current as? ChatRenderItem.MessageItem)?.message
-    if (message is UserMessage) return 16
+    val previousMessage = (previous as? ChatRenderItem.MessageItem)?.message
+    if (message is UserMessage) return 24
+    if (previousMessage is UserMessage) return 12
     if (previous.isCompactToolLine() && current.isCompactToolLine()) return 0
     if (previous.isCompactToolLine() || current.isCompactToolLine() ||
         (current is ChatRenderItem.MessageItem && message is AssistantText && current.showReasoning &&

@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -60,7 +59,6 @@ import top.wkbin.taixu.ui.miuix.*
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
-
 /**
  * 太墟 · Linux 发行版与沙箱多实例管理 (Distro Management Hub)
  */
@@ -229,7 +227,7 @@ private fun ResetDistroConfirmDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = onConfirm,
                 enabled = countdown == 0,
                 colors = ButtonDefaults.buttonColors(
@@ -289,7 +287,7 @@ private fun DeleteDistroConfirmDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = onConfirm,
                 enabled = countdown == 0,
                 colors = ButtonDefaults.buttonColors(
@@ -595,7 +593,7 @@ private fun InstallDistroDialog(
         },
         confirmButton = {
             if (!isInstalling && availableDistros.isNotEmpty()) {
-                Button(
+                TextButton(
                     onClick = { onConfirmInstall(selectedSpec, selectedRoute) },
                     shape = RuntimeTheme.shapes.medium,
                 ) {

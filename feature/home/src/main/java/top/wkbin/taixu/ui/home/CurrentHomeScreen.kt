@@ -6,7 +6,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.util.Locale
 import org.koin.compose.koinInject
@@ -20,7 +19,6 @@ import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Scaffold
 import top.wkbin.taixu.ui.miuix.TopAppBarDefaults
 import top.yukonga.miuix.kmp.basic.Text
-
 @Composable
 fun HomeScreen(onNavigate: (MainDestination) -> Unit, onOpenTerminal: () -> Unit,
     onOpenToolCenter: () -> Unit = {}, viewModel: HomeViewModel? = null, onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {

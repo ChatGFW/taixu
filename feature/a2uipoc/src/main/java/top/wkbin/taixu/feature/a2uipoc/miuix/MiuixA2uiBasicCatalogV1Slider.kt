@@ -36,9 +36,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
@@ -126,9 +123,6 @@ internal object MiuixA2uiBasicCatalogV1Slider : A2uiBasicCatalogV1.Slider {
 private val SliderVerticalArrangement = Arrangement.spacedBy(4.dp)
 private val SliderHeaderRowModifier = Modifier.fillMaxWidth()
 private val SliderBottomPaddingModifier = Modifier.padding(bottom = 8.dp)
-private val EmptySliderTrack: DrawScope.(Offset, Color) -> Unit = { _, _ ->
-    /* no-op to hide step dots */
-}
 
 /**
  * Applies slider-specific accessibility semantics using [accessibility] and visual [label].

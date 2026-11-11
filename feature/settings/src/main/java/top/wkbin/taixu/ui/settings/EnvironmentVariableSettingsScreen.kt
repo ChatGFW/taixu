@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
 import androidx.compose.runtime.Composable
@@ -279,7 +278,7 @@ private fun EnvironmentVariableEditor(
         text = {
             Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-                    RuntimeIcon(RuntimeIconName.Alert, Modifier.size(18.dp), RuntimeTheme.colorScheme.tertiary)
+                    RuntimeIcon(RuntimeIconName.Alert, Modifier.size(18.dp), RuntimeTheme.colorScheme.onSurfaceVariant)
                     Text(
                         if (entry == null && initialKey.isNotBlank()) {
                             "这会在用户配置中覆盖 Linux 当前值。错误配置可能导致相关命令无法运行。"

@@ -14,6 +14,14 @@ class ApprovalPolicyEngineTest {
     private val policy = ApprovalPolicyEngine(HarnessPathResolver())
     private val workspace = "/workspace/project"
 
+    @Test
+    fun `read filter cannot hide a chained mutation`() {
+        for (command in listOf("cat a.txt | head -5 && rm a.txt", "git status | head && touch changed")) {
+            assertTrue(command, policy.decide(ApprovalMode.ASSISTED, HarnessTool.BASE,
+                args("command" to command), workspace).required)
+        }
+    }
+
     private fun args(vararg pairs: Pair<String, String>) = buildJsonObject {
         pairs.forEach { (key, value) -> put(key, value) }
     }

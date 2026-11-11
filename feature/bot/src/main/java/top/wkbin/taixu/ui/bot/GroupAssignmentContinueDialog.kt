@@ -21,7 +21,6 @@ import kotlinx.coroutines.launch
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 
 @Composable
@@ -47,7 +46,7 @@ internal fun GroupAssignmentContinueDialog(task: BotAssignment, onDismiss: () ->
             }
         },
         confirmButton = {
-            RuntimeButton(enabled = !sending && instruction.isNotBlank(), onClick = {
+            RuntimeTextButton(enabled = !sending && instruction.isNotBlank(), onClick = {
                 sending = true
                 scope.launch {
                     runCatching { onContinue(task.id, instruction, requestId) }

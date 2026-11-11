@@ -3,10 +3,8 @@ package top.wkbin.taixu.harness.skill
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.common.logging.AppLogger
@@ -27,7 +25,6 @@ import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.projection.SessionMessageProjector
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
-
 /**
  * 技能进化顾问（交互形态借鉴千问/QwenWork 的「对话结束后建议沉淀或修复技能」）。
  *

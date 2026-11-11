@@ -1265,7 +1265,7 @@ internal fun UninstallToolConfirmDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = onConfirm,
                 enabled = countdown == 0,
                 colors = ButtonDefaults.buttonColors(

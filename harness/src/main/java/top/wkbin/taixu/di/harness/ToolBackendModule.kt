@@ -19,15 +19,12 @@ import top.wkbin.taixu.harness.LinuxCommandToolBackend
 import top.wkbin.taixu.harness.PromptAssetToolBackend
 import top.wkbin.taixu.harness.ProviderClient
 import top.wkbin.taixu.harness.SearchWebToolBackend
-import top.wkbin.taixu.harness.ToolExecutionRequest
 import top.wkbin.taixu.harness.ToolExecutor
-import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.WorkspaceFileAccess
 import top.wkbin.taixu.harness.WorkspaceMutationSnapshots
 import top.wkbin.taixu.harness.WorkspaceToolBackend
 import top.wkbin.taixu.harness.bot.BotCapabilityScope
 import top.wkbin.taixu.harness.bot.RepositoryBotCapabilityScope
-import top.wkbin.taixu.harness.core.ToolCheckpoints
 import top.wkbin.taixu.harness.directory.CapabilityToolGateway
 import top.wkbin.taixu.harness.environment.LocalExecutionEnvironmentFactory
 import top.wkbin.taixu.harness.environment.SelectedExecutionEnvironmentFactory
@@ -44,7 +41,6 @@ import top.wkbin.taixu.harness.websearch.BingSearchProvider
 import top.wkbin.taixu.harness.websearch.WebSearchProviders
 import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentFactory
 import top.wkbin.taixu.runtime.environment.LocalDistributionSelection
-
 internal val toolBackendModule = module {
     single<ExecutionEnvironmentFactory>(org.koin.core.qualifier.named("local-execution")) {
         LocalExecutionEnvironmentFactory(get(), get(), get(), get(), get(), get())

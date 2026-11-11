@@ -108,11 +108,6 @@ internal object PixelOfficeRoom {
             rect(0, top, width, 10, WALL_SHADE)
         }
 
-        private fun plaque(x: Int, y: Int) {
-            rect(x, y, 34, 10, INK)
-            rect(x + 2, y + 2, 30, 6, WOOD)
-        }
-
         private fun shelf(x: Int, y: Int) {
             rect(x, y, 24, 36, WOOD_DARK)
             rect(x + 2, y + 2, 20, 32, WOOD)
@@ -192,20 +187,6 @@ internal object PixelOfficeRoom {
             rect(x + 31, y + 3, 2, 15, WOOD_DARK)
         }
 
-        private fun coffeeBar(x: Int, y: Int) {
-            rect(x, y, 68, 22, WOOD)
-            rect(x, y, 68, 3, WOOD_DARK)
-            rect(x + 4, y - 20, 16, 20, INK)
-            rect(x + 6, y - 16, 12, 8, 0xFF2A2E36.toInt())
-            rect(x + 8, y - 14, 3, 3, 0xFFE85D4C.toInt())
-            rect(x + 13, y - 14, 3, 3, WINDOW_LIT)
-            rect(x + 26, y + 6, 6, 5, CUP)
-            rect(x + 36, y + 6, 6, 5, 0xFFC45C4A.toInt())
-            rect(x + 46, y + 5, 8, 6, CREAM)
-            rect(x + 18, y + 22, 10, 8, CHAIR)
-            rect(x + 40, y + 22, 10, 8, CHAIR)
-        }
-
         private fun sofa(x: Int, y: Int) {
             rect(x, y, 52, 22, SOFA)
             rect(x, y, 6, 22, SOFA_DARK)
@@ -227,15 +208,6 @@ internal object PixelOfficeRoom {
             rect(x + 2, y + 6, 16, 12, BEAN)
             rect(x, y + 10, 20, 8, 0xFF4E9A52.toInt())
             rect(x + 6, y + 4, 8, 4, BEAN)
-        }
-
-        private fun poster(x: Int, y: Int) {
-            rect(x, y, 28, 36, TRIM)
-            rect(x + 2, y + 2, 24, 32, CREAM)
-            rect(x + 6, y + 8, 16, 2, INK)
-            rect(x + 6, y + 14, 12, 2, STICKY_B)
-            rect(x + 6, y + 20, 16, 2, STICKY_P)
-            rect(x + 6, y + 26, 8, 2, STICKY_Y)
         }
 
         private fun stairs(x: Int, y: Int) {

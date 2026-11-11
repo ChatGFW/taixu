@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import top.wkbin.taixu.ui.miuix.OutlinedTextField
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -13,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.database.AiModelEntity
 import top.wkbin.taixu.ui.components.RuntimeDropdownField
-
 /**
  * 自动会话标题配置卡片：开关、自定义提示词（空白用内置默认）、指定模型档案
  * （空白 = 跟随会话绑定模型）。偏好读写由调用方代理到 AgentPreferences。

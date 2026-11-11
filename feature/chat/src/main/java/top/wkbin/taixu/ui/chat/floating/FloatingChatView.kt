@@ -546,7 +546,7 @@ private fun FloatingChatPanel(
                                             RuntimeIcon(
                                                 RuntimeIconName.Code,
                                                 Modifier.size(11.dp),
-                                                RuntimeTheme.colorScheme.primary,
+                                                RuntimeTheme.colorScheme.onSurface,
                                             )
                                             Text(
                                                 text = "${msg.rawToolName ?: msg.tool.name} ${msg.args}",

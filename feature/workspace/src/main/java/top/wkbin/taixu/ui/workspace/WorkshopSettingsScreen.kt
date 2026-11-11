@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +37,7 @@ import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.ui.components.RuntimeActionRow
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeButton
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeDropdownField
 import top.wkbin.taixu.ui.components.RuntimeFilledTextField
@@ -124,13 +124,13 @@ fun WorkshopSettingsScreen(onBack: () -> Unit, onOpenEnvironment: () -> Unit, on
             title = { Text(stringResource(R.string.workshop_script_delete_title, script.name)) },
             text = { Text(stringResource(R.string.workshop_script_delete_message)) },
             confirmButton = {
-                RuntimeButton(onClick = {
+                RuntimeTextButton(onClick = {
                     viewModel?.deleteManagedScript(script.id)
                     deleteScriptTarget = null
                 }, colors = ButtonDefaults.buttonColors(containerColor = RuntimeTheme.colorScheme.error, contentColor = RuntimeTheme.colorScheme.onError)) { Text(stringResource(R.string.workspace_confirm_delete)) }
             },
             dismissButton = {
-                RuntimeOutlinedButton(onClick = { deleteScriptTarget = null }) { Text(stringResource(R.string.workspace_cancel)) }
+                RuntimeTextButton(onClick = { deleteScriptTarget = null }) { Text(stringResource(R.string.workspace_cancel)) }
             },
         )
     }
@@ -225,8 +225,8 @@ private fun ManagedScriptEditorDialog(script: BuildScriptEntity?, onDismiss: () 
                 saveError?.let { Text(it, style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.error) }
             }
         },
-        confirmButton = { RuntimeButton(onClick = { saveError = onSave(name, description, type, content) }, enabled = name.isNotBlank() && content.isNotBlank()) { Text(stringResource(R.string.workshop_action_save)) } },
-        dismissButton = { RuntimeOutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.workspace_cancel)) } },
+        confirmButton = { RuntimeTextButton(onClick = { saveError = onSave(name, description, type, content) }, enabled = name.isNotBlank() && content.isNotBlank()) { Text(stringResource(R.string.workshop_action_save)) } },
+        dismissButton = { RuntimeTextButton(onClick = onDismiss) { Text(stringResource(R.string.workspace_cancel)) } },
     )
 }
 
@@ -352,13 +352,13 @@ fun WorkshopScriptEditorScreen(type: WorkshopScriptType, onBack: () -> Unit, vie
             title = { Text(stringResource(R.string.workshop_script_dirty_title)) },
             text = { Text(stringResource(R.string.workshop_script_dirty_message)) },
             confirmButton = {
-                RuntimeButton(onClick = {
+                RuntimeTextButton(onClick = {
                     showUnsavedDialog = false
                     viewModel?.saveScript(type, content, onBack)
                 }) { Text(stringResource(R.string.workshop_script_save_and_exit)) }
             },
             dismissButton = {
-                RuntimeOutlinedButton(onClick = {
+                RuntimeTextButton(onClick = {
                     showUnsavedDialog = false
                     onBack()
                 }) { Text(stringResource(R.string.workshop_script_discard), color = RuntimeTheme.colorScheme.error) }

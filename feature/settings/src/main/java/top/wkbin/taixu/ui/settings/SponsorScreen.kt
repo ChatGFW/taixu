@@ -36,7 +36,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.ui.Alignment
@@ -303,7 +302,7 @@ private fun SponsorQrDialog(
             }
         },
         confirmButton = {
-            Button(
+            TextButton(
                 onClick = {
                     val prefix = if (title.contains("微信")) "wechat" else "alipay"
                     val success = saveSponsorQrToGallery(context, qrRes, prefix)
@@ -423,7 +422,7 @@ private fun SponsorChip(entry: SponsorEntry) {
                             RuntimeIcon(
                                 RuntimeIconName.Sponsor,
                                 Modifier.size(14.dp),
-                                tint = RuntimeTheme.colorScheme.tertiary,
+                                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     },

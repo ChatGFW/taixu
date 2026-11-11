@@ -2,11 +2,9 @@ package top.wkbin.taixu.harness.plugins
 
 import kotlinx.coroutines.flow.first
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
-import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.core.model.bot.GroupChat
-
 /** 从 BotManagementPlugin 抽出以控制文件尺寸：群解析、取色归一、Bot 状态行。 */
 
 internal suspend fun resolveGroup(

@@ -1,6 +1,12 @@
 export type ConnectionStatus = "connecting" | "online" | "offline";
 export type MobileSection = "chat" | "workspace" | "terminal";
 export type ConversationMode = "normal";
+export type InputMode = "next_run" | "steer" | "follow_up";
+export interface MessageFeedback {
+  messageId: string;
+  rating: "up" | "down";
+  note?: string;
+}
 
 export interface ConversationCreateTarget {
   mode: ConversationMode;
@@ -14,6 +20,8 @@ export interface Conversation {
   lastMessage?: string;
   messageCount?: number;
   updatedAt?: number;
+  workspace?: string;
+  activeTaskId?: string;
 }
 
 export interface Attachment {
@@ -107,6 +115,7 @@ export interface RunResult {
   turnId?: string;
   conversationMode?: ConversationMode;
   conversation?: Conversation;
+  input?: { disposition: "started" | "queued"; queue?: InputMode; queueItemId?: string; durableTaskId?: string };
 }
 
 export interface ApprovalResult {

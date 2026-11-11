@@ -13,7 +13,6 @@ import java.io.ByteArrayInputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.io.File
-
 /**
  * 沙箱绝对路径前缀（如 "workspace" 对应 /workspace）到宿主真实目录的映射。
  * 模型回复里的本地媒体路径（/workspace/xxx.jpg）是 PRoot 沙箱内语义，

@@ -4,6 +4,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,6 +18,8 @@ import top.wkbin.taixu.ui.miuix.HorizontalDivider
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +37,8 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeSwitch
 import top.wkbin.taixu.runtime.webchat.WebChatServerStatus
+import top.wkbin.taixu.runtime.remote.LocalNetworkAccess
+import top.wkbin.taixu.runtime.remote.needsLocalNetworkPermission
 
 /** WebChat 电脑大屏协作卡片 (Dashboard Bridge Card) */
 @Composable
@@ -41,6 +47,11 @@ internal fun WebChatDashboardCard(
     onToggle: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
+    val currentOnToggle by rememberUpdatedState(onToggle)
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) currentOnToggle(true)
+        else Toast.makeText(context, R.string.home_webchat_permission_required, Toast.LENGTH_LONG).show()
+    }
     val directUrl = "${status.accessUrl}?token=${status.pinCode}"
 
     RuntimeCard(
@@ -65,7 +76,7 @@ internal fun WebChatDashboardCard(
                     IconTile(
                         icon = RuntimeIconName.Globe,
                         size = 36.dp,
-                        color = if (status.isRunning) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.onSurfaceVariant,
+                        color = if (status.isRunning) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant,
                     )
                     Column {
                         Text(
@@ -83,7 +94,11 @@ internal fun WebChatDashboardCard(
 
                 RuntimeSwitch(
                     checked = status.isRunning,
-                    onCheckedChange = onToggle,
+                    onCheckedChange = { enabled ->
+                        if (enabled && context.needsLocalNetworkPermission()) {
+                            permissionLauncher.launch(LocalNetworkAccess.PERMISSION)
+                        } else currentOnToggle(enabled)
+                    },
                 )
             }
 

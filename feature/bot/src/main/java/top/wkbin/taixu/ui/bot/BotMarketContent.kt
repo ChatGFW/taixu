@@ -114,7 +114,7 @@ internal fun MarketList(
         if (filtered.isEmpty() && templates.isEmpty()) {
             item {
                 EmptyPanel(
-                    icon = RuntimeIconName.Hub,
+                    icon = RuntimeIconName.Extension,
                     title = stringResource(R.string.fbot_tab_market),
                     description = stringResource(R.string.fbot_market_empty),
                 )

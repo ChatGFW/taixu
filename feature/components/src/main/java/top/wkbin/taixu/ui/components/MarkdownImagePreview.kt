@@ -50,7 +50,12 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.core.markdown.*
 
-/** Full-screen generated-image viewer with pinch zoom, pan, and Save As support. */
+/**
+ * Full-screen generated-image viewer with pinch zoom, pan, and Save As support.
+ *
+ * Platform [Dialog] is intentional for an immersive viewer; do not migrate to
+ * RuntimeAlertDialog / WindowDialog card chrome.
+ */
 @Composable
 internal fun ImagePreviewDialog(block: MdRemoteMedia, onDismiss: () -> Unit) {
     val context = LocalContext.current

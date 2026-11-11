@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.feature.chat.R
+import top.wkbin.taixu.ui.components.RuntimeExpandChevron
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
 
@@ -72,25 +73,26 @@ internal fun ProjectSection(
                     modifier = Modifier
                         .fillMaxWidth(),
                 ) {
-                    // 项目文件夹行
+                    // 项目文件夹行：字号/图标与分区头（「最近」）对齐，避免视觉比分区头更抢
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RuntimeTheme.shapes.small)
                             .clickable { onToggleExpand(group.workspacePath) }
-                            .padding(start = 8.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
+                            .padding(start = 8.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         RuntimeIcon(
                             name = if (isExpanded) RuntimeIconName.FolderOpen
                             else RuntimeIconName.Folder,
-                            modifier = Modifier.size(20.dp),
-                            tint = RuntimeTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(16.dp),
+                            tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
                             text = group.projectName,
-                            style = RuntimeTheme.typography.titleMedium,
+                            style = RuntimeTheme.typography.labelMedium,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
@@ -106,7 +108,7 @@ internal fun ProjectSection(
                         // 单项目快捷新建会话入口
                         Box(
                             modifier = Modifier
-                                .size(28.dp)
+                                .size(24.dp)
                                 .clip(CircleShape)
                                 .clickable { onCreateInProject(group) }
                                 .semantics { contentDescription = newTaskLabel },
@@ -114,15 +116,14 @@ internal fun ProjectSection(
                         ) {
                             RuntimeIcon(
                                 name = RuntimeIconName.Plus,
-                                modifier = Modifier.size(18.dp),
-                                tint = RuntimeTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(14.dp),
+                                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                             )
                         }
 
-                        RuntimeIcon(
-                            name = if (isExpanded) RuntimeIconName.ChevronDown
-                            else RuntimeIconName.ChevronRight,
-                            modifier = Modifier.size(18.dp),
+                        RuntimeExpandChevron(
+                            expanded = isExpanded,
+                            modifier = Modifier.size(14.dp),
                             tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                         )
                     }

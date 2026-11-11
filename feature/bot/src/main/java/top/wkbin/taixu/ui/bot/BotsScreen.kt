@@ -31,7 +31,6 @@ import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.model.bot.GroupChat
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
@@ -127,7 +126,7 @@ fun BotsScreen(
                 listOf(
                     R.string.fbot_tab_bots to RuntimeIconName.Bot,
                     R.string.fbot_tab_groups to RuntimeIconName.Chat,
-                    R.string.fbot_tab_market to RuntimeIconName.Hub,
+                    R.string.fbot_tab_market to RuntimeIconName.Extension,
                 ).forEachIndexed { index, (label, icon) ->
                     RuntimeFilterChip(
                         selected = tab == index,
@@ -215,7 +214,7 @@ fun BotsScreen(
             title = { Text(stringResource(R.string.fbot_group_delete_title)) },
             text = { Text(stringResource(R.string.fbot_group_delete_confirm, group.name)) },
             confirmButton = {
-                RuntimeButton(onClick = {
+                RuntimeTextButton(onClick = {
                     viewModel.deleteGroup(group)
                     pendingDeleteGroup = null
                 }) { Text(stringResource(R.string.fbot_delete)) }

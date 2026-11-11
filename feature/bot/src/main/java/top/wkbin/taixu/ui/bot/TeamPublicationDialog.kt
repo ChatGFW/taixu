@@ -71,7 +71,7 @@ internal fun TeamPublicationDialog(group: BotMemberGroup, onDismiss: () -> Unit,
             }
             error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
         }
-    }, confirmButton = { RuntimeButton(enabled = loaded && !saving && group.definition != null && (changed || selected.isNotEmpty()), onClick = {
+    }, confirmButton = { RuntimeTextButton(enabled = loaded && !saving && group.definition != null && (changed || selected.isNotEmpty()), onClick = {
         saving = true
         scope.launch {
             try {

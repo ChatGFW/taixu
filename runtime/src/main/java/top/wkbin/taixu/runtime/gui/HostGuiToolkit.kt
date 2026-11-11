@@ -14,7 +14,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
-
 /**
  * Unified GUI action toolkit with failure degradation:
  * 1) With Shizuku/Root: auto-enable TaiXu accessibility service (no manual toggle)

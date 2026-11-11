@@ -1,19 +1,13 @@
 package top.wkbin.taixu.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.components.R
-
 /** The same product disclosure is available in first-run setup and Settings. */
 @Composable
 fun RuntimeUsageNoticeContent(modifier: Modifier = Modifier) {

@@ -6,6 +6,12 @@ import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.*
 import org.junit.Test
 import top.wkbin.taixu.core.database.*
+import top.wkbin.taixu.harness.ToolCall
+import top.wkbin.taixu.harness.ToolResult
+import top.wkbin.taixu.harness.HarnessTool
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.queue.PromptQueue
 import top.wkbin.taixu.harness.session.PromptSubmission
@@ -79,11 +85,33 @@ class TaiXuWebChatAgentGatewayTest {
 
     @Test fun finalMessageReadUsesPersistedHistoryWithoutSelectingForeground() = runBlocking {
         val gateway = gateway(control { name, args ->
-            assertEquals("persistedMessages", name)
-            assertEquals("remote", args[0])
-            listOf(AssistantText("final", 1, "committed answer"))
+            if (name == "getSessionRunStates") MutableStateFlow(emptyMap<String, top.wkbin.taixu.core.model.SessionRunState>())
+            else {
+                assertEquals("persistedMessages", name)
+                assertEquals("remote", args[0])
+                listOf(AssistantText("final", 1, "committed answer"))
+            }
         })
         assertEquals("final", gateway.messages("remote").single().id)
+    }
+
+    @Test fun historicalToolCallsReflectResultsAndUnsettledCallsRemainInterrupted() = runBlocking {
+        val call = ToolCall("call", 1, HarnessTool.BASE, JsonObject(emptyMap()))
+        for ((result, expected) in listOf(
+            null to "interrupted",
+            ToolResult("result", 2, "call", true, "ok", durationMs = 12) to "success",
+            ToolResult("result", 2, "call", false, "failed") to "error",
+            ToolResult("result", 2, "call", false, "pending", awaitingApproval = true) to "waiting_approval",
+        )) {
+            val gateway = gateway(control { name, _ -> when (name) {
+                "persistedMessages" -> listOfNotNull(call, result)
+                "getSessionRunStates" -> MutableStateFlow(emptyMap<String, top.wkbin.taixu.core.model.SessionRunState>())
+                else -> error(name)
+            } })
+            val projected = gateway.messages("remote").first()
+            assertEquals(expected, projected.content.getValue("status").jsonPrimitive.content)
+            assertFalse(projected.isLoading)
+        }
     }
 
     @Test fun approvalsFromAnotherSessionOrAlreadySettledAreRejected() = runBlocking {

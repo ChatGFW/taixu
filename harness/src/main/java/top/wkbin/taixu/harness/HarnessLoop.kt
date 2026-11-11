@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.AgentApprovalRepository
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
@@ -72,7 +71,6 @@ import top.wkbin.taixu.harness.skill.SkillEvolutionAdvisor
 import top.wkbin.taixu.harness.subagent.BackgroundSubagentRegistry
 import top.wkbin.taixu.harness.task.AgentStateMachine
 import top.wkbin.taixu.harness.validation.ToolCallLoopDetector
-
 /** Agent 单次运行的结构化结果，外层据此设置会话状态，避免内部失败被误标为 COMPLETED。 */
 private sealed interface RunResult {
     data object Completed : RunResult

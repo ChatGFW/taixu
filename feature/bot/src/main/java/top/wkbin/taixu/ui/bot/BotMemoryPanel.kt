@@ -34,7 +34,6 @@ import top.wkbin.taixu.core.model.bot.BotMemoryFile
 import top.wkbin.taixu.core.model.bot.MemoryCommit
 import top.wkbin.taixu.feature.bot.R
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton
 import top.wkbin.taixu.ui.components.RuntimeCard
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.SectionHeader
@@ -185,7 +184,7 @@ internal fun BotMemoryPanel(
             title = { Text(stringResource(R.string.fbot_rollback_title)) },
             text = { Text(stringResource(R.string.fbot_rollback_confirm, commit.shortHash)) },
             confirmButton = {
-                RuntimeButton(onClick = {
+                RuntimeTextButton(onClick = {
                     onRollback(commit.hash)
                     pendingRollback = null
                 }) { Text(stringResource(R.string.fbot_rollback)) }

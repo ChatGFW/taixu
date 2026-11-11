@@ -1,6 +1,5 @@
 package top.wkbin.taixu.ui.settings
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
@@ -8,7 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -16,7 +14,6 @@ import top.wkbin.taixu.core.datastore.AppearancePreferences
 import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
-
 @Composable
 internal fun ToolStatusStyleSettingsCard() {
     val preferences = previewOrNull { koinInject<AppearancePreferences>() }
