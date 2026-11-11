@@ -75,7 +75,7 @@ internal fun ModelDialog(
             items(filtered, key = { it.id }) { profile ->
                 val current = profile.id == selectedProfileId
                 val options = providerModelOptions(profile.model, selectedModelVariant.takeIf { current })
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     RuntimeSelectionRow(
                         headline = profile.name.ifBlank { profile.provider }, selected = current,
                         supportingText = profile.provider.takeUnless { it.equals(profile.name, ignoreCase = true) },
@@ -91,8 +91,11 @@ internal fun ModelDialog(
                             }
                         },
                     )
-                    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, bottom = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                         if (options.size > 1) {
                             LazyRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 items(options) { modelId ->

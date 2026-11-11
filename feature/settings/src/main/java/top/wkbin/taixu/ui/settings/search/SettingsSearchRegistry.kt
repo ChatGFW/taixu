@@ -168,16 +168,6 @@ object SettingsSearchRegistry {
             breadcrumb = "设置 > 插件中心",
         ),
         SettingsSearchItem(
-            id = "agent_cc_switch",
-            title = "智能体中枢 (CC-Switch)",
-            subtitle = "统一管理 Claude Code、OpenClaw、Hermes 版本与模型多源热切",
-            category = SettingsSearchCategory.AGENT,
-            target = SettingsSearchTarget.CC_SWITCH,
-            icon = RuntimeIconName.Sparkles,
-            keywords = listOf("claude code", "openclaw", "hermes", "cc-switch", "切换", "中枢", "多源", "zhinengti"),
-            breadcrumb = "智能体与 AI 模型 > CC-Switch",
-        ),
-        SettingsSearchItem(
             id = "agent_thinking_display",
             title = "思考流显示与折叠控制",
             subtitle = "控制 DeepSeek 等思考流模型的推理思维链是否默认展开",

@@ -25,8 +25,6 @@ import top.wkbin.taixu.ui.components.RuntimeChatBackground
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import top.wkbin.taixu.ui.theme.LocalChatBackgroundActive
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 
 class ChatBackgroundViewModel(preferences: ChatBackgroundPreferences) : ViewModel() {
     val style = preferences.style.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ChatBackgroundStyle())
@@ -44,14 +42,14 @@ internal fun ChatPageSurface(
     val appearance = previewOrNull { koinInject<AppearancePreferences>() }
     val classicDots by appearance?.classicToolStatusDots?.collectAsStateWithLifecycle(initialValue = false) ?: previewStateOf(false)
     val normalized = style.normalized()
-    val hazeState = rememberHazeState()
     ChatIdentityHost {
-        CompositionLocalProvider(LocalChatBackgroundActive provides
-            (normalized.imageName != null && normalized.visibility > 0f), LocalClassicToolStatusDots provides classicDots,
-            LocalChatHazeState provides hazeState) {
+        CompositionLocalProvider(
+            LocalChatBackgroundActive provides (normalized.imageName != null && normalized.visibility > 0f),
+            LocalClassicToolStatusDots provides classicDots,
+        ) {
             // One continuous image behind the top bar, conversation, composer and system insets.
             Box(modifier) {
-                RuntimeChatBackground(normalized, Modifier.matchParentSize().hazeSource(hazeState))
+                RuntimeChatBackground(normalized, Modifier.matchParentSize())
                 // 正文直接落在背景上后，靠一层整页连续暗化保证对比度：
                 // 不加圆角、不分区，避免再把对话"框"起来。
                 if (normalized.imageName != null && normalized.visibility > 0f) {

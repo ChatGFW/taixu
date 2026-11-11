@@ -6,7 +6,6 @@
     <string name="settings_nav_stats_summary">用量、活跃度与模型排行</string>
     <string name="settings_nav_tools_summary">安装与管理本地开发工具</string>
     <string name="settings_nav_tools_remote_summary">当前为远程系统，请切回本地安装</string>
-    <string name="settings_nav_cc_summary">管理智能体版本与模型配置</string>
     <string name="settings_nav_execution_summary">思考展示、上下文与工具调用</string>
     <string name="settings_nav_roles_summary">委派策略与智能体角色</string>
     <string name="settings_nav_skills_summary">提示词、脚本与运行时插件</string>

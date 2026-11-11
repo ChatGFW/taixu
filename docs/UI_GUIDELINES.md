@@ -66,7 +66,7 @@ Compose / miuix 相关的全部约定与踩坑约束。改 `feature/*/src/main/j
 - **长内容 Dialog**：`WindowDialog` 不限 content 高度。`RuntimeAlertDialog` / miuix `AlertDialog` 包装已用 `heightIn(max ≈ 窗口高×0.8)` + 正文 `weight(1f, fill = false)`；手写 `WindowDialog` 时同样包一层，滚动区可滚、按钮作非加权子项钉底。
 - **选项列表 Dialog**（入口行弹出、内含若干操作行）：`insideMargin` 水平 0（让 `ArrowPreference` 全出血），垂直约 24dp 补 title 顶距。弹窗打开期间入口行设 `holdDownState`（MIUI 惯例）；「先关自身再弹下一层」的操作行不设。
 - **单选弹窗**优先 `WindowDropdownDialog` / `WindowDropdownPreference` + `DropdownDefaults.dialogDropdownColors()`，点选即生效、底部只留取消。构造 `DropdownEntry` 的 `remember` **key 不能含 onSelect**（用 `rememberUpdatedState` 接住）。
-- **BottomSheet**：`WindowBottomSheet` / 太墟 `ModalBottomSheet` 的默认 insets **实际主要是 `imePadding()`**（名称易误导）；水平边距由调用方或 `insideMargin` 负责。内容根节点要自己补 **底部** `systemBars ∪ displayCutout`（`systemBars` 已含 captionBar——漏掉就是小窗贴边的原因）。两处刻意排除：① 不含 ime（避免双倍底距）；② 不含水平方向（sheet 底对齐且限宽居中，单侧缺口 inset 会把内容推偏——与全宽二级页水平缺口不同）。内容高度随列表增减会硬跳时，用与 sheet 入场同参的高度过渡（miuix `folmeSpring`），别自己凑 spring。
+- **BottomSheet**：太墟 [`ModalBottomSheet`](../feature/components/src/main/java/top/wkbin/taixu/ui/miuix/Dialogs.kt)（含 `RuntimeModalBottomSheet` / `RuntimeSelectionSheet` / `PlainBackdropModalBottomSheet` / `ChatBottomSheet`）**已统一**垫底 `systemBars ∪ displayCutout`（仅 Bottom）+ `imePadding()`。调用方只留内容边距，**禁止再** `navigationBarsPadding()` / 底侧 systemBars，否则双倍。水平边距仍由调用方负责（sheet 底对齐限宽居中，单侧缺口 inset 会把内容推偏）。内容高度随列表增减会硬跳时，用与 sheet 入场同参的高度过渡（miuix `folmeSpring`），别自己凑 spring。
 
 ---
 

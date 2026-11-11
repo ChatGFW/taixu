@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,9 +60,11 @@ internal fun ModelProfileCard(
         if (model.apiKeyCount > 0) add("${model.apiKeyCount} 个 Key")
         if (model.requestsPerMinutePerKey > 0) add("${model.requestsPerMinutePerKey} RPM/Key")
     }.joinToString(" · ")
+    // 选中态走 miuix：同色卡片 + 实色 primary 描边，不用 M3 secondaryContainer 填色。
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = if (model.isActive) RuntimeTheme.colorScheme.secondaryContainer else RuntimeTheme.colorScheme.surfaceContainerLow,
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+        borderColor = if (model.isActive) RuntimeTheme.colorScheme.primary else Color.Transparent,
         shape = RuntimeTheme.shapes.medium,
         contentPadding = PaddingValues(0.dp),
     ) {

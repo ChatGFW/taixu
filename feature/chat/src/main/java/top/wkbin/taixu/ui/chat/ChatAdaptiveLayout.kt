@@ -154,8 +154,6 @@ internal fun ChatAdaptiveLayout(
                 .fillMaxWidth()
                 .then(if (browserPage || overlayProgress > 0.5f) Modifier.clearAndSetSemantics {} else Modifier),
         ) {
-            // 独立窄带渐隐，不绑在顶栏按钮容器上，避免整块硬切。
-            ChatTopEdgeFade()
             topBar(openBrowser, browserActivityTick > lastSeenBrowserTick, toggle)
         }
         if (mode == CompanionMode.Overlay && (overlayOpen || overlayProgress > 0f)) {

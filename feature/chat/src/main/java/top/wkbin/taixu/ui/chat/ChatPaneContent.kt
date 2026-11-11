@@ -163,12 +163,14 @@ internal fun ChatPaneContent(
     val composerHeight = with(density) { composerPx.toDp() }
     Box(modifier = modifier, contentAlignment = Alignment.TopCenter) {
         Box(Modifier.widthIn(max = 840.dp).fillMaxSize()) {
-            // 渐隐带 = 输入框高度 + 导航栏；上沿对齐输入框顶，不越过输入框上方正文。
+            // 顶/底渐隐：顶=状态栏+工具栏；底=输入框高+导航栏，不越过输入框上方正文。
+            val topContentFade = chatTopEdgeFadeHeight()
             val bottomContentFade = composerHeight + chatBottomNavFadeHeight()
             ChatMessageViewport(listState, Modifier.fillMaxSize(), bottomInset = bottomChrome) {
                 ChatMessageList(
                     modifier = Modifier
                         .fillMaxSize()
+                        .chatTopContentFade(topContentFade)
                         .chatBottomContentFade(bottomContentFade),
                     listState = listState,
                     messages = messages,

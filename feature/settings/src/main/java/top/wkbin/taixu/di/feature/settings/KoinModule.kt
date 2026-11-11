@@ -3,7 +3,6 @@ package top.wkbin.taixu.di.feature.settings
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 import top.wkbin.taixu.ui.settings.AppManagementViewModel
-import top.wkbin.taixu.ui.settings.CcSwitchViewModel
 import top.wkbin.taixu.ui.settings.ChatBackgroundSettingsViewModel
 import top.wkbin.taixu.ui.settings.ChatIdentitySettingsViewModel
 import top.wkbin.taixu.ui.settings.FirstResponseTimeoutViewModel
@@ -46,20 +45,6 @@ val featureSettingsModule = module {
     viewModel<AppManagementViewModel> { AppManagementViewModel(repository = get(), appManager = get()) }
     viewModel { PhoneAgentSettingsViewModel(preferences = get(), connectionTester = get()) }
     viewModel { FirstResponseTimeoutViewModel(preferences = get()) }
-
-    viewModel<CcSwitchViewModel> {
-        CcSwitchViewModel(
-            toolManager = get(),
-            ccSwitchClient = get(),
-            localAccess = get(),
-            aiModelDao = get(),
-            providerRepository = get(),
-            toolSettingsRepository = get(),
-            linuxRuntime = get(),
-            dependencyManager = get(),
-            logger = get(),
-        )
-    }
 
     viewModel<FtpSettingsViewModel> {
         FtpSettingsViewModel(

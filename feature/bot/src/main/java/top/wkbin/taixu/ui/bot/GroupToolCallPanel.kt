@@ -97,8 +97,9 @@ private fun GroupToolStepRow(step: GroupToolStep, streaming: Boolean, onClick: (
 private fun GroupToolStepDetails(step: GroupToolStep, streaming: Boolean, onDismiss: () -> Unit) {
     RuntimeModalBottomSheet(onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        // 底 inset 由 ModalBottomSheet 统一处理，勿再 navigationBarsPadding。
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)
-            .navigationBarsPadding().padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            .padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RuntimeProcessIcon(groupToolIcon(step.name))
                 Text(groupToolTitle(step.name), Modifier.weight(1f), style = RuntimeTheme.typography.titleMedium)

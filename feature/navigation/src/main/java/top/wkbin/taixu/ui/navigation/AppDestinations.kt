@@ -29,7 +29,6 @@ sealed interface AppDestination : NavKey
 @Serializable data object McpSettingsDestination : AppDestination
 @Serializable data object ToolCenterDestination : AppDestination
 @Serializable data object RemotePluginLibraryDestination : AppDestination
-@Serializable data object CcSwitchDestination : AppDestination
 @Serializable data class ToolDetailDestination(val toolId: String) : AppDestination
 @Serializable data object DistroManagementDestination : AppDestination
 @Serializable data object StorageMountSettingsDestination : AppDestination

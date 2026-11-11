@@ -59,15 +59,27 @@ internal fun ToolDetailsSheet(call: ToolCall, result: ToolResult?, workspace: St
         },
         text = {
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                top.yukonga.miuix.kmp.basic.TabRow(
-                tabs = buildList {
+                // sheet 上用药丸分段，避免 TabRow 轨道底色与 raised surface 叠出脏灰块。
+                val tabs = buildList {
                     add(stringResource(if (call.tool == HarnessTool.BASE) R.string.chat_tool_details_command else R.string.chat_tool_details_arguments))
                     add(stringResource(R.string.chat_tool_details_output))
                     if (fileTool) add(stringResource(previewLabel))
-                },
-                selectedTabIndex = selectedTab,
-                onTabSelected = { selectedTab = it },
-            )
+                }
+                RuntimeSegmentedControl(
+                    items = tabs,
+                    selectedIndex = selectedTab.coerceIn(0, tabs.lastIndex),
+                    onSelect = { selectedTab = it },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { label, selected ->
+                    Text(
+                        label,
+                        style = RuntimeTheme.typography.labelMedium,
+                        color = if (selected) RuntimeTheme.colorScheme.onPrimary
+                        else RuntimeTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Text(stringResource(toolStateLabel(toolStepState(result, executing))),
                     style = RuntimeTheme.typography.labelMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 Column(Modifier.fillMaxWidth().weight(1f, fill = false).verticalScroll(rememberScrollState()),

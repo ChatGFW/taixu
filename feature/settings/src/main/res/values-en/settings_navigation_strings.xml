@@ -6,7 +6,6 @@
     <string name="settings_nav_stats_summary">Usage, activity, and model rankings</string>
     <string name="settings_nav_tools_summary">Install and manage local developer tools</string>
     <string name="settings_nav_tools_remote_summary">Switch to the local system to install tools</string>
-    <string name="settings_nav_cc_summary">Agent versions and model configuration</string>
     <string name="settings_nav_execution_summary">Reasoning display, context, and tool calls</string>
     <string name="settings_nav_roles_summary">Delegation and agent roles</string>
     <string name="settings_nav_skills_summary">Prompts, scripts, and runtime plugins</string>

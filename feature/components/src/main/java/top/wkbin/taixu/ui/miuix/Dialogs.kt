@@ -6,11 +6,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import kotlinx.coroutines.delay
 import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -124,13 +129,18 @@ fun ModalBottomSheet(
     tonalElevation: Dp = 0.dp,
     scrimColor: Color = BottomSheetDefaults.ScrimColor,
     dragHandle: (@Composable () -> Unit)? = null,
-    contentWindowInsets: @Composable () -> WindowInsets = { WindowInsets.systemBars },
+    contentWindowInsets: @Composable () -> WindowInsets = {
+        // 只垫底：systemBars 已含 captionBar；不含 ime（外层另 imePadding）；不含水平（sheet 底对齐限宽居中）。
+        WindowInsets.systemBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Bottom)
+    },
     content: @Composable ColumnScope.() -> Unit,
 ) {
     LaunchedEffect(sheetState) { sheetState.show() }
     var closing by remember { mutableStateOf(false) }
     val latestDismiss by rememberUpdatedState(onDismissRequest)
-    // Every sheet shares the miuix sheet fill; callers already pad their own content (M3 sheets had none).
+    // Compose WindowInsets 在 Scaffold 消费后常为 0；独立 sheet 窗口里同样不可靠。
+    // 用 Activity 根窗口原始 inset 兜底，保证「新增自定义技能」等高表单不贴导航栏。
+    val bottomInset = rememberSheetBottomInset(contentWindowInsets)
     WindowBottomSheet(
         show = sheetState.isVisible && !closing,
         modifier = modifier,
@@ -140,7 +150,31 @@ fun ModalBottomSheet(
         insideMargin = androidx.compose.ui.unit.DpSize(0.dp, 0.dp),
     ) {
         CompositionLocalProvider(LocalContentColor provides contentColor, LocalRaisedSurface provides true) {
-            Column(Modifier.fillMaxWidth().imePadding(), content = content)
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = bottomInset)
+                    .imePadding(),
+                content = content,
+            )
         }
     }
+}
+
+/** 取 Compose 声明 inset 与根窗口原始 systemBars∪displayCutout 底边的较大值。 */
+@Composable
+private fun rememberSheetBottomInset(
+    contentWindowInsets: @Composable () -> WindowInsets,
+): Dp {
+    val density = LocalDensity.current
+    val composeBottomPx = contentWindowInsets().getBottom(density)
+    val view = LocalView.current
+    val configuration = LocalConfiguration.current
+    val rawBottomPx = remember(view, configuration.orientation, configuration.screenHeightDp) {
+        ViewCompat.getRootWindowInsets(view)
+            ?.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            ?.bottom
+            ?: 0
+    }
+    return with(density) { maxOf(composeBottomPx, rawBottomPx).toDp() }
 }

@@ -52,7 +52,6 @@ import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.runtime.WorkspaceProject
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.ui.unit.Dp
-import dev.chrisbanes.haze.hazeSource
 import top.wkbin.taixu.core.database.AgentApprovalRequestEntity
 import top.wkbin.taixu.core.database.AgentPlanEntity
 import top.wkbin.taixu.harness.compaction.CompactionSnapshot
@@ -137,12 +136,9 @@ internal fun ChatMessageList(
     ) {
         isWaitingForFirstToken(messages, running)
     }
-    val chatHazeState = LocalChatHazeState.current
-
-    // 列表作为 haze source，供顶边渐进模糊采样（背景图已在 ChatPageSurface 登记）。
     LazyColumn(
         state = listState,
-        modifier = modifier.fillMaxSize().hazeSource(chatHazeState),
+        modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             top = androidx.compose.foundation.layout.WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 64.dp,
             bottom = bottomContentPadding,
