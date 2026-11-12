@@ -10,6 +10,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.core.datastore.hiddenBotSessionIdsPreference
 import top.wkbin.taixu.core.datastore.setBotSessionHidden
 import top.wkbin.taixu.feature.components.R as ComponentsR
@@ -55,6 +56,7 @@ fun ChatNavigationDrawer(
     val catalog by viewModel.workspaceCatalog.collectAsStateWithLifecycle()
     val currentSessionId by viewModel.currentSessionId.collectAsStateWithLifecycle()
     val runStates by viewModel.sessionRunStates.collectAsStateWithLifecycle()
+    val remoteServers by koinInject<RemoteServerRepository>().servers.collectAsStateWithLifecycle()
     val pluginActive = LocalPluginDestinationActive.current
 
     ChatIdentityHost {
@@ -95,6 +97,7 @@ fun ChatNavigationDrawer(
                     },
                     currentSessionId = currentSessionId,
                     workspaces = catalog.projects,
+                    remoteServers = remoteServers,
                     sessionRunStates = runStates,
                     onDismiss = onDismiss,
                     onSettings = { onDismiss(); onNavigate(MainDestination.Settings) },
@@ -104,6 +107,10 @@ fun ChatNavigationDrawer(
                     onNew = { onDismiss(); onNewSession() },
                     onCreateInWorkspace = { project ->
                         viewModel.createSession("", project.linuxPath, project.projectType.name)
+                        onNavigate(MainDestination.Agent); onDismiss()
+                    },
+                    onCreateOnServer = { group ->
+                        viewModel.createSession("", "/workspace", "", group.distribution)
                         onNavigate(MainDestination.Agent); onDismiss()
                     },
                     onDelete = viewModel::deleteSession,

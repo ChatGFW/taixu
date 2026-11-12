@@ -33,7 +33,7 @@ class ChatSessionStartupTest {
     private val control = object : InteractiveSessionControl by unused(InteractiveSessionControl::class.java) {
         override val currentSessionId = current
         override suspend fun loadSession(id: String) { loads += id; current.value = id }
-        override suspend fun newSession(title: String, workspace: String, projectType: String): String {
+        override suspend fun newSession(title: String, workspace: String, projectType: String, distribution: String?): String {
             creations += title
             creationGate?.await()
             current.value = "created"

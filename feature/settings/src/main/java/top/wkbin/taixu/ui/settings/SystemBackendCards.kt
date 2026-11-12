@@ -25,10 +25,13 @@ internal fun BackendChoiceCard(title: String, detail: String, icon: RuntimeIconN
 }
 
 @Composable
-internal fun ConnectionProfileCard(server: RemoteServer, selected: Boolean, onSelect: () -> Unit, onEdit: () -> Unit, onRemove: () -> Unit) {
-    RuntimeCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp), onClick = onSelect,
-        containerColor = if (selected) RuntimeTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else RuntimeTheme.colorScheme.surfaceContainerLow,
-        borderColor = if (selected) RuntimeTheme.colorScheme.primary else Color.Transparent) {
+internal fun ConnectionProfileCard(server: RemoteServer, onEdit: () -> Unit, onRemove: () -> Unit) {
+    RuntimeCard(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(16.dp),
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+        borderColor = Color.Transparent,
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IconTile(RuntimeIconName.Server, size = 36.dp, color = RuntimeTheme.colorScheme.onSurface)
@@ -43,7 +46,7 @@ internal fun ConnectionProfileCard(server: RemoteServer, selected: Boolean, onSe
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(server.workspace, modifier = Modifier.weight(1f), style = RuntimeTheme.typography.bodySmall,
                     color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                StatusBadge(if (selected) "主系统" else if (server.authentication == SshAuthentication.PRIVATE_KEY) "密钥认证" else "密码认证")
+                StatusBadge(if (server.authentication == SshAuthentication.PRIVATE_KEY) "密钥认证" else "密码认证")
             }
         }
     }

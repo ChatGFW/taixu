@@ -1141,11 +1141,21 @@ class ChatViewModel(
 
     fun clearError() { sessionDeletionFeedback.clear(); harnessLoop.clearError() }
 
-    fun createSession(title: String = "", workspace: String = "", projectType: String = "") {
+    fun createSession(title: String = "", workspace: String = "", projectType: String = "", distribution: String? = null) {
         sessionStartup.select(viewModelScope) {
-            try { workspaceCatalogSource.validate(workspaceCatalog.value, workspace); harnessLoop.newSession(title.trim().ifBlank { context.getString(R.string.chat_new_session) }, workspace, projectType) }
-            catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (e: Exception) { _notice.value = e.message ?: "会话创建失败，请检查执行环境" }
+            try {
+                if (distribution == null) workspaceCatalogSource.validate(workspaceCatalog.value, workspace)
+                harnessLoop.newSession(
+                    title.trim().ifBlank { context.getString(R.string.chat_new_session) },
+                    workspace,
+                    projectType,
+                    distribution,
+                )
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _notice.value = e.message ?: "会话创建失败，请检查执行环境"
+            }
         }
     }
 

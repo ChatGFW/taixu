@@ -7,13 +7,10 @@ import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.model.RemoteServer
-import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.ui.components.*
 
 @Composable
@@ -23,49 +20,44 @@ internal fun SystemEnvironmentPicker(localCount: Int, onInstallLocal: () -> Unit
         return
     }
     val servers by viewModel.servers.collectAsStateWithLifecycle()
-    val active by viewModel.activeId.collectAsStateWithLifecycle()
     val configurationError by viewModel.configurationError.collectAsStateWithLifecycle()
     val connection by viewModel.connectionState.collectAsStateWithLifecycle()
     var addRemote by remember { mutableStateOf(false) }
     var remove by remember { mutableStateOf<RemoteServer?>(null) }
     var editing by remember { mutableStateOf<RemoteServer?>(null) }
-    var chooseRemote by remember { mutableStateOf(false) }
     var choose by remember { mutableStateOf(false) }
-    var localNetworkMessage by remember { mutableStateOf<String?>(null) }
-    val localNetworkDenied = stringResource(R.string.settings_local_network_permission_required)
-    val withLocalNetwork = rememberLocalNetworkPermission { localNetworkMessage = localNetworkDenied }
-    fun selectServer(server: RemoteServer) {
-        withLocalNetwork(server.host) {
-            localNetworkMessage = null
-            viewModel.select(server.id)
-        }
-    }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         configurationError?.let { NoticeBanner(text = it, isError = true) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text("运行后端", style = RuntimeTheme.typography.titleMedium)
             RuntimeButton(onClick = { choose = true }) { Text("添加系统") }
         }
-        NoticeBanner(text = "主系统决定新对话、首页指标和工坊项目使用的环境。已有对话保留原环境，服务器文件不会自动复制到手机。")
-        BackendChoiceCard("本地 PRoot", "在手机上运行 Linux，使用本机工作区。", RuntimeIconName.Linux, active == null) { viewModel.select(null) }
-        BackendChoiceCard("SSH 远程运行时", servers.firstOrNull { it.id == active }?.name ?: "使用服务器的算力、工具链和项目目录。",
-            RuntimeIconName.Server, active != null) {
-            when (servers.size) {
-                0 -> { viewModel.clear(); addRemote = true }
-                1 -> selectServer(servers.single())
-                else -> chooseRemote = true
-            }
-        }
+        NoticeBanner(text = "首页、工坊与系统状态始终使用本机 PRoot。SSH 连接档案出现在聊天侧边栏，可按服务器新建对话，无需切换主系统。")
+        BackendChoiceCard(
+            title = "本地 PRoot",
+            detail = if (localCount > 0) "本机主系统（已安装 $localCount 套）" else "在手机上运行 Linux，使用本机工作区。",
+            icon = RuntimeIconName.Linux,
+            selected = true,
+            onClick = { viewModel.select(null) },
+        )
         connection.message?.let { Text(it, color = if (connection.tested) RuntimeTheme.colorScheme.primary else RuntimeTheme.colorScheme.error) }
-        localNetworkMessage?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text("连接档案 (${servers.size})", style = RuntimeTheme.typography.titleSmall, color = RuntimeTheme.colorScheme.primary)
             RuntimeTextButton(onClick = { viewModel.clear(); addRemote = true }) { Text("新增连接") }
         }
-        if (servers.isEmpty()) Text("添加 SSH 连接后，可选择它作为主系统。", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+        if (servers.isEmpty()) {
+            Text(
+                "添加 SSH 连接后，可在聊天侧边栏按服务器新建对话。",
+                style = RuntimeTheme.typography.bodySmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         servers.forEach { server ->
-            ConnectionProfileCard(server, server.id == active, onSelect = { selectServer(server) },
-                onEdit = { viewModel.clear(); editing = server }, onRemove = { remove = server })
+            ConnectionProfileCard(
+                server = server,
+                onEdit = { viewModel.clear(); editing = server },
+                onRemove = { remove = server },
+            )
         }
     }
     if (choose) RuntimeAlertDialog(
@@ -78,17 +70,10 @@ internal fun SystemEnvironmentPicker(localCount: Int, onInstallLocal: () -> Unit
     )
     if (addRemote) RemoteServerDialog(viewModel) { addRemote = false }
     editing?.let { target -> key(target.id) { RemoteServerDialog(viewModel, target) { editing = null } } }
-    if (chooseRemote) RuntimeAlertDialog(onDismissRequest = { chooseRemote = false }, title = { Text("选择连接档案") },
-        text = { Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            servers.forEach { server -> RuntimeOutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = { selectServer(server); chooseRemote = false }) {
-                Text(server.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            } }
-        } }, confirmButton = { RuntimeTextButton(onClick = { chooseRemote = false }) { Text("取消") } })
     remove?.let { server -> RuntimeAlertDialog(
         onDismissRequest = { remove = null }, title = { Text("移除 ${server.name}？") },
-        text = { Text("仅移除手机保存的连接与凭证，服务器文件保留。已有会话需结束后重新选择环境。") },
+        text = { Text("仅移除手机保存的连接与凭证，服务器文件保留。已绑定该服务器的会话需结束后重新选择环境。") },
         confirmButton = { RuntimeTextButton(onClick = { viewModel.remove(server.id); remove = null }) { Text("移除") } },
         dismissButton = { RuntimeTextButton(onClick = { remove = null }) { Text("取消") } },
     ) }
 }
-
