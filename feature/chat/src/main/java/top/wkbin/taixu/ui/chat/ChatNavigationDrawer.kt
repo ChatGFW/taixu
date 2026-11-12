@@ -18,6 +18,7 @@ import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.feature.components.R as ComponentsR
 import top.wkbin.taixu.ui.components.AppNavigationSection
 import top.wkbin.taixu.ui.components.LocalPluginDestinationActive
+import top.wkbin.taixu.ui.components.LocalRuntimeWidthClass
 import top.wkbin.taixu.ui.components.MainDestination
 import top.wkbin.taixu.ui.components.RuntimeAdaptiveNavigationScaffold
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -62,8 +63,9 @@ fun ChatNavigationDrawer(
     val remoteServers by koinInject<RemoteServerRepository>().servers.collectAsStateWithLifecycle()
     val remoteProjectsByServer by viewModel.remoteProjectsByServer.collectAsStateWithLifecycle()
     val pluginActive = LocalPluginDestinationActive.current
-    LaunchedEffect(visible) {
-        if (!visible) viewModel.setWatchedRemoteProjects(emptySet())
+    val sidebarShowing = remoteSidebarWatchEnabled(LocalRuntimeWidthClass.current, visible, docked)
+    LaunchedEffect(sidebarShowing) {
+        if (!sidebarShowing) viewModel.setWatchedRemoteProjects(emptySet())
     }
 
     ChatIdentityHost {
@@ -95,7 +97,7 @@ fun ChatNavigationDrawer(
             drawerContent = { onCollapse ->
                 SessionsSideDrawer(
                     visible = true,
-                    remoteWatchEnabled = visible,
+                    remoteWatchEnabled = sidebarShowing,
                     sessions = normalSessions,
                     botSessions = botSessions,
                     botSessionGroups = botSessionGroups,

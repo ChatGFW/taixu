@@ -1,9 +1,11 @@
 package top.wkbin.taixu.ui.chat
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import top.wkbin.taixu.core.model.RemoteServer
+import top.wkbin.taixu.ui.components.RuntimeWidthClass
 
 class WatchedRemoteProjectIdsTest {
     private val alpha = RemoteServerSessionGroup(
@@ -30,6 +32,15 @@ class WatchedRemoteProjectIdsTest {
             RemoteServer("a", "Old", "old.test", username = "root", fingerprint = "SHA256:old"),
         ),
     )
+
+    @Test
+    fun `expanded docked sidebar enables watch without overlay visible`() {
+        assertTrue(remoteSidebarWatchEnabled(RuntimeWidthClass.Expanded, overlayVisible = false, docked = true))
+        assertFalse(remoteSidebarWatchEnabled(RuntimeWidthClass.Expanded, overlayVisible = false, docked = false))
+        assertTrue(remoteSidebarWatchEnabled(RuntimeWidthClass.Compact, overlayVisible = true, docked = true))
+        assertFalse(remoteSidebarWatchEnabled(RuntimeWidthClass.Compact, overlayVisible = false, docked = true))
+        assertFalse(remoteSidebarWatchEnabled(RuntimeWidthClass.Medium, overlayVisible = false, docked = true))
+    }
 
     @Test
     fun `closed drawer or collapsed section yields empty watch set`() {

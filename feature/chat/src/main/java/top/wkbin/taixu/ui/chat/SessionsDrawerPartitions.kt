@@ -4,6 +4,7 @@ import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.model.RemoteServer
 import top.wkbin.taixu.core.model.bot.BotSessionGroupRef
 import top.wkbin.taixu.runtime.WorkspaceProject
+import top.wkbin.taixu.ui.components.RuntimeWidthClass
 
 internal data class DrawerPartitions(
     val local: SessionPartitionResult,
@@ -42,6 +43,19 @@ internal fun buildDrawerPartitions(
         bots = bots,
         pinned = pinnedMatches,
     )
+}
+
+/**
+ * 宽屏 Expanded 看停靠态 [docked]；紧凑/中等看覆盖抽屉 [overlayVisible]。
+ * 不能只用 overlayVisible，否则 Expanded 停靠侧栏永远不订阅。
+ */
+internal fun remoteSidebarWatchEnabled(
+    widthClass: RuntimeWidthClass,
+    overlayVisible: Boolean,
+    docked: Boolean,
+): Boolean = when (widthClass) {
+    RuntimeWidthClass.Expanded -> docked
+    else -> overlayVisible
 }
 
 /**
