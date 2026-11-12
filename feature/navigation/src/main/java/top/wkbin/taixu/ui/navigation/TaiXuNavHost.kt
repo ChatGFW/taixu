@@ -474,6 +474,9 @@ fun TaiXuNavHost(
                 GuardedEntry(DistroManagementDestination) {
                     DistroManagementScreen(
                         onBack = ::popBack,
+                        onOpenRemoteMetrics = { serverId ->
+                            activeStack.push(DistroManagementDestination, RemoteHomeDestination(serverId))
+                        },
                         viewModel = settingsViewModel,
                     )
                 }

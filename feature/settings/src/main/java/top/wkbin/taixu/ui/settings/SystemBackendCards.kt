@@ -25,7 +25,12 @@ internal fun BackendChoiceCard(title: String, detail: String, icon: RuntimeIconN
 }
 
 @Composable
-internal fun ConnectionProfileCard(server: RemoteServer, onEdit: () -> Unit, onRemove: () -> Unit) {
+internal fun ConnectionProfileCard(
+    server: RemoteServer,
+    onEdit: () -> Unit,
+    onRemove: () -> Unit,
+    onOpenMetrics: (() -> Unit)? = null,
+) {
     RuntimeCard(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(16.dp),
@@ -39,6 +44,11 @@ internal fun ConnectionProfileCard(server: RemoteServer, onEdit: () -> Unit, onR
                     Text(server.name, style = RuntimeTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text("${server.username}@${server.host}:${server.port}", style = RuntimeTheme.typography.bodySmall,
                         color = RuntimeTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                if (onOpenMetrics != null) {
+                    RuntimeIconButton(onClick = onOpenMetrics, contentDescription = "系统概览 ${server.name}") {
+                        RuntimeIcon(RuntimeIconName.NavDashboard)
+                    }
                 }
                 RuntimeIconButton(onClick = onEdit, contentDescription = "编辑 ${server.name}") { RuntimeIcon(RuntimeIconName.Edit) }
                 RuntimeIconButton(onClick = onRemove, contentDescription = "移除 ${server.name}") { RuntimeIcon(RuntimeIconName.Trash, tint = RuntimeTheme.colorScheme.error) }

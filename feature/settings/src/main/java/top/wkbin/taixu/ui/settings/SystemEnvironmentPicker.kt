@@ -14,7 +14,12 @@ import top.wkbin.taixu.core.model.RemoteServer
 import top.wkbin.taixu.ui.components.*
 
 @Composable
-internal fun SystemEnvironmentPicker(localCount: Int, onInstallLocal: () -> Unit, viewModel: RemoteServerViewModel? = previewOrNull { koinViewModel() }) {
+internal fun SystemEnvironmentPicker(
+    localCount: Int,
+    onInstallLocal: () -> Unit,
+    onOpenRemoteMetrics: (serverId: String) -> Unit = {},
+    viewModel: RemoteServerViewModel? = previewOrNull { koinViewModel() },
+) {
     if (viewModel == null) {
         Text("运行后端", style = RuntimeTheme.typography.titleMedium)
         return
@@ -57,6 +62,7 @@ internal fun SystemEnvironmentPicker(localCount: Int, onInstallLocal: () -> Unit
                 server = server,
                 onEdit = { viewModel.clear(); editing = server },
                 onRemove = { remove = server },
+                onOpenMetrics = { onOpenRemoteMetrics(server.id) },
             )
         }
     }
