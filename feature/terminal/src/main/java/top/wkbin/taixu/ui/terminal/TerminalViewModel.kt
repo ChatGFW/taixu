@@ -59,10 +59,10 @@ class TerminalViewModel(
     val installedDistros = linuxRuntime.installedDistros
     val activeDistroId = linuxRuntime.activeDistroId
 
-    /** 当前是否选中远程服务器：远程时终端目标由服务器决定，不再暴露本地发行版选择。 */
-    val remoteActive: StateFlow<Boolean> = remoteServers.activeId
-        .map { it != null }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, remoteServers.activeId.value != null)
+    /** 历史兼容字段：主系统已锁本机，恒为 false；远程终端通过显式 ssh:distribution 创建。 */
+    val remoteActive: StateFlow<Boolean> = MutableStateFlow(false)
+
+    val remoteServerProfiles = remoteServers.servers
 
     val handles: StateFlow<List<TerminalSessionHandle>> = terminalManager.handles
     val activeId: StateFlow<String?> = terminalManager.activeId
@@ -197,24 +197,27 @@ class TerminalViewModel(
         viewModelScope.launch {
             _error.value = null
             runCatching {
-                if (remoteActive.value) {
-                    // 远程目标由服务器决定：传 null 跟随当前选中环境，禁用本地发行版语义。
-                    val finalLabel = label.trim().ifBlank { "会话 ${handles.value.size + 1}" }
-                    terminalManager.createSession(
-                        label = finalLabel,
-                        workingDirectory = workingDirectory.trim().ifBlank { "/root" },
-                        distributionId = null,
-                    )
-                } else {
-                    val targetDistro = distroId?.takeIf { it.isNotBlank() }
-                    val distroShortName = targetDistro?.let { DistributionCatalog.require(it).id.replaceFirstChar { it.uppercase() } } ?: "会话"
-                    val finalLabel = label.trim().ifBlank { "$distroShortName ${handles.value.size + 1}" }
-                    terminalManager.createSession(
-                        label = finalLabel,
-                        workingDirectory = workingDirectory.trim().ifBlank { "/root" },
-                        distributionId = targetDistro,
-                    )
+                val targetDistro = distroId?.takeIf { it.isNotBlank() }
+                val finalLabel = label.trim().ifBlank {
+                    when {
+                        targetDistro?.startsWith("ssh:") == true -> {
+                            val id = targetDistro.removePrefix("ssh:")
+                            remoteServerProfiles.value.firstOrNull { it.id == id }?.name
+                                ?: "远程 ${handles.value.size + 1}"
+                        }
+                        else -> {
+                            val shortName = targetDistro?.let {
+                                DistributionCatalog.require(it).id.replaceFirstChar { ch -> ch.uppercase() }
+                            } ?: "会话"
+                            "$shortName ${handles.value.size + 1}"
+                        }
+                    }
                 }
+                terminalManager.createSession(
+                    label = finalLabel,
+                    workingDirectory = workingDirectory.trim().ifBlank { "/root" },
+                    distributionId = targetDistro,
+                )
             }.onFailure { _error.value = it.message ?: context.getString(R.string.terminal_error_create_session) }
         }
     }

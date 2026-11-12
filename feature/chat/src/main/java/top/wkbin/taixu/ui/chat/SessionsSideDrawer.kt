@@ -32,6 +32,7 @@ import top.wkbin.taixu.core.model.RemoteServer
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.BotSessionGroupRef
 import top.wkbin.taixu.feature.chat.R
+import top.wkbin.taixu.runtime.SessionWorkspaceCatalogState
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeTextButton
@@ -63,6 +64,7 @@ internal fun SessionsSideDrawer(
     currentSessionId: String,
     workspaces: List<WorkspaceProject>,
     remoteServers: List<RemoteServer> = emptyList(),
+    remoteProjectsByServer: Map<String, SessionWorkspaceCatalogState> = emptyMap(),
     sessionRunStates: Map<String, SessionRunState>,
     onDismiss: () -> Unit,
     onSettings: () -> Unit,
@@ -70,6 +72,10 @@ internal fun SessionsSideDrawer(
     onNew: () -> Unit,
     onCreateInWorkspace: (WorkspaceProject) -> Unit,
     onCreateOnServer: (RemoteServerSessionGroup) -> Unit = {},
+    onCreateInRemoteProject: (RemoteServerSessionGroup, RemoteProjectBucket) -> Unit = { _, _ -> },
+    onCreateTerminalOnServer: (RemoteServerSessionGroup) -> Unit = {},
+    onOpenRemoteHome: (RemoteServerSessionGroup) -> Unit = {},
+    onWatchRemoteProjects: (String) -> Unit = {},
     onDelete: (String) -> Unit,
     onRename: (String, String) -> Unit,
     onCollapse: (() -> Unit)? = null, navigationContent: @Composable () -> Unit = {},
@@ -87,8 +93,11 @@ internal fun SessionsSideDrawer(
     // Search reveals matching projects without overwriting the user's normal collapsed state.
     var searchProjectsExpanded by rememberSaveable(query.isNotBlank()) { mutableStateOf(true) }
     var searchRemotesExpanded by rememberSaveable(query.isNotBlank()) { mutableStateOf(true) }
+    val projectsByServer = remember(remoteProjectsByServer) {
+        remoteProjectsByServer.mapValues { (_, state) -> state.projects }
+    }
     val drawer = remember(
-        sessions, botSessions, botSessionGroups, hiddenBotSessionIds, workspaces, remoteServers, query,
+        sessions, botSessions, botSessionGroups, hiddenBotSessionIds, workspaces, remoteServers, projectsByServer, query,
     ) {
         val term = query.trim()
         fun HarnessSessionEntity.matches() = term.isEmpty() ||
@@ -97,7 +106,7 @@ internal fun SessionsSideDrawer(
         val pinnedMatches = sessions.filter { it.matches() && it.pinnedAt != 0L }.sortedByDescending { it.pinnedAt }
         val (remoteSessions, localSessions) = filtered.partition(::isRemoteBoundSession)
         val localPartition = partitionSessions(localSessions, workspaces)
-        val remotes = partitionRemoteSessions(remoteSessions, remoteServers)
+        val remotes = attachRemoteProjects(partitionRemoteSessions(remoteSessions, remoteServers), projectsByServer)
         val bots = botSessions.filter { it.matches() && it.id !in hiddenBotSessionIds }
             // 私有/独立会话默认不进抽屉（Bot 详情页可直达），搜索时才作为历史入口出现。
             .filter { term.isNotEmpty() || it.id in botSessionGroups }
@@ -105,7 +114,7 @@ internal fun SessionsSideDrawer(
         DrawerPartitions(
             local = if (term.isEmpty()) localPartition
             else localPartition.copy(projectGroups = localPartition.projectGroups.filter { it.sessions.isNotEmpty() }),
-            remotes = if (term.isEmpty()) remotes else remotes.filter { it.sessions.isNotEmpty() },
+            remotes = if (term.isEmpty()) remotes else remotes.filter { it.sessions.isNotEmpty() || it.projectBuckets.any { b -> b.sessions.isNotEmpty() } },
             bots = bots,
             pinned = pinnedMatches,
         )
@@ -130,6 +139,13 @@ internal fun SessionsSideDrawer(
             .map { it.serverId }
             .toSet()
         mutableStateOf(initialExpanded)
+    }
+    var expandedRemoteProjects by rememberSaveable {
+        val initial = remoteGroups.flatMap { group ->
+            group.projectBuckets.filter { bucket -> bucket.sessions.any { it.id == currentSessionId } }
+                .map { "${group.serverId}:${it.linuxPath}" }
+        }.toSet()
+        mutableStateOf(initial)
     }
     val attentionSessions = remember(sessions, botSessions, sessionRunStates) {
         (sessions + botSessions)
@@ -233,11 +249,22 @@ internal fun SessionsSideDrawer(
                         sessionRunStates = sessionRunStates,
                         expandedServers = if (query.isBlank()) expandedServers
                         else remoteGroups.map { it.serverId }.toSet(),
+                        expandedProjects = expandedRemoteProjects,
+                        remoteProjectsByServer = remoteProjectsByServer,
                         onToggleExpand = { id ->
                             expandedServers = if (expandedServers.contains(id)) expandedServers - id else expandedServers + id
                         },
+                        onToggleProjectExpand = { key ->
+                            expandedRemoteProjects =
+                                if (expandedRemoteProjects.contains(key)) expandedRemoteProjects - key
+                                else expandedRemoteProjects + key
+                        },
+                        onWatchProjects = onWatchRemoteProjects,
                         onSwitch = onSwitch,
                         onCreateOnServer = onCreateOnServer,
+                        onCreateInProject = onCreateInRemoteProject,
+                        onCreateTerminal = onCreateTerminalOnServer,
+                        onOpenRemoteHome = onOpenRemoteHome,
                         onRename = { id -> renameTargetId = id },
                         onDelete = { id -> deleteTargetId = id },
                         onTogglePin = onTogglePin,

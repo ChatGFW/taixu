@@ -79,7 +79,7 @@ fun TerminalScreen(
     val activeId by viewModel?.activeId?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val workspaces by viewModel?.workspaces?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val installedDistros by viewModel?.installedDistros?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val remoteActive by viewModel?.remoteActive?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val remoteServers by viewModel?.remoteServerProfiles?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
     val configuredFontSize by viewModel?.terminalFontSize?.collectAsStateWithLifecycle() ?: previewStateOf(0)
     val colorScheme by viewModel?.terminalColorScheme?.collectAsStateWithLifecycle() ?: previewStateOf("")
     val hapticsEnabled by viewModel?.terminalHapticsEnabled?.collectAsStateWithLifecycle() ?: previewStateOf(false)
@@ -302,7 +302,8 @@ fun TerminalScreen(
     if (showCreateSession) {
         CreateTerminalDialog(
             workspaces = workspaces,
-            installedDistros = if (remoteActive) emptyList() else installedDistros,
+            installedDistros = installedDistros,
+            remoteServers = remoteServers,
             nextSessionIndex = handles.size + 1,
             onDismiss = { showCreateSession = false },
             onCreate = { label, workDir, distroId ->

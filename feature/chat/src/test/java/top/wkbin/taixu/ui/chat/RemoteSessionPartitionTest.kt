@@ -87,6 +87,34 @@ class RemoteSessionPartitionTest {
     }
 
     @Test
+    fun `attachRemoteProjects nests matching workspaces under project buckets`() {
+        val root = session(
+            "root",
+            "/workspace",
+            40,
+            SessionExecutionTarget(serverA.distributionId, "/workspace", serverA),
+        )
+        val inDemo = session(
+            "demo",
+            "/workspace/demo",
+            30,
+            SessionExecutionTarget(serverA.distributionId, "/workspace/demo", serverA),
+        )
+        val groups = attachRemoteProjects(
+            partitionRemoteSessions(listOf(root, inDemo), listOf(serverA)),
+            mapOf(
+                "a" to listOf(
+                    WorkspaceProject("demo", "/home/a/demo", "/workspace/demo", 0, ownsDirectory = false),
+                ),
+            ),
+        )
+        val alpha = groups.single()
+        assertEquals(listOf("demo"), alpha.projectBuckets.map { it.name })
+        assertEquals(listOf("demo"), alpha.projectBuckets.single().sessions.map { it.id })
+        assertEquals(listOf("root"), alpha.rootSessions.map { it.id })
+    }
+
+    @Test
     fun `orphan remote snapshot remains after profile removal`() {
         val orphan = session(
             "orphan",

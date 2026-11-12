@@ -26,6 +26,7 @@ import top.wkbin.taixu.ui.chat.ChatNavigationDrawer
 import top.wkbin.taixu.ui.developer.DeveloperScreen
 import top.wkbin.taixu.ui.developer.AdbLogcatScreen
 import top.wkbin.taixu.ui.home.HomeScreen
+import top.wkbin.taixu.ui.home.RemoteHomeScreen
 import top.wkbin.taixu.ui.settings.AgentSettingsScreen
 import top.wkbin.taixu.ui.settings.ModelEditorScreen
 import top.wkbin.taixu.ui.settings.ModelProfilesScreen
@@ -189,6 +190,16 @@ fun TaiXuNavHost(
                         onNavigate = ::navigateMain, onBack = { if (activeStack.size > 1) popBack() else navigateMain(MainDestination.Agent) },
                         onOpenTerminal = { activeStack.push(HomeDestination, TerminalDestination()) },
                         onOpenToolCenter = { activeStack.push(HomeDestination, ToolCenterDestination) },
+                        onOpenRemoteHome = { serverId -> activeStack.push(HomeDestination, RemoteHomeDestination(serverId)) },
+                    )
+                }
+            }
+            entry<RemoteHomeDestination> { destination ->
+                GuardedEntry(destination) {
+                    RemoteHomeScreen(
+                        serverId = destination.serverId,
+                        onNavigate = ::navigateMain,
+                        onBack = ::popBack,
                     )
                 }
             }
@@ -662,6 +673,7 @@ fun TaiXuNavHost(
             onNewSession = { showNewSession = true }, onDismissNewSession = { showNewSession = false },
             onNavigate = ::navigateMain, onOpenTerminal = { activeStack.pushRaw(TerminalDestination()) },
             onOpenTools = { activeStack.pushRaw(ToolCenterDestination) },
+            onOpenRemoteHome = { serverId -> activeStack.pushRaw(RemoteHomeDestination(serverId)) },
         ) {
             Surface(modifier = Modifier.fillMaxSize(), color = RuntimeTheme.colorScheme.background) {
                 NavDisplay(

@@ -9,7 +9,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.util.Locale
 import org.koin.compose.koinInject
-import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.feature.home.R
 import top.wkbin.taixu.runtime.remote.RemoteSystemInspection
 import top.wkbin.taixu.runtime.remote.RemoteSystemService
@@ -19,18 +18,29 @@ import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Scaffold
 import top.wkbin.taixu.ui.miuix.TopAppBarDefaults
 import top.yukonga.miuix.kmp.basic.Text
+
 @Composable
-fun HomeScreen(onNavigate: (MainDestination) -> Unit, onOpenTerminal: () -> Unit,
-    onOpenToolCenter: () -> Unit = {}, viewModel: HomeViewModel? = null, onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {
-    val repository = koinInject<RemoteServerRepository>()
-    val active by repository.activeId.collectAsStateWithLifecycle()
-    val servers by repository.servers.collectAsStateWithLifecycle()
-    if (active == null) LocalHomeScreen(onNavigate, onOpenTerminal, onOpenToolCenter, viewModel ?: org.koin.compose.viewmodel.koinViewModel(), onBack)
-    else key(active, servers.firstOrNull { it.id == active }) { RemoteHomeScreen(checkNotNull(active), onNavigate, onBack = onBack) }
+fun HomeScreen(
+    onNavigate: (MainDestination) -> Unit,
+    onOpenTerminal: () -> Unit,
+    onOpenToolCenter: () -> Unit = {},
+    onOpenRemoteHome: (serverId: String) -> Unit = {},
+    viewModel: HomeViewModel? = null,
+    onBack: () -> Unit = { onNavigate(MainDestination.Agent) },
+) {
+    // 主系统恒为本机；远程概览经 onOpenRemoteHome 独立打开。
+    LocalHomeScreen(
+        onNavigate = onNavigate,
+        onOpenTerminal = onOpenTerminal,
+        onOpenToolCenter = onOpenToolCenter,
+        onOpenRemoteHome = onOpenRemoteHome,
+        viewModel = viewModel ?: org.koin.compose.viewmodel.koinViewModel(),
+        onBack = onBack,
+    )
 }
 
 @Composable
-internal fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) -> Unit, service: RemoteSystemService? = previewOrNull { koinInject() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {
+fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) -> Unit, service: RemoteSystemService? = previewOrNull { koinInject() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) }) {
     var refresh by remember { mutableIntStateOf(0) }
     val target = service?.let { runCatching { it.server(serverId) }.getOrNull() }
     val state by remember(serverId, refresh, service) {
@@ -50,7 +60,7 @@ internal fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) ->
                 .padding(runtimeScrollContentPadding(padding, runtimeContentPadding(top = RuntimeSpacing.pageTop, bottom = RuntimeSpacing.pageBottom))),
             verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
-            Text("主系统概览", style = RuntimeTheme.typography.titleMedium)
+            Text("服务器概览", style = RuntimeTheme.typography.titleMedium)
             SystemOverviewCard(target?.name ?: "服务器", target?.let { "${it.username}@${it.host}:${it.port}" }.orEmpty(),
                 target?.workspace.orEmpty(), state.loading, state.error, metrics?.let { listOf(
                     "发行版" to it.distribution, "架构" to it.architecture,
@@ -61,9 +71,8 @@ internal fun RemoteHomeScreen(serverId: String, onNavigate: (MainDestination) ->
                 ) }.orEmpty())
             RuntimeActionRow() {
                 RuntimeButton(modifier = Modifier, onClick = { onNavigate(MainDestination.Agent) }) { Text("打开智枢") }
-                RuntimeFilledTonalButton(modifier = Modifier, onClick = { onNavigate(MainDestination.Workspace) }) { Text("打开工坊") }
             }
-            Text("指标采集自当前服务器，每 15 秒刷新。工作区文件与服务器保持一致。", style = RuntimeTheme.typography.bodySmall,
+            Text("指标采集自该服务器，每 15 秒刷新；不切换本机主系统。", style = RuntimeTheme.typography.bodySmall,
                 color = RuntimeTheme.colorScheme.onSurfaceVariant)
         }
     }

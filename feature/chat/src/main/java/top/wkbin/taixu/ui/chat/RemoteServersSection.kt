@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.feature.chat.R
+import top.wkbin.taixu.runtime.SessionWorkspaceCatalogState
 import top.wkbin.taixu.ui.components.RuntimeExpandChevron
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -27,7 +29,7 @@ import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Surface
 import top.yukonga.miuix.kmp.basic.Text
 
-/** 远程服务器分区：每台服务器一组会话，可直接新建绑定该服务器的对话。 */
+/** 远程服务器分区：项目树 + 根会话；可新建对话与远程终端。 */
 @Composable
 internal fun RemoteServersSection(
     serverGroups: List<RemoteServerSessionGroup>,
@@ -36,9 +38,16 @@ internal fun RemoteServersSection(
     currentSessionId: String,
     sessionRunStates: Map<String, SessionRunState>,
     expandedServers: Set<String>,
+    expandedProjects: Set<String>,
+    remoteProjectsByServer: Map<String, SessionWorkspaceCatalogState>,
     onToggleExpand: (String) -> Unit,
+    onToggleProjectExpand: (String) -> Unit,
+    onWatchProjects: (String) -> Unit,
     onSwitch: (String) -> Unit,
     onCreateOnServer: (RemoteServerSessionGroup) -> Unit,
+    onCreateInProject: (RemoteServerSessionGroup, RemoteProjectBucket) -> Unit,
+    onCreateTerminal: (RemoteServerSessionGroup) -> Unit,
+    onOpenRemoteHome: (RemoteServerSessionGroup) -> Unit,
     onRename: (String) -> Unit,
     onDelete: (String) -> Unit,
     onTogglePin: (String, Boolean) -> Unit,
@@ -68,7 +77,13 @@ internal fun RemoteServersSection(
         } else {
             serverGroups.forEach { group ->
                 val isExpanded = expandedServers.contains(group.serverId)
+                LaunchedEffect(isExpanded, group.serverId) {
+                    if (isExpanded) onWatchProjects(group.serverId)
+                }
+                val catalog = remoteProjectsByServer[group.serverId]
                 val newTaskLabel = stringResource(R.string.chat_drawer_new_task)
+                val newTerminalLabel = stringResource(R.string.chat_drawer_new_remote_terminal)
+                val openHomeLabel = stringResource(R.string.chat_drawer_open_remote_home)
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier
@@ -111,6 +126,34 @@ internal fun RemoteServersSection(
                             modifier = Modifier
                                 .size(24.dp)
                                 .clip(CircleShape)
+                                .clickable { onOpenRemoteHome(group) }
+                                .semantics { contentDescription = openHomeLabel },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            RuntimeIcon(
+                                name = RuntimeIconName.Home,
+                                modifier = Modifier.size(14.dp),
+                                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .clickable { onCreateTerminal(group) }
+                                .semantics { contentDescription = newTerminalLabel },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            RuntimeIcon(
+                                name = RuntimeIconName.Terminal,
+                                modifier = Modifier.size(14.dp),
+                                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
                                 .clickable { onCreateOnServer(group) }
                                 .semantics { contentDescription = newTaskLabel },
                             contentAlignment = Alignment.Center,
@@ -134,7 +177,37 @@ internal fun RemoteServersSection(
                                 .padding(start = 24.dp, end = 4.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
-                            if (group.sessions.isEmpty()) {
+                            when {
+                                catalog == null || catalog.loading -> Text(
+                                    text = stringResource(R.string.chat_drawer_remote_projects_loading),
+                                    style = RuntimeTheme.typography.labelSmall,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                )
+                                catalog.error != null -> Text(
+                                    text = catalog.error!!,
+                                    style = RuntimeTheme.typography.labelSmall,
+                                    color = RuntimeTheme.colorScheme.error,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                )
+                            }
+                            group.projectBuckets.forEach { bucket ->
+                                val projectKey = "${group.serverId}:${bucket.linuxPath}"
+                                val projectExpanded = expandedProjects.contains(projectKey)
+                                RemoteProjectRow(
+                                    bucket = bucket,
+                                    expanded = projectExpanded,
+                                    onToggle = { onToggleProjectExpand(projectKey) },
+                                    onCreate = { onCreateInProject(group, bucket) },
+                                    currentSessionId = currentSessionId,
+                                    sessionRunStates = sessionRunStates,
+                                    onSwitch = onSwitch,
+                                    onRename = onRename,
+                                    onDelete = onDelete,
+                                    onTogglePin = onTogglePin,
+                                )
+                            }
+                            if (group.rootSessions.isEmpty() && group.projectBuckets.all { it.sessions.isEmpty() }) {
                                 Text(
                                     text = stringResource(R.string.chat_drawer_no_sessions_on_server),
                                     style = RuntimeTheme.typography.labelSmall,
@@ -142,7 +215,7 @@ internal fun RemoteServersSection(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 )
                             } else {
-                                group.sessions.forEach { session ->
+                                group.rootSessions.forEach { session ->
                                     SessionDrawerItem(
                                         session = session,
                                         isCurrent = session.id == currentSessionId,
@@ -156,6 +229,103 @@ internal fun RemoteServersSection(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RemoteProjectRow(
+    bucket: RemoteProjectBucket,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onCreate: () -> Unit,
+    currentSessionId: String,
+    sessionRunStates: Map<String, SessionRunState>,
+    onSwitch: (String) -> Unit,
+    onRename: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onTogglePin: (String, Boolean) -> Unit,
+) {
+    val newTaskLabel = stringResource(R.string.chat_drawer_new_task)
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RuntimeTheme.shapes.small)
+                .clickable(onClick = onToggle)
+                .padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            RuntimeIcon(
+                name = if (expanded) RuntimeIconName.FolderOpen else RuntimeIconName.Folder,
+                modifier = Modifier.size(14.dp),
+                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = bucket.name,
+                style = RuntimeTheme.typography.labelSmall,
+                color = RuntimeTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (bucket.sessions.isNotEmpty()) {
+                Text(
+                    text = "${bucket.sessions.size}",
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.outline,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onCreate)
+                    .semantics { contentDescription = newTaskLabel },
+                contentAlignment = Alignment.Center,
+            ) {
+                RuntimeIcon(
+                    name = RuntimeIconName.Plus,
+                    modifier = Modifier.size(12.dp),
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            RuntimeExpandChevron(
+                expanded = expanded,
+                modifier = Modifier.size(12.dp),
+                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (expanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                if (bucket.sessions.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.chat_drawer_no_sessions_in_project),
+                        style = RuntimeTheme.typography.labelSmall,
+                        color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
+                } else {
+                    bucket.sessions.forEach { session ->
+                        SessionDrawerItem(
+                            session = session,
+                            isCurrent = session.id == currentSessionId,
+                            runState = sessionRunStates[session.id] ?: SessionRunState.IDLE,
+                            onSwitch = { onSwitch(session.id) },
+                            onRename = { onRename(session.id) },
+                            onDelete = { onDelete(session.id) },
+                            pinned = session.pinnedAt != 0L,
+                            onTogglePin = { onTogglePin(session.id, session.pinnedAt == 0L) },
+                        )
                     }
                 }
             }

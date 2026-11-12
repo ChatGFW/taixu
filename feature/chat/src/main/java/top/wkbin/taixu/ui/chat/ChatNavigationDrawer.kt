@@ -37,6 +37,7 @@ fun ChatNavigationDrawer(
     onNavigate: (MainDestination) -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenTools: () -> Unit,
+    onOpenRemoteHome: (serverId: String) -> Unit = {},
     gesturesEnabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
@@ -57,6 +58,7 @@ fun ChatNavigationDrawer(
     val currentSessionId by viewModel.currentSessionId.collectAsStateWithLifecycle()
     val runStates by viewModel.sessionRunStates.collectAsStateWithLifecycle()
     val remoteServers by koinInject<RemoteServerRepository>().servers.collectAsStateWithLifecycle()
+    val remoteProjectsByServer by viewModel.remoteProjectsByServer.collectAsStateWithLifecycle()
     val pluginActive = LocalPluginDestinationActive.current
 
     ChatIdentityHost {
@@ -98,6 +100,7 @@ fun ChatNavigationDrawer(
                     currentSessionId = currentSessionId,
                     workspaces = catalog.projects,
                     remoteServers = remoteServers,
+                    remoteProjectsByServer = remoteProjectsByServer,
                     sessionRunStates = runStates,
                     onDismiss = onDismiss,
                     onSettings = { onDismiss(); onNavigate(MainDestination.Settings) },
@@ -113,6 +116,18 @@ fun ChatNavigationDrawer(
                         viewModel.createSession("", "/workspace", "", group.distribution)
                         onNavigate(MainDestination.Agent); onDismiss()
                     },
+                    onCreateInRemoteProject = { group, bucket ->
+                        viewModel.createSession("", bucket.linuxPath, "", group.distribution)
+                        onNavigate(MainDestination.Agent); onDismiss()
+                    },
+                    onCreateTerminalOnServer = { group ->
+                        viewModel.createRemoteTerminal(group.distribution, group.serverName)
+                        onDismiss(); onOpenTerminal()
+                    },
+                    onOpenRemoteHome = { group ->
+                        onDismiss(); onOpenRemoteHome(group.serverId)
+                    },
+                    onWatchRemoteProjects = viewModel::watchRemoteProjects,
                     onDelete = viewModel::deleteSession,
                     onRename = viewModel::renameSession,
                     onCollapse = onCollapse,

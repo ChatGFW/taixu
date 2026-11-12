@@ -4,6 +4,14 @@ import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.model.RemoteServer
 import top.wkbin.taixu.core.model.SessionExecutionTarget
+import top.wkbin.taixu.runtime.WorkspaceProject
+
+/** 远程服务器下的项目桶（SFTP 工作目录子目录）。 */
+data class RemoteProjectBucket(
+    val name: String,
+    val linuxPath: String,
+    val sessions: List<HarnessSessionEntity>,
+)
 
 /** 侧边栏按 SSH 连接档案划分的会话组。 */
 data class RemoteServerSessionGroup(
@@ -12,6 +20,8 @@ data class RemoteServerSessionGroup(
     val distribution: String,
     val hostLabel: String,
     val sessions: List<HarnessSessionEntity>,
+    val projectBuckets: List<RemoteProjectBucket> = emptyList(),
+    val rootSessions: List<HarnessSessionEntity> = emptyList(),
 )
 
 private val targetJson = Json { ignoreUnknownKeys = true }
@@ -55,19 +65,22 @@ fun partitionRemoteSessions(
                 distribution = server.distributionId,
                 hostLabel = "${server.username}@${server.host}",
                 sessions = list,
+                rootSessions = list,
             ),
         )
     }
     for ((id, list) in byId) {
         if (id in seen) continue
         val remote = snapshots[id] ?: continue
+        val sorted = list.sortedByDescending { it.updatedAt }
         groups.add(
             RemoteServerSessionGroup(
                 serverId = id,
                 serverName = remote.name,
                 distribution = remote.distributionId,
                 hostLabel = "${remote.username}@${remote.host}",
-                sessions = list.sortedByDescending { it.updatedAt },
+                sessions = sorted,
+                rootSessions = sorted,
             ),
         )
     }
@@ -75,4 +88,24 @@ fun partitionRemoteSessions(
         compareByDescending<RemoteServerSessionGroup> { it.sessions.firstOrNull()?.updatedAt ?: 0L }
             .thenBy { it.serverName.lowercase() },
     )
+}
+
+/** 按远程项目路径挂会话；未匹配项目的会话留在 rootSessions。 */
+fun attachRemoteProjects(
+    groups: List<RemoteServerSessionGroup>,
+    projectsByServer: Map<String, List<WorkspaceProject>>,
+): List<RemoteServerSessionGroup> = groups.map { group ->
+    val projects = projectsByServer[group.serverId].orEmpty()
+    if (projects.isEmpty()) {
+        group.copy(projectBuckets = emptyList(), rootSessions = group.sessions)
+    } else {
+        val remaining = group.sessions.toMutableList()
+        val buckets = projects.map { project ->
+            val path = project.linuxPath.trimEnd('/')
+            val matched = remaining.filter { it.workspace.trimEnd('/') == path }
+            remaining.removeAll(matched.toSet())
+            RemoteProjectBucket(project.name, project.linuxPath, matched.sortedByDescending { it.updatedAt })
+        }
+        group.copy(projectBuckets = buckets, rootSessions = remaining.sortedByDescending { it.updatedAt })
+    }
 }
