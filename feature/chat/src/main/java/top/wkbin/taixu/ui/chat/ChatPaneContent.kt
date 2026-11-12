@@ -244,6 +244,13 @@ internal fun ChatPaneContent(
                 shareActions?.let { share ->
                     ShareQuickActionsRow(state = share, modifier = Modifier.padding(vertical = 4.dp))
                 }
+                // 与 Plan 同级：排队条在输入框上方独立悬浮，不计入输入框渐隐高度。
+                QueuedPromptStack(
+                    prompts = queuedPrompts,
+                    onEdit = onEditQueuedPrompt,
+                    onRemove = onRemoveQueuedPrompt,
+                    onConvertToSteer = onConvertToSteer,
+                )
                 Box(Modifier.onSizeChanged { composerPx = it.height }) {
                     ChatComposer(
                         listState = listState,
@@ -268,10 +275,6 @@ internal fun ChatPaneContent(
                         attachmentsProcessing = attachmentsProcessing,
                         onAttachmentsPicked = onAttachmentsPicked,
                         onRemoveAttachment = onRemoveAttachment,
-                        queuedPrompts = queuedPrompts,
-                        onEditQueuedPrompt = onEditQueuedPrompt,
-                        onRemoveQueuedPrompt = onRemoveQueuedPrompt,
-                        onConvertToSteer = onConvertToSteer,
                         knownMentionNames = knownMentionNames,
                         attachedMentions = attachedMentions,
                         onRemoveMention = onRemoveMention,

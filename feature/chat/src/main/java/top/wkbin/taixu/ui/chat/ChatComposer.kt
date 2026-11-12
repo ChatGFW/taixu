@@ -46,13 +46,12 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.LazyListState
-import top.wkbin.taixu.harness.QueuedPrompt
 import top.wkbin.taixu.ui.components.RuntimeComposerTextField
 import top.wkbin.taixu.ui.theme.chatBackdropSurface
 import top.wkbin.taixu.ui.theme.chatReadingTypography
 import top.wkbin.taixu.ui.theme.chatSoftDropShadow
 
-/** 输入区：斜杠/@ 弹窗、排队指令、附件预览、推理强度滑块、工具状态胶囊与一体化输入胶囊。 */
+/** 输入区：建议、附件与输入胶囊；排队指令由 ChatPaneContent 在输入框上方独立展示。 */
 @Composable
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 internal fun ChatComposer(
@@ -76,10 +75,6 @@ internal fun ChatComposer(
     attachmentsProcessing: Boolean,
     onAttachmentsPicked: (List<Uri>, Boolean) -> Unit,
     onRemoveAttachment: (ChatAttachment) -> Unit,
-    queuedPrompts: List<QueuedPrompt>,
-    onEditQueuedPrompt: (QueuedPrompt) -> Unit,
-    onRemoveQueuedPrompt: (QueuedPrompt) -> Unit,
-    onConvertToSteer: (QueuedPrompt) -> Unit,
     knownMentionNames: List<String>,
     attachedMentions: List<MentionItem>,
     onRemoveMention: (MentionItem) -> Unit,
@@ -141,13 +136,6 @@ internal fun ChatComposer(
             onSelect = onApplyMention,
         )
     }
-
-    QueuedPromptStack(
-        prompts = queuedPrompts,
-        onEdit = onEditQueuedPrompt,
-        onRemove = onRemoveQueuedPrompt,
-        onConvertToSteer = onConvertToSteer,
-    )
 
     // 附件处理中（复制/压缩/编码）加载指示
     if (attachmentsProcessing) {
