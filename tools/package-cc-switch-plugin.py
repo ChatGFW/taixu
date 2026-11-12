@@ -9,6 +9,9 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
 PROJECT = ROOT / "assets/plugins/cc-switch"
+# The plugin version tracks the adapter; the upstream source stays pinned.
+VERSION = "4.0.31"
+UPSTREAM_VERSION = "4.0.30"
 COMMIT = "3a0b86a26649f61d86dfbc3878d73220199f70b2"
 
 
@@ -18,7 +21,7 @@ def digest(data):
 
 def pack(server: Path, ui: Path, build_tree: Path, output: Path):
     provenance = json.loads((build_tree / "UPSTREAM.json").read_text())
-    if provenance != {"version": "4.0.30", "commit": COMMIT}:
+    if provenance != {"version": UPSTREAM_VERSION, "commit": COMMIT}:
         raise ValueError("Expected prepared official v4.0.30 source")
     binary = server.read_bytes()
     if binary[:6] != b"\x7fELF\x02\x01" or binary[18:20] != b"\xb7\x00":
@@ -41,13 +44,14 @@ def pack(server: Path, ui: Path, build_tree: Path, output: Path):
     files["lib/cc-switch-server"] = binary
     files["LICENSE"] = (build_tree / "LICENSE").read_bytes()
     files["Cargo.lock"] = (build_tree / "Cargo.lock").read_bytes()
+    provenance["pluginVersion"] = VERSION
     provenance["serverSha256"] = digest(binary)
     provenance["cargoLockSha256"] = digest(files["Cargo.lock"])
     provenance["minimumGlibc"] = '.'.join(map(str, max(glibc)))
     files["UPSTREAM.json"] = (json.dumps(provenance, indent=2) + '\n').encode()
     files["checksums/SHA256SUMS"] = ''.join(f'{digest(data)}  {name}\n' for name, data in sorted(files.items())).encode()
     manifest = json.loads((PROJECT / "manifest.json").read_text(encoding="utf-8"))
-    if manifest["version"] != "4.0.30" or manifest["launchType"] != "web":
+    if manifest["version"] != VERSION or manifest["launchType"] != "web":
         raise ValueError("Unexpected plugin manifest")
     entries = {"manifest.json": (json.dumps(manifest, ensure_ascii=False, indent=2) + '\n').encode(),
                **{"payload/" + name: data for name, data in files.items()}}
@@ -78,6 +82,6 @@ if __name__ == "__main__":
     parser.add_argument("--server", type=Path, required=True)
     parser.add_argument("--ui", type=Path, required=True)
     parser.add_argument("--build-tree", type=Path, required=True)
-    parser.add_argument("--output", type=Path, default=ROOT / "dist/plugins/cc-switch-4.0.30.txplugin")
+    parser.add_argument("--output", type=Path, default=ROOT / f"dist/plugins/cc-switch-{VERSION}.txplugin")
     args = parser.parse_args()
     pack(args.server.resolve(), args.ui.resolve(), args.build_tree.resolve(), args.output.resolve())

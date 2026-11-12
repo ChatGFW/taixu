@@ -18,11 +18,11 @@ class PackageTests(unittest.TestCase):
         package.PROJECT = self.root / "project"
         for name in ("payload/bin", "payload/scripts", "payload/checksums"):
             (package.PROJECT / name).mkdir(parents=True)
-        (package.PROJECT / "manifest.json").write_text(json.dumps({"id":"cc-switch", "version":"4.0.30", "launchType":"web"}))
+        (package.PROJECT / "manifest.json").write_text(json.dumps({"id":"cc-switch", "version":package.VERSION, "launchType":"web"}))
         (package.PROJECT / "payload/bin/cc-switch-daemon").write_bytes(b'#!/bin/sh\nexit 0\n')
         self.build = self.root / "build"
         self.build.mkdir()
-        (self.build / "UPSTREAM.json").write_text(json.dumps({"version":"4.0.30", "commit":package.COMMIT}))
+        (self.build / "UPSTREAM.json").write_text(json.dumps({"version":package.UPSTREAM_VERSION, "commit":package.COMMIT}))
         (self.build / "LICENSE").write_text('test fixture')
         (self.build / "Cargo.lock").write_text('test fixture')
         self.ui = self.root / "ui"

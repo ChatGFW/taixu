@@ -139,6 +139,107 @@ def run(binary: Path, ui: Path, qemu=None, sysroot=None):
             upstream.server_close()
 
 
+def run_first_run(binary: Path, ui: Path, qemu=None, sysroot=None):
+    """A fresh data directory must be usable without anyone reading a password file."""
+    with tempfile.TemporaryDirectory(prefix="taixu-cc-switch-first-run-") as directory:
+        home = Path(directory)
+        data = home / "data"
+        data.mkdir()
+        port = free_port()
+        env = {"PATH": os.defpath, "HOME": str(home), "CC_SWITCH_DATA_DIR": str(data),
+               "CC_SWITCH_PORT": str(port), "CC_SWITCH_UI_DIR": str(ui), "RUST_LOG": "warn"}
+        log = (home / "server.log").open("w+")
+        command = ([str(qemu), "-L", str(sysroot)] if qemu else []) + [str(binary)]
+
+        def start():
+            return subprocess.Popen(command, env=env, stdout=log, stderr=log)
+
+        def call(method, path, payload=None, password=None, extra=None):
+            connection = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+            headers = dict(extra or {})
+            if password is not None:
+                headers["Authorization"] = "Basic " + base64.b64encode(f"admin:{password}".encode()).decode()
+            body = None
+            if payload is not None:
+                body = json.dumps(payload)
+                headers["Content-Type"] = "application/json"
+            connection.request(method, path, body, headers)
+            response = connection.getresponse()
+            result = response.status, {k.lower(): v for k, v in response.getheaders()}, response.read()
+            connection.close()
+            return result
+
+        def wait_ready(process):
+            for _ in range(240):
+                if process.poll() is not None:
+                    log.flush(); log.seek(0)
+                    raise AssertionError("Server exited: " + log.read()[-3000:])
+                try:
+                    if call("GET", "/password")[0] == 200:
+                        return
+                except (OSError, http.client.HTTPException):
+                    pass
+                time.sleep(.25)
+            raise AssertionError("Server startup timed out")
+
+        process = start()
+        try:
+            wait_ready(process)
+            status, headers, body = call("GET", "/password")
+            assert status == 200 and "设置密码" in body.decode(), (status, body[:200])
+            assert headers.get("cache-control") == "no-store"
+            assert call("GET", "/password", extra={"Host": "attacker.example"})[0] == 403
+            status, headers, _ = call("GET", "/")
+            assert status in (302, 303) and headers.get("location") == "/password", (status, headers)
+            assert call("GET", "/api/events")[0] == 403
+            assert call("POST", "/api/invoke/get_settings", {})[0] == 403
+            assert call("GET", "/api/password")[2] == b'{"configured":false,"authorized":false,"password":null}'
+            assert call("GET", "/api/password")[1].get("cache-control") == "no-store"
+            assert call("POST", "/api/password", {"password": "short"})[0] == 400
+            assert call("POST", "/api/password", {"password": "带中文的密码12345"})[0] == 400
+            assert call("POST", "/api/password", {"password": " " * 12})[0] == 400
+            status, _, body = call("POST", "/api/password", {"password": "isolated-test-password"})
+            assert status == 200 and json.loads(body) == {"ok": True}, (status, body)
+            stored = data / "web_password"
+            assert stored.read_text() == "isolated-test-password"
+            assert stored.stat().st_mode & 0o777 == 0o600, oct(stored.stat().st_mode)
+            assert not list(data.glob("*.tmp")), "password write left a temporary file"
+            # Once set, every other route closes again and the panel keeps working.
+            assert call("GET", "/password")[0] == 200
+            assert call("POST", "/api/password", {"password": "isolated-test-password"})[0] == 401
+            assert call("GET", "/")[0] == 401
+            assert call("GET", "/", password="wrong-password")[0] == 401
+            assert b'<div id="root"' in call("GET", "/", password="isolated-test-password")[2]
+            assert json.loads(call("GET", "/api/password", password="isolated-test-password")[2])["password"] == "isolated-test-password"
+            # Rotation accepts either the authenticated browser or the current password.
+            assert call("POST", "/api/password", {"password": "rotated-test-password"})[0] == 401
+            assert call("POST", "/api/password", {"password": "rotated-test-password", "current": "wrong"})[0] == 401
+            assert call("POST", "/api/password", {"password": "rotated-test-password", "current": "isolated-test-password"})[0] == 200
+            assert stored.read_text() == "rotated-test-password"
+            assert call("GET", "/", password="isolated-test-password")[0] == 401
+            assert call("GET", "/", password="rotated-test-password")[0] == 200
+            assert "result" in json.loads(call("POST", "/api/invoke/get_settings", {}, password="rotated-test-password")[2])
+            process.terminate()
+            process.wait(timeout=12)
+            # The choice survives a restart, so nothing is regenerated behind the user.
+            process = start()
+            wait_ready(process)
+            assert call("GET", "/", password="rotated-test-password")[0] == 200
+            print("PASS: first-run password setup, pre-setup lockout, rotation, restart persistence")
+        except Exception:
+            log.flush(); log.seek(0)
+            print(log.read()[-5000:])
+            raise
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=10)
+            log.close()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("binary", type=Path)
@@ -147,3 +248,4 @@ if __name__ == "__main__":
     parser.add_argument("--sysroot", type=Path, default=Path("/usr/aarch64-linux-gnu"))
     args = parser.parse_args()
     run(args.binary.resolve(), args.ui.resolve(), args.qemu, args.sysroot)
+    run_first_run(args.binary.resolve(), args.ui.resolve(), args.qemu, args.sysroot)

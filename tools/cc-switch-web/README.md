@@ -9,8 +9,8 @@
 - `overlay/headless`：状态注入、事件和 IPC Channel 的服务端适配。
 - `overlay/command`：把官方 command 签名转换为 JSON 参数调用；保留结构化业务错误，
   同步命令进入阻塞线程池，HTTP 只允许官方 `generate_handler!` 注册的命令。
-- `overlay/src/web.rs`：本机监听、随机密码、Host/Origin 校验、JSON 调用、SSE 和静态 UI；
-  数据目录独占锁、退出恢复。没有 Tauri WebView、GTK 或 X11 依赖。
+- `overlay/src/web.rs`：本机监听、Host/Origin 校验、登录密码面板（首次设置 / 查看 / 重置）、
+  JSON 调用、SSE 和静态 UI；数据目录独占锁、退出恢复。没有 Tauri WebView、GTK 或 X11 依赖。
 - `frontend`：Vite 同源传输映射；浏览器剪贴板、外链和会话导出。窗口/托盘功能不模拟业务成功。
 - `smoke.py`：临时 HOME、空凭据环境的真实服务进程检查，不调用付费模型。
 - `browser-smoke.mjs`：隔离测试实例的手机宽度浏览器检查。
@@ -65,6 +65,7 @@ python tools/cc-switch-web/smoke.py /path/to/host/cc-switch-server /path/to/rend
 ## 发布
 
 先通过服务测试、ARM64 启动和打包哈希检查，再运行 `tools/package-cc-switch-plugin.py`。
-产物输出至 `dist/plugins/cc-switch-4.0.30.txplugin`，旁边的 JSON 记录大小、摘要和上游提交。
+产物输出至 `dist/plugins/cc-switch-<插件版本>.txplugin`（当前 4.0.31），旁边的 JSON 记录大小、摘要和上游提交。
+包版本号属于适配层，与固定的上游 v4.0.30 分开记录；改适配层就要递增包版本，插件中心才会提示更新。
 插件库的 `scripts/library.py prepare` / `publish` 负责签名目录与 Release 附件。
 旧 Web 分支数据保留于原路径；正式包不包含测试数据或任何用户凭据。

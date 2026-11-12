@@ -1,13 +1,52 @@
-use std::{sync::Arc, path::PathBuf};
-use axum::{Router, routing::{get, post}, extract::{State, Path, DefaultBodyLimit}, Json, middleware::{self, Next}, response::{Response, IntoResponse, Sse, sse::{Event, KeepAlive}}, http::{Request, StatusCode}};
+use std::{path::PathBuf, sync::{Arc, RwLock}};
+use axum::{Router, routing::{get, post}, extract::{State, Path, DefaultBodyLimit}, Json, middleware::{self, Next}, response::{Response, IntoResponse, Sse, sse::{Event, KeepAlive}, Redirect}, http::{header, HeaderMap, Request, StatusCode}};
 use base64::Engine;
 use tauri::Manager;
 use std::future::IntoFuture;
 
+/// The only page served without a password. It carries no application data.
+const PASSWORD_PAGE: &str = include_str!("web_password.html");
+
 #[derive(Clone)]
-struct WebState { app: tauri::AppHandle, authorization: String, authority: String }
+struct WebState {
+    app: tauri::AppHandle,
+    authority: String,
+    password_path: PathBuf,
+    /// The login the browser presents. `None` is first run: everything except the
+    /// password endpoints stays closed until someone on loopback sets it.
+    password: Arc<RwLock<Option<String>>>,
+}
+
+fn credential(password: &str) -> String {
+    format!("Basic {}", base64::engine::general_purpose::STANDARD.encode(format!("admin:{password}")))
+}
+
+fn equal(left: &[u8], right: &[u8]) -> bool {
+    use subtle::ConstantTimeEq;
+    bool::from(left.ct_eq(right))
+}
+
+fn authorized(state: &WebState, headers: &HeaderMap) -> bool {
+    let guard = state.password.read().unwrap();
+    let Some(password) = guard.as_deref() else { return false };
+    equal(headers.get(header::AUTHORIZATION).map(|value| value.as_bytes()).unwrap_or_default(), credential(password).as_bytes())
+}
+
+/// Write through a sibling file so a crash can never leave a truncated password.
+fn store_password(path: &std::path::Path, password: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+    let temporary = path.with_extension("tmp");
+    let mut file = std::fs::OpenOptions::new().write(true).create(true).truncate(true).open(&temporary)?;
+    file.set_permissions(std::fs::Permissions::from_mode(0o600))?;
+    file.write_all(password.as_bytes())?;
+    file.sync_all()?;
+    drop(file);
+    std::fs::rename(&temporary, path)
+}
 
 async fn guard(State(state): State<WebState>, request: Request<axum::body::Body>, next: Next) -> Response {
+    let path = request.uri().path().to_owned();
     let headers = request.headers();
     if headers.get("host").and_then(|v| v.to_str().ok()) != Some(state.authority.as_str()) {
         return StatusCode::FORBIDDEN.into_response();
@@ -15,12 +54,61 @@ async fn guard(State(state): State<WebState>, request: Request<axum::body::Body>
     if let Some(origin) = headers.get("origin") {
         if origin.to_str().ok() != Some(format!("http://{}", state.authority).as_str()) { return StatusCode::FORBIDDEN.into_response(); }
     }
-    use subtle::ConstantTimeEq;
-    let auth = headers.get("authorization").map(|v| v.as_bytes()).unwrap_or_default();
-    if !bool::from(auth.ct_eq(state.authorization.as_bytes())) {
+    // The password endpoints authenticate themselves; every other path never does.
+    if path == "/password" || path == "/api/password" { return next.run(request).await; }
+    if state.password.read().unwrap().is_none() {
+        return if path.starts_with("/api/") {
+            (StatusCode::FORBIDDEN, Json(serde_json::json!({"error":"尚未设置 Web 管理密码，请先打开 /password"}))).into_response()
+        } else {
+            Redirect::to("/password").into_response()
+        };
+    }
+    if !authorized(&state, request.headers()) {
         return (StatusCode::UNAUTHORIZED, [("www-authenticate", "Basic realm=\"CC Switch\"")]).into_response();
     }
     next.run(request).await
+}
+
+async fn password_page() -> Response {
+    ([(header::CONTENT_TYPE, "text/html; charset=utf-8"), (header::CACHE_CONTROL, "no-store")], PASSWORD_PAGE).into_response()
+}
+
+async fn password_status(State(state): State<WebState>, headers: HeaderMap) -> Response {
+    let stored = state.password.read().unwrap().clone();
+    let authorized = authorized(&state, &headers);
+    let body = serde_json::json!({
+        "configured": stored.is_some(),
+        "authorized": authorized,
+        // The password already travels in the Authorization header of this request.
+        "password": if authorized { stored } else { None },
+    });
+    // Never let a browser or proxy keep a response that can carry the password.
+    ([(header::CACHE_CONTROL, "no-store")], Json(body)).into_response()
+}
+
+#[derive(serde::Deserialize)]
+struct PasswordUpdate { password: String, #[serde(default)] current: String }
+
+fn invalid(message: &str) -> Response {
+    (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error":message}))).into_response()
+}
+
+async fn password_update(State(state): State<WebState>, headers: HeaderMap, Json(body): Json<PasswordUpdate>) -> Response {
+    let next = body.password.trim().to_owned();
+    if next.len() < 8 { return invalid("密码至少 8 位"); }
+    if next.len() > 128 { return invalid("密码最多 128 位"); }
+    if !next.bytes().all(|byte| byte.is_ascii_graphic()) { return invalid("密码只能包含可见的 ASCII 字符"); }
+    if let Some(existing) = state.password.read().unwrap().clone() {
+        // Either this browser already authenticated, or the caller proves the old password.
+        if !authorized(&state, &headers) && !equal(body.current.trim().as_bytes(), existing.as_bytes()) {
+            return (StatusCode::UNAUTHORIZED, Json(serde_json::json!({"error":"当前密码不正确"}))).into_response();
+        }
+    }
+    if let Err(error) = store_password(&state.password_path, &next) {
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error":error.to_string()}))).into_response();
+    }
+    *state.password.write().unwrap() = Some(next);
+    Json(serde_json::json!({"ok": true})).into_response()
 }
 
 async fn invoke(State(state): State<WebState>, Path(name): Path<String>, Json(args): Json<serde_json::Value>) -> Response {
@@ -68,19 +156,18 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
         return Err("This data directory is already in use".into());
     }
     let password_path = data.join("web_password");
+    // A missing file is first run, not a failure: the panel creates its own login
+    // instead of writing a secret no one can read.
     let password = match std::fs::read_to_string(&password_path) {
-        Ok(value) => value.trim().to_string(),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            use std::io::Write;
-            use std::os::unix::fs::OpenOptionsExt;
-            let secret = uuid::Uuid::new_v4().simple().to_string();
-            let mut file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&password_path)?;
-            file.write_all(secret.as_bytes())?;
-            secret
-        },
+        Ok(value) => {
+            let value = value.trim().to_owned();
+            if value.is_empty() { return Err("Empty web password; delete the file to set a new one".into()); }
+            Some(value)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
         Err(error) => return Err(error.into()),
     };
-    if password.is_empty() { return Err("Empty web password".into()); }
+    let configured = password.is_some();
     let app = tauri::AppHandle::default();
     let state = crate::AppState::new(Arc::new(crate::Database::init()?));
     state.proxy_service.set_app_handle(app.clone());
@@ -100,15 +187,19 @@ pub async fn run() -> Result<(), Box<dyn std::error::Error>> {
     app.manage(crate::commands::XaiOAuthState(Arc::new(tokio::sync::RwLock::new(crate::proxy::providers::xai_oauth_auth::XaiOAuthManager::new(data.clone())))));
     app.manage(crate::commands::AgyAccountState(Arc::new(crate::services::agy_account::AgyAccountManager::new(data.clone()))));
     app.manage(crate::commands::ClaudeAccountState(Arc::new(crate::services::claude_account::ClaudeAccountManager::new(data))));
-    let web = WebState { app, authority: authority.clone(), authorization: format!("Basic {}", base64::engine::general_purpose::STANDARD.encode(format!("admin:{password}"))) };
+    let web = WebState { app, authority: authority.clone(), password_path: password_path.clone(), password: Arc::new(RwLock::new(password)) };
     let shutdown_app = web.app.clone();
     let ui = PathBuf::from(std::env::var("CC_SWITCH_UI_DIR").unwrap_or_else(|_| "ui".into()));
     if !ui.join("index.html").is_file() { return Err("Missing Web UI".into()); }
     let router = Router::new().route("/api/invoke/:name", post(invoke)).route("/api/events", get(events))
+        .route("/password", get(password_page)).route("/api/password", get(password_status).post(password_update))
         .fallback_service(tower_http::services::ServeDir::new(ui))
         .layer(DefaultBodyLimit::max(4 * 1024 * 1024))
         .layer(middleware::from_fn_with_state(web.clone(), guard)).with_state(web);
-    println!("CC Switch 4.0.30 Web: http://{authority}; user: admin; password file: {}", password_path.display());
+    match configured {
+        true => println!("CC Switch 4.0.30 Web: http://{authority}; user: admin; password file: {}", password_path.display()),
+        false => println!("CC Switch 4.0.30 Web: http://{authority}; no password set; open http://{authority}/password to create one; user: admin"),
+    }
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
     let mut hangup = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())?;
     tokio::select! {

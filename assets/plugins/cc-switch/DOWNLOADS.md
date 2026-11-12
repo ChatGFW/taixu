@@ -1,23 +1,23 @@
-# CC Switch 4.0.30 — 太墟 Web 插件
+# CC Switch 4.0.31 — 太墟 Web 插件
 
-这是官方 [farion1231/cc-switch v4.0.30](https://github.com/farion1231/cc-switch/releases/tag/v4.0.30)
-的 Web 移植，固定提交 `3a0b86a26649f61d86dfbc3878d73220199f70b2`。
-业务模块和 React 页面来自该提交；`tools/cc-switch-web` 提供 HTTP / SSE 适配，
+上游是 [farion1231/cc-switch v4.0.30](https://github.com/farion1231/cc-switch/releases/tag/v4.0.30)，
+固定提交 `3a0b86a26649f61d86dfbc3878d73220199f70b2`。包版本号 4.0.31 是太墟适配层自己的版本：
+业务模块和 React 页面仍来自该提交，`tools/cc-switch-web` 提供 HTTP / SSE 适配，
 不再使用旧 `Laliet/cc-switch-web v0.21.0` 二进制。
 
 ## 安装与使用
 
-在插件中心导入 `cc-switch-4.0.30.txplugin`，安装后可启动、停止和设置自启动。
+在插件中心导入 `cc-switch-4.0.31.txplugin`，安装后可启动、停止和设置自启动。
 启动后点击浏览器入口，使用 **http://127.0.0.1:19870/**，账号为 `admin`。
-首次运行会生成独立随机密码，在同一 Linux 发行版的终端查看：
 
-```sh
-cat /opt/taixu/data/cc-switch/official-v4/web_password
-```
+首次启动还没有登录密码，页面会直接打开密码设置页；设置完成后用 `admin` 和这个密码登录。
+登录后页面左下角的「密码」按钮可以查看、复制和修改密码。忘记密码时，删除同一 Linux 发行版内的
+`/opt/taixu/data/cc-switch/official-v4/web_password` 后重启服务，即可重新设置。
 
-密码不写入日志或 URL。管理页只监听回环地址，不支持局域网链接；旧版工具详情中显示的
-LAN 链接和随机 token 不是本插件的登录方式。网页通过同源 HTTP Basic 登录，业务命令走
-JSON POST，事件走 SSE。页面可管理该 Linux 发行版内的 CLI 配置。
+密码设置完成之前，除本机回环地址上的密码页以外没有任何接口可用，请在首次启动后立即设置。
+密码只保存在上述 `0600` 权限文件中，不写入日志或 URL。管理页只监听回环地址，不支持局域网链接；
+旧版工具详情中显示的 LAN 链接和随机 token 不是本插件的登录方式。网页通过同源 HTTP Basic 登录，
+业务命令走 JSON POST，事件走 SSE。页面可管理该 Linux 发行版内的 CLI 配置。
 
 数据位于 `/opt/taixu/data/cc-switch/official-v4`，不会覆盖旧 Web 分支数据库或
 `~/.cc-switch` 符号链接。两条版本线不能假设数据库兼容，需要的旧配置请自行导出后在新页导入。
