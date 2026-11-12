@@ -534,7 +534,7 @@ class ChatViewModel(
     val workspaces = workspaceCatalog.map { it.projects }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     private val remoteSessions = ChatRemoteSessionSupport(viewModelScope, workspaceCatalogSource, terminalSessionManager) { _notice.value = it }
     val remoteProjectsByServer = remoteSessions.remoteProjectsByServer
-    fun watchRemoteProjects(serverId: String) = remoteSessions.watchRemoteProjects(serverId)
+    fun setWatchedRemoteProjects(serverIds: Set<String>) = remoteSessions.setWatchedRemoteProjects(serverIds)
     /** 思考过程块是否默认展开（持久化，重启后保留）。 */
     val thinkingExpanded: StateFlow<Boolean> = settingsDataStore.thinkingExpanded
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)

@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import top.wkbin.taixu.runtime.SessionWorkspaceCatalog
 import top.wkbin.taixu.runtime.SessionWorkspaceCatalogState
@@ -37,9 +36,9 @@ internal class ChatRemoteSessionSupport(
             }
         }.stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
-    fun watchRemoteProjects(serverId: String) {
-        if (serverId.isBlank()) return
-        remoteProjectRequests.update { it + serverId }
+    /** 以当前应订阅集合整体替换；空集立即停掉全部 observeServer（含 15s 轮询）。 */
+    fun setWatchedRemoteProjects(serverIds: Set<String>) {
+        remoteProjectRequests.value = serverIds.map { it.trim() }.filter { it.isNotEmpty() }.toSet()
     }
 
     suspend fun createSession(

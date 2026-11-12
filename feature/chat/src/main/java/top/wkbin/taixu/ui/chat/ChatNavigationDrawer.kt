@@ -1,6 +1,7 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,6 +62,9 @@ fun ChatNavigationDrawer(
     val remoteServers by koinInject<RemoteServerRepository>().servers.collectAsStateWithLifecycle()
     val remoteProjectsByServer by viewModel.remoteProjectsByServer.collectAsStateWithLifecycle()
     val pluginActive = LocalPluginDestinationActive.current
+    LaunchedEffect(visible) {
+        if (!visible) viewModel.setWatchedRemoteProjects(emptySet())
+    }
 
     ChatIdentityHost {
         RuntimeAdaptiveNavigationScaffold(
@@ -91,6 +95,7 @@ fun ChatNavigationDrawer(
             drawerContent = { onCollapse ->
                 SessionsSideDrawer(
                     visible = true,
+                    remoteWatchEnabled = visible,
                     sessions = normalSessions,
                     botSessions = botSessions,
                     botSessionGroups = botSessionGroups,
@@ -146,7 +151,7 @@ fun ChatNavigationDrawer(
                             onDismiss(); onOpenRemoteHome(group.serverId)
                         }
                     },
-                    onWatchRemoteProjects = viewModel::watchRemoteProjects,
+                    onSetWatchedRemoteProjects = viewModel::setWatchedRemoteProjects,
                     onDelete = viewModel::deleteSession,
                     onRename = viewModel::renameSession,
                     onCollapse = onCollapse,

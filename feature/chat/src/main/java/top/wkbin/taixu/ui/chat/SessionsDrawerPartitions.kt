@@ -44,6 +44,25 @@ internal fun buildDrawerPartitions(
     )
 }
 
+/**
+ * 侧栏远程 SFTP 订阅集合：仅抽屉可见、远程分区展开、且当前展开的在线档案。
+ * 搜索态视为展开全部匹配组；关闭/折叠必须得到空集以停掉 15s 轮询。
+ */
+internal fun watchedRemoteProjectIds(
+    drawerVisible: Boolean,
+    remotesSectionExpanded: Boolean,
+    searchActive: Boolean,
+    expandedGroupKeys: Set<String>,
+    groups: List<RemoteServerSessionGroup>,
+): Set<String> {
+    if (!drawerVisible || !remotesSectionExpanded) return emptySet()
+    val expanded = if (searchActive) groups.map { it.groupKey }.toSet() else expandedGroupKeys
+    return groups.asSequence()
+        .filter { it.profilePresent && it.groupKey in expanded }
+        .map { it.serverId }
+        .toSet()
+}
+
 internal fun initialExpandedServers(
     remoteGroups: List<RemoteServerSessionGroup>,
     currentSessionId: String,

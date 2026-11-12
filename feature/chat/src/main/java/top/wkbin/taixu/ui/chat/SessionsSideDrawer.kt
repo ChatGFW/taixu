@@ -44,6 +44,8 @@ import top.wkbin.taixu.ui.components.RuntimeTextButton
 @Composable
 internal fun SessionsSideDrawer(
     visible: Boolean,
+    /** 抽屉真正打开时才订阅远程项目；关闭后必须空集以停 SSH/SFTP 轮询。 */
+    remoteWatchEnabled: Boolean = visible,
     sessions: List<HarnessSessionEntity>,
     botSessions: List<HarnessSessionEntity> = emptyList(),
     botSessionGroups: Map<String, BotSessionGroupRef> = emptyMap(),
@@ -63,7 +65,7 @@ internal fun SessionsSideDrawer(
     onCreateInRemoteProject: (RemoteServerSessionGroup, RemoteProjectBucket) -> Unit = { _, _ -> },
     onCreateTerminalOnServer: (RemoteServerSessionGroup) -> Unit = {},
     onOpenRemoteHome: (RemoteServerSessionGroup) -> Unit = {},
-    onWatchRemoteProjects: (String) -> Unit = {},
+    onSetWatchedRemoteProjects: (Set<String>) -> Unit = {},
     onDelete: (String) -> Unit,
     onRename: (String, String) -> Unit,
     onCollapse: (() -> Unit)? = null, navigationContent: @Composable () -> Unit = {},
@@ -207,6 +209,7 @@ internal fun SessionsSideDrawer(
                     remoteGroups = remoteGroups,
                     remotesExpanded = remotesExpanded,
                     searchRemotesExpanded = searchRemotesExpanded,
+                    watchEnabled = remoteWatchEnabled,
                     onToggleSection = {
                         if (query.isBlank()) remotesExpanded = !remotesExpanded
                         else searchRemotesExpanded = !searchRemotesExpanded
@@ -224,7 +227,7 @@ internal fun SessionsSideDrawer(
                             if (expandedRemoteProjects.contains(key)) expandedRemoteProjects - key
                             else expandedRemoteProjects + key
                     },
-                    onWatchProjects = onWatchRemoteProjects,
+                    onSetWatchedProjects = onSetWatchedRemoteProjects,
                     onSwitch = onSwitch,
                     onCreateOnServer = onCreateOnServer,
                     onCreateInProject = onCreateInRemoteProject,

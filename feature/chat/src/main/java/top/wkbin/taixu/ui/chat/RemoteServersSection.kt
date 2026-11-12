@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +37,7 @@ internal fun SessionsDrawerRemoteServers(
     remoteGroups: List<RemoteServerSessionGroup>,
     remotesExpanded: Boolean,
     searchRemotesExpanded: Boolean,
+    watchEnabled: Boolean,
     onToggleSection: () -> Unit,
     currentSessionId: String,
     sessionRunStates: Map<String, SessionRunState>,
@@ -44,7 +46,7 @@ internal fun SessionsDrawerRemoteServers(
     remoteProjectsByServer: Map<String, SessionWorkspaceCatalogState>,
     onToggleExpand: (String) -> Unit,
     onToggleProjectExpand: (String) -> Unit,
-    onWatchProjects: (String) -> Unit,
+    onSetWatchedProjects: (Set<String>) -> Unit,
     onSwitch: (String) -> Unit,
     onCreateOnServer: (RemoteServerSessionGroup) -> Unit,
     onCreateInProject: (RemoteServerSessionGroup, RemoteProjectBucket) -> Unit,
@@ -54,10 +56,20 @@ internal fun SessionsDrawerRemoteServers(
     onDelete: (String) -> Unit,
     onTogglePin: (String, Boolean) -> Unit,
 ) {
+    val sectionExpanded = if (query.isBlank()) remotesExpanded else searchRemotesExpanded
+    val watchedIds = watchedRemoteProjectIds(
+        drawerVisible = watchEnabled,
+        remotesSectionExpanded = sectionExpanded,
+        searchActive = query.isNotBlank(),
+        expandedGroupKeys = expandedServers,
+        groups = remoteGroups,
+    )
+    LaunchedEffect(watchedIds) { onSetWatchedProjects(watchedIds) }
+    DisposableEffect(Unit) { onDispose { onSetWatchedProjects(emptySet()) } }
     if (query.isNotBlank() && remoteGroups.isEmpty()) return
     RemoteServersSection(
         serverGroups = remoteGroups,
-        sectionExpanded = if (query.isBlank()) remotesExpanded else searchRemotesExpanded,
+        sectionExpanded = sectionExpanded,
         onToggleSection = onToggleSection,
         currentSessionId = currentSessionId,
         sessionRunStates = sessionRunStates,
@@ -66,7 +78,6 @@ internal fun SessionsDrawerRemoteServers(
         remoteProjectsByServer = remoteProjectsByServer,
         onToggleExpand = onToggleExpand,
         onToggleProjectExpand = onToggleProjectExpand,
-        onWatchProjects = onWatchProjects,
         onSwitch = onSwitch,
         onCreateOnServer = onCreateOnServer,
         onCreateInProject = onCreateInProject,
@@ -91,7 +102,6 @@ internal fun RemoteServersSection(
     remoteProjectsByServer: Map<String, SessionWorkspaceCatalogState>,
     onToggleExpand: (String) -> Unit,
     onToggleProjectExpand: (String) -> Unit,
-    onWatchProjects: (String) -> Unit,
     onSwitch: (String) -> Unit,
     onCreateOnServer: (RemoteServerSessionGroup) -> Unit,
     onCreateInProject: (RemoteServerSessionGroup, RemoteProjectBucket) -> Unit,
@@ -126,9 +136,6 @@ internal fun RemoteServersSection(
         } else {
             serverGroups.forEach { group ->
                 val isExpanded = expandedServers.contains(group.groupKey)
-                LaunchedEffect(isExpanded, group.groupKey, group.profilePresent) {
-                    if (isExpanded && group.profilePresent) onWatchProjects(group.serverId)
-                }
                 val catalog = remoteProjectsByServer[group.serverId]
                 val newTaskLabel = stringResource(R.string.chat_drawer_new_task)
                 val newTerminalLabel = stringResource(R.string.chat_drawer_new_remote_terminal)
