@@ -126,5 +126,28 @@ class RemoteSessionPartitionTest {
         assertEquals(1, groups.size)
         assertEquals("a", groups.single().serverId)
         assertEquals("Alpha", groups.single().serverName)
+        assertFalse(groups.single().profilePresent)
+        assertEquals(orphanRemoteGroupKey(serverA), groups.single().groupKey)
+    }
+
+    @Test
+    fun `edited host keeps old sessions under snapshot label not live profile`() {
+        val oldSession = session(
+            "old",
+            "/workspace",
+            20,
+            SessionExecutionTarget(serverA.distributionId, "/workspace", serverA),
+        )
+        val edited = serverA.copy(host = "new.test", fingerprint = "SHA256:new")
+        val groups = partitionRemoteSessions(listOf(oldSession), listOf(edited))
+        assertEquals(2, groups.size)
+        val live = groups.single { it.profilePresent }
+        assertEquals(edited.host, live.hostLabel.substringAfter('@'))
+        assertTrue(live.sessions.isEmpty())
+        assertEquals(edited.id, live.serverId)
+        val stale = groups.single { !it.profilePresent }
+        assertEquals(listOf("old"), stale.sessions.map { it.id })
+        assertEquals("root@a.test", stale.hostLabel)
+        assertEquals(orphanRemoteGroupKey(serverA), stale.groupKey)
     }
 }

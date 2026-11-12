@@ -532,23 +532,9 @@ class ChatViewModel(
 
     val workspaceCatalog = workspaceCatalogSource.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SessionWorkspaceCatalogState())
     val workspaces = workspaceCatalog.map { it.projects }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    /** 侧边栏展开服务器时按需订阅的远程项目目录（不改全局主系统）。 */
-    private val remoteProjectRequests = MutableStateFlow<Set<String>>(emptySet())
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val remoteProjectsByServer: StateFlow<Map<String, SessionWorkspaceCatalogState>> =
-        remoteProjectRequests.flatMapLatest { ids ->
-            if (ids.isEmpty()) flowOf(emptyMap())
-            else combine(ids.map { id -> workspaceCatalogSource.observeServer(id).map { id to it } }) { pairs ->
-                pairs.toMap()
-            }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
-
-    fun watchRemoteProjects(serverId: String) {
-        if (serverId.isBlank()) return
-        remoteProjectRequests.update { it + serverId }
-    }
-
+    private val remoteSessions = ChatRemoteSessionSupport(viewModelScope, workspaceCatalogSource, terminalSessionManager) { _notice.value = it }
+    val remoteProjectsByServer = remoteSessions.remoteProjectsByServer
+    fun watchRemoteProjects(serverId: String) = remoteSessions.watchRemoteProjects(serverId)
     /** 思考过程块是否默认展开（持久化，重启后保留）。 */
     val thinkingExpanded: StateFlow<Boolean> = settingsDataStore.thinkingExpanded
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -1158,50 +1144,11 @@ class ChatViewModel(
 
     fun clearError() { sessionDeletionFeedback.clear(); harnessLoop.clearError() }
 
-    fun createSession(title: String = "", workspace: String = "", projectType: String = "", distribution: String? = null) {
-        sessionStartup.select(viewModelScope) {
-            try {
-                when {
-                    distribution == null -> workspaceCatalogSource.validate(workspaceCatalog.value, workspace)
-                    distribution.startsWith("ssh:") -> {
-                        val serverId = distribution.removePrefix("ssh:")
-                        val catalog = remoteProjectsByServer.value[serverId]
-                        if (catalog != null && workspace.isNotBlank() && workspace != "/workspace") {
-                            workspaceCatalogSource.validateRemote(catalog, serverId, workspace)
-                        }
-                    }
-                }
-                harnessLoop.newSession(
-                    title.trim().ifBlank { context.getString(R.string.chat_new_session) },
-                    workspace,
-                    projectType,
-                    distribution,
-                )
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _notice.value = e.message ?: "会话创建失败，请检查执行环境"
-            }
-        }
+    fun createSession(title: String = "", workspace: String = "", projectType: String = "", distribution: String? = null) = sessionStartup.select(viewModelScope) {
+        remoteSessions.createSession(title, workspace, projectType, distribution, workspaceCatalog.value, context.getString(R.string.chat_new_session)) { t, w, p, d -> harnessLoop.newSession(t, w, p, d) }
     }
-
-    /** 在指定 SSH 档案上新建终端；不改全局主系统。 */
-    fun createRemoteTerminal(distribution: String, label: String = "") {
-        viewModelScope.launch {
-            runCatching {
-                val name = label.trim().ifBlank {
-                    remoteProjectsByServer.value[distribution.removePrefix("ssh:")]?.server?.name
-                        ?: distribution.removePrefix("ssh:")
-                }
-                terminalSessionManager.createSession(
-                    label = name,
-                    workingDirectory = "/root",
-                    distributionId = distribution,
-                )
-            }.onFailure { _notice.value = it.message ?: "远程终端创建失败" }
-        }
-    }
-
+    fun createRemoteTerminal(distribution: String, label: String = "", onResult: (Boolean) -> Unit = {}) = remoteSessions.createRemoteTerminal(distribution, label, onResult)
+    fun showNotice(message: String) { _notice.value = message }
     fun switchSession(id: String) = sessionStartup.select(viewModelScope) { harnessLoop.loadSession(id) }
 
     /** 跨会话消息全文搜索（会话侧栏「消息命中」分组，防抖在 UI 层）；空词返回空。 */

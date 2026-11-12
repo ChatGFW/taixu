@@ -21,20 +21,14 @@ import top.yukonga.miuix.kmp.basic.Text
 
 @Composable
 fun HomeScreen(
-    onNavigate: (MainDestination) -> Unit,
-    onOpenTerminal: () -> Unit,
-    onOpenToolCenter: () -> Unit = {},
-    onOpenRemoteHome: (serverId: String) -> Unit = {},
-    viewModel: HomeViewModel? = null,
+    onNavigate: (MainDestination) -> Unit, onOpenTerminal: () -> Unit, onOpenToolCenter: () -> Unit = {},
+    onOpenRemoteHome: (serverId: String) -> Unit = {}, viewModel: HomeViewModel? = null,
     onBack: () -> Unit = { onNavigate(MainDestination.Agent) },
 ) {
     // 主系统恒为本机；远程概览经 onOpenRemoteHome 独立打开。
     LocalHomeScreen(
-        onNavigate = onNavigate,
-        onOpenTerminal = onOpenTerminal,
-        onOpenToolCenter = onOpenToolCenter,
-        onOpenRemoteHome = onOpenRemoteHome,
-        viewModel = viewModel ?: org.koin.compose.viewmodel.koinViewModel(),
+        onNavigate = onNavigate, onOpenTerminal = onOpenTerminal, onOpenToolCenter = onOpenToolCenter,
+        onOpenRemoteHome = onOpenRemoteHome, viewModel = viewModel ?: org.koin.compose.viewmodel.koinViewModel(),
         onBack = onBack,
     )
 }

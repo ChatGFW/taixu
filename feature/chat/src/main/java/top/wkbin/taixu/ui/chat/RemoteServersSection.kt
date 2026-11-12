@@ -29,6 +29,55 @@ import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Surface
 import top.yukonga.miuix.kmp.basic.Text
 
+/** 侧栏远程分区入口：搜索态自动展开全部服务器。 */
+@Composable
+internal fun SessionsDrawerRemoteServers(
+    query: String,
+    remoteGroups: List<RemoteServerSessionGroup>,
+    remotesExpanded: Boolean,
+    searchRemotesExpanded: Boolean,
+    onToggleSection: () -> Unit,
+    currentSessionId: String,
+    sessionRunStates: Map<String, SessionRunState>,
+    expandedServers: Set<String>,
+    expandedRemoteProjects: Set<String>,
+    remoteProjectsByServer: Map<String, SessionWorkspaceCatalogState>,
+    onToggleExpand: (String) -> Unit,
+    onToggleProjectExpand: (String) -> Unit,
+    onWatchProjects: (String) -> Unit,
+    onSwitch: (String) -> Unit,
+    onCreateOnServer: (RemoteServerSessionGroup) -> Unit,
+    onCreateInProject: (RemoteServerSessionGroup, RemoteProjectBucket) -> Unit,
+    onCreateTerminal: (RemoteServerSessionGroup) -> Unit,
+    onOpenRemoteHome: (RemoteServerSessionGroup) -> Unit,
+    onRename: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onTogglePin: (String, Boolean) -> Unit,
+) {
+    if (query.isNotBlank() && remoteGroups.isEmpty()) return
+    RemoteServersSection(
+        serverGroups = remoteGroups,
+        sectionExpanded = if (query.isBlank()) remotesExpanded else searchRemotesExpanded,
+        onToggleSection = onToggleSection,
+        currentSessionId = currentSessionId,
+        sessionRunStates = sessionRunStates,
+        expandedServers = if (query.isBlank()) expandedServers else remoteGroups.map { it.groupKey }.toSet(),
+        expandedProjects = expandedRemoteProjects,
+        remoteProjectsByServer = remoteProjectsByServer,
+        onToggleExpand = onToggleExpand,
+        onToggleProjectExpand = onToggleProjectExpand,
+        onWatchProjects = onWatchProjects,
+        onSwitch = onSwitch,
+        onCreateOnServer = onCreateOnServer,
+        onCreateInProject = onCreateInProject,
+        onCreateTerminal = onCreateTerminal,
+        onOpenRemoteHome = onOpenRemoteHome,
+        onRename = onRename,
+        onDelete = onDelete,
+        onTogglePin = onTogglePin,
+    )
+}
+
 /** 远程服务器分区：项目树 + 根会话；可新建对话与远程终端。 */
 @Composable
 internal fun RemoteServersSection(
@@ -76,20 +125,22 @@ internal fun RemoteServersSection(
             }
         } else {
             serverGroups.forEach { group ->
-                val isExpanded = expandedServers.contains(group.serverId)
-                LaunchedEffect(isExpanded, group.serverId) {
-                    if (isExpanded) onWatchProjects(group.serverId)
+                val isExpanded = expandedServers.contains(group.groupKey)
+                LaunchedEffect(isExpanded, group.groupKey, group.profilePresent) {
+                    if (isExpanded && group.profilePresent) onWatchProjects(group.serverId)
                 }
                 val catalog = remoteProjectsByServer[group.serverId]
                 val newTaskLabel = stringResource(R.string.chat_drawer_new_task)
                 val newTerminalLabel = stringResource(R.string.chat_drawer_new_remote_terminal)
                 val openHomeLabel = stringResource(R.string.chat_drawer_open_remote_home)
+                val actionTint = if (group.profilePresent) RuntimeTheme.colorScheme.onSurfaceVariant
+                else RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RuntimeTheme.shapes.small)
-                            .clickable { onToggleExpand(group.serverId) }
+                            .clickable { onToggleExpand(group.groupKey) }
                             .padding(start = 8.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -108,7 +159,8 @@ internal fun RemoteServersSection(
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Text(
-                                text = group.hostLabel,
+                                text = if (group.profilePresent) group.hostLabel
+                                else stringResource(R.string.chat_drawer_remote_profile_stale, group.hostLabel),
                                 style = RuntimeTheme.typography.labelSmall,
                                 color = RuntimeTheme.colorScheme.outline,
                                 maxLines = 1,
@@ -126,43 +178,40 @@ internal fun RemoteServersSection(
                             modifier = Modifier
                                 .size(24.dp)
                                 .clip(CircleShape)
-                                .clickable { onOpenRemoteHome(group) }
+                                .then(
+                                    if (group.profilePresent) Modifier.clickable { onOpenRemoteHome(group) }
+                                    else Modifier,
+                                )
                                 .semantics { contentDescription = openHomeLabel },
                             contentAlignment = Alignment.Center,
                         ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Home,
-                                modifier = Modifier.size(14.dp),
-                                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
-                            )
+                            RuntimeIcon(name = RuntimeIconName.Home, modifier = Modifier.size(14.dp), tint = actionTint)
                         }
                         Box(
                             modifier = Modifier
                                 .size(24.dp)
                                 .clip(CircleShape)
-                                .clickable { onCreateTerminal(group) }
+                                .then(
+                                    if (group.profilePresent) Modifier.clickable { onCreateTerminal(group) }
+                                    else Modifier,
+                                )
                                 .semantics { contentDescription = newTerminalLabel },
                             contentAlignment = Alignment.Center,
                         ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Terminal,
-                                modifier = Modifier.size(14.dp),
-                                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
-                            )
+                            RuntimeIcon(name = RuntimeIconName.Terminal, modifier = Modifier.size(14.dp), tint = actionTint)
                         }
                         Box(
                             modifier = Modifier
                                 .size(24.dp)
                                 .clip(CircleShape)
-                                .clickable { onCreateOnServer(group) }
+                                .then(
+                                    if (group.profilePresent) Modifier.clickable { onCreateOnServer(group) }
+                                    else Modifier,
+                                )
                                 .semantics { contentDescription = newTaskLabel },
                             contentAlignment = Alignment.Center,
                         ) {
-                            RuntimeIcon(
-                                name = RuntimeIconName.Plus,
-                                modifier = Modifier.size(14.dp),
-                                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
-                            )
+                            RuntimeIcon(name = RuntimeIconName.Plus, modifier = Modifier.size(14.dp), tint = actionTint)
                         }
                         RuntimeExpandChevron(
                             expanded = isExpanded,
@@ -177,7 +226,14 @@ internal fun RemoteServersSection(
                                 .padding(start = 24.dp, end = 4.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
-                            when {
+                            if (!group.profilePresent) {
+                                Text(
+                                    text = stringResource(R.string.chat_drawer_remote_profile_stale_hint),
+                                    style = RuntimeTheme.typography.labelSmall,
+                                    color = RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                )
+                            } else when {
                                 catalog == null || catalog.loading -> Text(
                                     text = stringResource(R.string.chat_drawer_remote_projects_loading),
                                     style = RuntimeTheme.typography.labelSmall,
@@ -192,7 +248,7 @@ internal fun RemoteServersSection(
                                 )
                             }
                             group.projectBuckets.forEach { bucket ->
-                                val projectKey = "${group.serverId}:${bucket.linuxPath}"
+                                val projectKey = "${group.groupKey}:${bucket.linuxPath}"
                                 val projectExpanded = expandedProjects.contains(projectKey)
                                 RemoteProjectRow(
                                     bucket = bucket,

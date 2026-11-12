@@ -37,21 +37,9 @@ import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 
-private data class DrawerPartitions(
-    val local: SessionPartitionResult,
-    val remotes: List<RemoteServerSessionGroup>,
-    val bots: List<HarnessSessionEntity>,
-    val pinned: List<HarnessSessionEntity>,
-)
-
 /**
  * 会话侧栏：固定搜索与底部功能入口，会话列表独立滚动。
- * - 屏幕左侧展开，含背景遮罩与进退场滑动动画。
- * - 搜索会话标题/工作区，顶部 + 创建新会话，底部展开主功能与插件。
- * - 分区自上而下为「项目」→「远程服务器」→「Bot 会话」→「最近」，统一用名称 + 数量 + 折叠箭头的分区头。
- * - 「项目」展示关联工作区工程，支持展开/折叠与单项目一键「+」新建会话。
- * - 「远程服务器」按连接档案分组，可直接新建绑定该服务器的对话；不切换全局主系统。
- * - 「最近」展示未关联工作区的本机会话，按最近修改时间倒序排列。
+ * 分区：项目 → 远程服务器 → Bot → 最近；远程分组不切换全局主系统。
  */
 @Composable
 internal fun SessionsSideDrawer(
@@ -99,24 +87,9 @@ internal fun SessionsSideDrawer(
     val drawer = remember(
         sessions, botSessions, botSessionGroups, hiddenBotSessionIds, workspaces, remoteServers, projectsByServer, query,
     ) {
-        val term = query.trim()
-        fun HarnessSessionEntity.matches() = term.isEmpty() ||
-            title.contains(term, ignoreCase = true) || workspace.contains(term, ignoreCase = true)
-        val filtered = sessions.filter { it.matches() && it.pinnedAt == 0L }
-        val pinnedMatches = sessions.filter { it.matches() && it.pinnedAt != 0L }.sortedByDescending { it.pinnedAt }
-        val (remoteSessions, localSessions) = filtered.partition(::isRemoteBoundSession)
-        val localPartition = partitionSessions(localSessions, workspaces)
-        val remotes = attachRemoteProjects(partitionRemoteSessions(remoteSessions, remoteServers), projectsByServer)
-        val bots = botSessions.filter { it.matches() && it.id !in hiddenBotSessionIds }
-            // 私有/独立会话默认不进抽屉（Bot 详情页可直达），搜索时才作为历史入口出现。
-            .filter { term.isNotEmpty() || it.id in botSessionGroups }
-            .sortedByDescending { it.updatedAt }
-        DrawerPartitions(
-            local = if (term.isEmpty()) localPartition
-            else localPartition.copy(projectGroups = localPartition.projectGroups.filter { it.sessions.isNotEmpty() }),
-            remotes = if (term.isEmpty()) remotes else remotes.filter { it.sessions.isNotEmpty() || it.projectBuckets.any { b -> b.sessions.isNotEmpty() } },
-            bots = bots,
-            pinned = pinnedMatches,
+        buildDrawerPartitions(
+            sessions, botSessions, botSessionGroups, hiddenBotSessionIds,
+            workspaces, remoteServers, projectsByServer, query,
         )
     }
     val hiddenBotSessions = remember(botSessions, hiddenBotSessionIds) {
@@ -134,18 +107,10 @@ internal fun SessionsSideDrawer(
         mutableStateOf(initialExpanded)
     }
     var expandedServers by rememberSaveable {
-        val initialExpanded = remoteGroups
-            .filter { group -> group.sessions.any { it.id == currentSessionId } }
-            .map { it.serverId }
-            .toSet()
-        mutableStateOf(initialExpanded)
+        mutableStateOf(initialExpandedServers(remoteGroups, currentSessionId))
     }
     var expandedRemoteProjects by rememberSaveable {
-        val initial = remoteGroups.flatMap { group ->
-            group.projectBuckets.filter { bucket -> bucket.sessions.any { it.id == currentSessionId } }
-                .map { "${group.serverId}:${it.linuxPath}" }
-        }.toSet()
-        mutableStateOf(initial)
+        mutableStateOf(initialExpandedRemoteProjects(remoteGroups, currentSessionId))
     }
     val attentionSessions = remember(sessions, botSessions, sessionRunStates) {
         (sessions + botSessions)
@@ -237,39 +202,38 @@ internal fun SessionsSideDrawer(
                     )
                 }
 
-                if (query.isBlank() || remoteGroups.isNotEmpty()) {
-                    RemoteServersSection(
-                        serverGroups = remoteGroups,
-                        sectionExpanded = if (query.isBlank()) remotesExpanded else searchRemotesExpanded,
-                        onToggleSection = {
-                            if (query.isBlank()) remotesExpanded = !remotesExpanded
-                            else searchRemotesExpanded = !searchRemotesExpanded
-                        },
-                        currentSessionId = currentSessionId,
-                        sessionRunStates = sessionRunStates,
-                        expandedServers = if (query.isBlank()) expandedServers
-                        else remoteGroups.map { it.serverId }.toSet(),
-                        expandedProjects = expandedRemoteProjects,
-                        remoteProjectsByServer = remoteProjectsByServer,
-                        onToggleExpand = { id ->
-                            expandedServers = if (expandedServers.contains(id)) expandedServers - id else expandedServers + id
-                        },
-                        onToggleProjectExpand = { key ->
-                            expandedRemoteProjects =
-                                if (expandedRemoteProjects.contains(key)) expandedRemoteProjects - key
-                                else expandedRemoteProjects + key
-                        },
-                        onWatchProjects = onWatchRemoteProjects,
-                        onSwitch = onSwitch,
-                        onCreateOnServer = onCreateOnServer,
-                        onCreateInProject = onCreateInRemoteProject,
-                        onCreateTerminal = onCreateTerminalOnServer,
-                        onOpenRemoteHome = onOpenRemoteHome,
-                        onRename = { id -> renameTargetId = id },
-                        onDelete = { id -> deleteTargetId = id },
-                        onTogglePin = onTogglePin,
-                    )
-                }
+                SessionsDrawerRemoteServers(
+                    query = query,
+                    remoteGroups = remoteGroups,
+                    remotesExpanded = remotesExpanded,
+                    searchRemotesExpanded = searchRemotesExpanded,
+                    onToggleSection = {
+                        if (query.isBlank()) remotesExpanded = !remotesExpanded
+                        else searchRemotesExpanded = !searchRemotesExpanded
+                    },
+                    currentSessionId = currentSessionId,
+                    sessionRunStates = sessionRunStates,
+                    expandedServers = expandedServers,
+                    expandedRemoteProjects = expandedRemoteProjects,
+                    remoteProjectsByServer = remoteProjectsByServer,
+                    onToggleExpand = { id ->
+                        expandedServers = if (expandedServers.contains(id)) expandedServers - id else expandedServers + id
+                    },
+                    onToggleProjectExpand = { key ->
+                        expandedRemoteProjects =
+                            if (expandedRemoteProjects.contains(key)) expandedRemoteProjects - key
+                            else expandedRemoteProjects + key
+                    },
+                    onWatchProjects = onWatchRemoteProjects,
+                    onSwitch = onSwitch,
+                    onCreateOnServer = onCreateOnServer,
+                    onCreateInProject = onCreateInRemoteProject,
+                    onCreateTerminal = onCreateTerminalOnServer,
+                    onOpenRemoteHome = onOpenRemoteHome,
+                    onRename = { id -> renameTargetId = id },
+                    onDelete = { id -> deleteTargetId = id },
+                    onTogglePin = onTogglePin,
+                )
 
                 if (botMatches.isNotEmpty()) {
                     BotSessionsSection(

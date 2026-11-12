@@ -65,10 +65,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
-import top.wkbin.taixu.core.datastore.RemoteServerRepository
-import top.wkbin.taixu.core.model.RemoteServer
 import top.wkbin.taixu.core.model.DoctorItem
 import top.wkbin.taixu.core.model.DoctorReport
 import top.wkbin.taixu.core.model.DoctorStatus
@@ -122,15 +119,12 @@ private fun warningStatusColor(): Color =
 internal fun LocalHomeScreen(
     onNavigate: (MainDestination) -> Unit,
     onOpenTerminal: () -> Unit,
-    onOpenToolCenter: () -> Unit = {},
-    onOpenRemoteHome: (serverId: String) -> Unit = {},
+    onOpenToolCenter: () -> Unit = {}, onOpenRemoteHome: (serverId: String) -> Unit = {},
     viewModel: HomeViewModel? = previewOrNull { koinViewModel() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) },
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var lastAutoDoctorCheckAt by remember { mutableLongStateOf(0L) }
-    val remoteServers by koinInject<RemoteServerRepository>().servers.collectAsStateWithLifecycle()
-
     val state by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(RuntimeState.Ready)
     val metrics by viewModel?.metrics?.collectAsStateWithLifecycle() ?: previewStateOf(SystemResourceMetrics())
     val doctorReport by viewModel?.doctorReport?.collectAsStateWithLifecycle() ?: previewStateOf(null)
@@ -286,13 +280,7 @@ internal fun LocalHomeScreen(
                 onOpenToolCenter = onOpenToolCenter,
             )
 
-            if (remoteServers.isNotEmpty()) {
-                RemoteServersOverviewCard(
-                    servers = remoteServers,
-                    onOpen = onOpenRemoteHome,
-                )
-            }
-
+            HomeRemoteServersSection(onOpen = onOpenRemoteHome)
             androidx.compose.foundation.layout.FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -818,52 +806,6 @@ private fun joinQqGroup(context: Context) {
 }
 
 /** 运行时引擎主状态卡片 */
-@Composable
-private fun RemoteServersOverviewCard(
-    servers: List<RemoteServer>,
-    onOpen: (serverId: String) -> Unit,
-) {
-    RuntimeCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RuntimeTheme.shapes.extraLarge,
-        containerColor = RuntimeTheme.colorScheme.surfaceContainer,
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("远程服务器", style = RuntimeTheme.typography.titleMedium)
-            Text(
-                "查看指标不切换本机主系统；也可在聊天侧边栏按服务器新建对话。",
-                style = RuntimeTheme.typography.bodySmall,
-                color = RuntimeTheme.colorScheme.onSurfaceVariant,
-            )
-            servers.forEach { server ->
-                RuntimeCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { onOpen(server.id) },
-                    shape = RuntimeTheme.shapes.large,
-                    containerColor = RuntimeTheme.colorScheme.surfaceContainerHigh,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        RuntimeIcon(RuntimeIconName.Server, Modifier.size(22.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(server.name, style = RuntimeTheme.typography.titleSmall, maxLines = 1)
-                            Text(
-                                "${server.username}@${server.host}:${server.port}",
-                                style = RuntimeTheme.typography.bodySmall,
-                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                            )
-                        }
-                        RuntimeIcon(RuntimeIconName.ChevronRight, Modifier.size(18.dp), RuntimeTheme.colorScheme.outline)
-                    }
-                }
-            }
-        }
-    }
-}
-
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun RuntimeEngineStatusCard(

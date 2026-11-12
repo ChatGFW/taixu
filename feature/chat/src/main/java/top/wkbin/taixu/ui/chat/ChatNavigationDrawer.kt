@@ -13,6 +13,7 @@ import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.core.datastore.hiddenBotSessionIdsPreference
 import top.wkbin.taixu.core.datastore.setBotSessionHidden
+import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.feature.components.R as ComponentsR
 import top.wkbin.taixu.ui.components.AppNavigationSection
 import top.wkbin.taixu.ui.components.LocalPluginDestinationActive
@@ -113,19 +114,37 @@ fun ChatNavigationDrawer(
                         onNavigate(MainDestination.Agent); onDismiss()
                     },
                     onCreateOnServer = { group ->
-                        viewModel.createSession("", "/workspace", "", group.distribution)
-                        onNavigate(MainDestination.Agent); onDismiss()
+                        if (!group.profilePresent) {
+                            viewModel.showNotice(context.getString(R.string.chat_drawer_remote_profile_unavailable))
+                        } else {
+                            viewModel.createSession("", "/workspace", "", group.distribution)
+                            onNavigate(MainDestination.Agent); onDismiss()
+                        }
                     },
                     onCreateInRemoteProject = { group, bucket ->
-                        viewModel.createSession("", bucket.linuxPath, "", group.distribution)
-                        onNavigate(MainDestination.Agent); onDismiss()
+                        if (!group.profilePresent) {
+                            viewModel.showNotice(context.getString(R.string.chat_drawer_remote_profile_unavailable))
+                        } else {
+                            viewModel.createSession("", bucket.linuxPath, "", group.distribution)
+                            onNavigate(MainDestination.Agent); onDismiss()
+                        }
                     },
                     onCreateTerminalOnServer = { group ->
-                        viewModel.createRemoteTerminal(group.distribution, group.serverName)
-                        onDismiss(); onOpenTerminal()
+                        if (!group.profilePresent) {
+                            viewModel.showNotice(context.getString(R.string.chat_drawer_remote_profile_unavailable))
+                        } else {
+                            viewModel.createRemoteTerminal(group.distribution, group.serverName) { ok ->
+                                onDismiss()
+                                if (ok) onOpenTerminal()
+                            }
+                        }
                     },
                     onOpenRemoteHome = { group ->
-                        onDismiss(); onOpenRemoteHome(group.serverId)
+                        if (!group.profilePresent) {
+                            viewModel.showNotice(context.getString(R.string.chat_drawer_remote_profile_unavailable))
+                        } else {
+                            onDismiss(); onOpenRemoteHome(group.serverId)
+                        }
                     },
                     onWatchRemoteProjects = viewModel::watchRemoteProjects,
                     onDelete = viewModel::deleteSession,

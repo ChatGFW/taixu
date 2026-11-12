@@ -26,7 +26,6 @@ import top.wkbin.taixu.ui.chat.ChatNavigationDrawer
 import top.wkbin.taixu.ui.developer.DeveloperScreen
 import top.wkbin.taixu.ui.developer.AdbLogcatScreen
 import top.wkbin.taixu.ui.home.HomeScreen
-import top.wkbin.taixu.ui.home.RemoteHomeScreen
 import top.wkbin.taixu.ui.settings.AgentSettingsScreen
 import top.wkbin.taixu.ui.settings.ModelEditorScreen
 import top.wkbin.taixu.ui.settings.ModelProfilesScreen
@@ -190,19 +189,11 @@ fun TaiXuNavHost(
                         onNavigate = ::navigateMain, onBack = { if (activeStack.size > 1) popBack() else navigateMain(MainDestination.Agent) },
                         onOpenTerminal = { activeStack.push(HomeDestination, TerminalDestination()) },
                         onOpenToolCenter = { activeStack.push(HomeDestination, ToolCenterDestination) },
-                        onOpenRemoteHome = { serverId -> activeStack.push(HomeDestination, RemoteHomeDestination(serverId)) },
+                        onOpenRemoteHome = { activeStack.openRemoteHome(it) },
                     )
                 }
             }
-            entry<RemoteHomeDestination> { destination ->
-                GuardedEntry(destination) {
-                    RemoteHomeScreen(
-                        serverId = destination.serverId,
-                        onNavigate = ::navigateMain,
-                        onBack = ::popBack,
-                    )
-                }
-            }
+            entry<RemoteHomeDestination> { d -> GuardedEntry(d) { RemoteHomeRoute(d.serverId, ::navigateMain, ::popBack) } }
             entry<AgentDestination> {
                 GuardedEntry(AgentDestination) {
                     LaunchedEffect(pendingHealingTask) {
@@ -470,17 +461,7 @@ fun TaiXuNavHost(
                     SponsorScreen(onBack = ::popBack)
                 }
             }
-            entry<DistroManagementDestination> {
-                GuardedEntry(DistroManagementDestination) {
-                    DistroManagementScreen(
-                        onBack = ::popBack,
-                        onOpenRemoteMetrics = { serverId ->
-                            activeStack.push(DistroManagementDestination, RemoteHomeDestination(serverId))
-                        },
-                        viewModel = settingsViewModel,
-                    )
-                }
-            }
+            entry<DistroManagementDestination> { GuardedEntry(DistroManagementDestination) { DistroManagementScreen(onBack = ::popBack, onOpenRemoteMetrics = { activeStack.openRemoteHome(it) }, viewModel = settingsViewModel) } }
             entry<AgentSettingsDestination> {
                 GuardedEntry(AgentSettingsDestination) {
                     AgentSettingsScreen(
@@ -676,7 +657,7 @@ fun TaiXuNavHost(
             onNewSession = { showNewSession = true }, onDismissNewSession = { showNewSession = false },
             onNavigate = ::navigateMain, onOpenTerminal = { activeStack.pushRaw(TerminalDestination()) },
             onOpenTools = { activeStack.pushRaw(ToolCenterDestination) },
-            onOpenRemoteHome = { serverId -> activeStack.pushRaw(RemoteHomeDestination(serverId)) },
+            onOpenRemoteHome = { activeStack.openRemoteHome(it) },
         ) {
             Surface(modifier = Modifier.fillMaxSize(), color = RuntimeTheme.colorScheme.background) {
                 NavDisplay(

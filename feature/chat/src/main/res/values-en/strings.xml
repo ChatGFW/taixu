@@ -120,6 +120,9 @@
     <string name="chat_drawer_remote_projects_loading">Loading remote projects…</string>
     <string name="chat_drawer_new_remote_terminal">New terminal on this server</string>
     <string name="chat_drawer_open_remote_home">Open server overview</string>
+    <string name="chat_drawer_remote_profile_stale">%1$s · profile stale</string>
+    <string name="chat_drawer_remote_profile_stale_hint">Profile was removed or the host changed. History only; execution still rejects mismatched snapshots.</string>
+    <string name="chat_drawer_remote_profile_unavailable">Remote profile was removed or changed; create a new session</string>
     <string name="chat_drawer_bot_sessions">Bot sessions</string>
     <string name="chat_drawer_attention">%1$d sessions need attention</string>
     <string name="chat_hide_session">Hide session</string>
