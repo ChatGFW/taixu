@@ -189,9 +189,11 @@ fun TaiXuNavHost(
                         onNavigate = ::navigateMain, onBack = { if (activeStack.size > 1) popBack() else navigateMain(MainDestination.Agent) },
                         onOpenTerminal = { activeStack.push(HomeDestination, TerminalDestination()) },
                         onOpenToolCenter = { activeStack.push(HomeDestination, ToolCenterDestination) },
+                        onOpenRemoteHome = { activeStack.openRemoteHome(it) },
                     )
                 }
             }
+            entry<RemoteHomeDestination> { d -> GuardedEntry(d) { RemoteHomeRoute(d.serverId, ::navigateMain, ::popBack) } }
             entry<AgentDestination> {
                 GuardedEntry(AgentDestination) {
                     LaunchedEffect(pendingHealingTask) {
@@ -459,14 +461,7 @@ fun TaiXuNavHost(
                     SponsorScreen(onBack = ::popBack)
                 }
             }
-            entry<DistroManagementDestination> {
-                GuardedEntry(DistroManagementDestination) {
-                    DistroManagementScreen(
-                        onBack = ::popBack,
-                        viewModel = settingsViewModel,
-                    )
-                }
-            }
+            entry<DistroManagementDestination> { GuardedEntry(DistroManagementDestination) { DistroManagementScreen(onBack = ::popBack, onOpenRemoteMetrics = { activeStack.openRemoteHome(it) }, viewModel = settingsViewModel) } }
             entry<AgentSettingsDestination> {
                 GuardedEntry(AgentSettingsDestination) {
                     AgentSettingsScreen(
@@ -662,6 +657,7 @@ fun TaiXuNavHost(
             onNewSession = { showNewSession = true }, onDismissNewSession = { showNewSession = false },
             onNavigate = ::navigateMain, onOpenTerminal = { activeStack.pushRaw(TerminalDestination()) },
             onOpenTools = { activeStack.pushRaw(ToolCenterDestination) },
+            onOpenRemoteHome = { activeStack.openRemoteHome(it) },
         ) {
             Surface(modifier = Modifier.fillMaxSize(), color = RuntimeTheme.colorScheme.background) {
                 NavDisplay(

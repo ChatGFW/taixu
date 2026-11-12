@@ -64,7 +64,7 @@ import top.yukonga.miuix.kmp.basic.SnackbarHostState
  */
 @Composable
 fun DistroManagementScreen(
-    onBack: () -> Unit,
+    onBack: () -> Unit, onOpenRemoteMetrics: (serverId: String) -> Unit = {},
     viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
     val installedDistros by viewModel?.installedDistros?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
@@ -99,7 +99,7 @@ fun DistroManagementScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) {
         item {
-            SystemEnvironmentPicker(localCount = installedDistros.size, onInstallLocal = { showInstallDialog = true }, viewModel = remoteViewModel)
+            SystemEnvironmentPicker(localCount = installedDistros.size, onInstallLocal = { showInstallDialog = true }, onOpenRemoteMetrics = onOpenRemoteMetrics, viewModel = remoteViewModel)
         }
 
         item { Text("本地 (${installedDistros.size})", style = RuntimeTheme.typography.labelLarge, color = RuntimeTheme.colorScheme.primary) }

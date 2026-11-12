@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 sealed interface AppDestination : NavKey
 
 @Serializable data object HomeDestination : AppDestination
+@Serializable data class RemoteHomeDestination(val serverId: String) : AppDestination
 @Serializable data object AgentDestination : AppDestination
 @Serializable data object WorkspaceDestination : AppDestination
 @Serializable data object WorkshopSettingsDestination : AppDestination

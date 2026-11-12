@@ -119,13 +119,12 @@ private fun warningStatusColor(): Color =
 internal fun LocalHomeScreen(
     onNavigate: (MainDestination) -> Unit,
     onOpenTerminal: () -> Unit,
-    onOpenToolCenter: () -> Unit = {},
+    onOpenToolCenter: () -> Unit = {}, onOpenRemoteHome: (serverId: String) -> Unit = {},
     viewModel: HomeViewModel? = previewOrNull { koinViewModel() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) },
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var lastAutoDoctorCheckAt by remember { mutableLongStateOf(0L) }
-
     val state by viewModel?.runtimeState?.collectAsStateWithLifecycle() ?: previewStateOf(RuntimeState.Ready)
     val metrics by viewModel?.metrics?.collectAsStateWithLifecycle() ?: previewStateOf(SystemResourceMetrics())
     val doctorReport by viewModel?.doctorReport?.collectAsStateWithLifecycle() ?: previewStateOf(null)
@@ -281,6 +280,7 @@ internal fun LocalHomeScreen(
                 onOpenToolCenter = onOpenToolCenter,
             )
 
+            HomeRemoteServersSection(onOpen = onOpenRemoteHome)
             androidx.compose.foundation.layout.FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),

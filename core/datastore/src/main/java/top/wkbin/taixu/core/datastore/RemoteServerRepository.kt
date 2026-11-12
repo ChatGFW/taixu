@@ -43,11 +43,12 @@ class EncryptedRemoteServerRepository internal constructor(private val file: Ato
             require(it.active == null || it.entries.any { entry -> entry.server.id == it.active })
         } },
     ) else RemoteArchiveLoad(Snapshot(), null)
-    private var snapshot: Snapshot = loaded.snapshot ?: Snapshot()
+    // Primary execution is always local PRoot; historical remote primary is cleared on load.
+    private var snapshot: Snapshot = normalizePrimaryLocal(loaded.snapshot ?: Snapshot(), persist = loaded.error == null)
     private val errorState = MutableStateFlow(loaded.error)
     override val configurationError: StateFlow<String?> = errorState
     private val serverState = MutableStateFlow(snapshot.entries.map { it.server })
-    private val activeState = MutableStateFlow(if (loaded.error != null) REMOTE_CONFIGURATION_UNAVAILABLE else snapshot.active)
+    private val activeState = MutableStateFlow(if (loaded.error != null) REMOTE_CONFIGURATION_UNAVAILABLE else null)
     override val servers: StateFlow<List<RemoteServer>> = serverState
     override val activeId: StateFlow<String?> = activeState
 
@@ -62,14 +63,33 @@ class EncryptedRemoteServerRepository internal constructor(private val file: Ato
         server.validate()
         require(server.fingerprint.startsWith("SHA256:")) { "请先验证服务器主机指纹" }
         require(credentials.secret.isNotBlank()) { "请输入密码或私钥" }
-        copy(entries = entries.filterNot { it.server.id == server.id } + Entry(server, credentials))
+        copy(entries = entries.filterNot { it.server.id == server.id } + Entry(server, credentials), active = null)
     }
+    /** Only local primary is allowed (`id == null`). Remote chats bind per session from the sidebar. */
     override suspend fun select(id: String?) = mutate(recover = id == null) {
-        require(id == null || entries.any { it.server.id == id }) { "服务器不存在" }
-        copy(active = id)
+        require(id == null) { "主系统固定为本机；请在聊天侧边栏为服务器新建对话" }
+        copy(active = null)
     }
     override suspend fun remove(id: String) = mutate {
-        copy(entries = entries.filterNot { it.server.id == id }, active = active.takeUnless { it == id })
+        copy(entries = entries.filterNot { it.server.id == id }, active = null)
+    }
+    private fun normalizePrimaryLocal(source: Snapshot, persist: Boolean): Snapshot {
+        if (source.active == null) return source
+        val cleared = source.copy(active = null)
+        if (persist) runCatching { writeSnapshot(cleared) }
+        return cleared
+    }
+    private fun writeSnapshot(next: Snapshot) {
+        val bytes = encrypt(json.encodeToString(Snapshot.serializer(), next)).toByteArray(Charsets.UTF_8)
+        require(bytes.size <= 2 * 1024 * 1024) { "连接存档超过大小上限" }
+        val stream = file.startWrite()
+        try {
+            stream.write(bytes)
+            file.finishWrite(stream)
+        } catch (t: Throwable) {
+            file.failWrite(stream)
+            throw t
+        }
     }
     private suspend fun mutate(recover: Boolean = false, update: Snapshot.() -> Snapshot) = withContext(Dispatchers.IO) {
         mutex.withLock {
@@ -78,16 +98,12 @@ class EncryptedRemoteServerRepository internal constructor(private val file: Ato
                 // An explicit local selection unlocks recovery; preserve the damaged encrypted archive.
                 if (file.baseFile.exists()) file.baseFile.copyTo(File(file.baseFile.path + ".unreadable-${System.nanoTime()}"))
             }
-            val next = snapshot.update()
-            val bytes = encrypt(json.encodeToString(Snapshot.serializer(), next)).toByteArray(Charsets.UTF_8)
-            require(bytes.size <= 2 * 1024 * 1024) { "连接存档超过大小上限" }
-            val stream = file.startWrite()
-            try { stream.write(bytes); file.finishWrite(stream) }
-            catch (t: Throwable) { file.failWrite(stream); throw t }
+            val next = snapshot.update().copy(active = null)
+            writeSnapshot(next)
             snapshot = next
             errorState.value = null
             serverState.value = next.entries.map { it.server }
-            activeState.value = next.active
+            activeState.value = null
         }
     }
 }

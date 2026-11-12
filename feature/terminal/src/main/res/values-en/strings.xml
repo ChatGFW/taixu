@@ -15,7 +15,9 @@
     <string name="terminal_quick_git">Git operations</string>
     <string name="terminal_quick_python">Python environment</string>
     <string name="terminal_new_session">New terminal session</string>
-    <string name="terminal_target_distribution">Target Linux distribution:</string>
+    <string name="terminal_target_distribution">Target environment:</string>
+    <string name="terminal_remote_target_hint">Remote terminals start in the server workspace without switching the local primary system.</string>
+    <string name="terminal_remote_workspace">Server workspace</string>
     <string name="terminal_label">Terminal label:</string>
     <string name="terminal_label_hint">For example: Background build / Git operations</string>
     <string name="terminal_initial_cwd">Initial working directory (CWD):</string>

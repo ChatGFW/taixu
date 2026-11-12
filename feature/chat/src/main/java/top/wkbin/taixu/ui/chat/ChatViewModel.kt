@@ -532,6 +532,9 @@ class ChatViewModel(
 
     val workspaceCatalog = workspaceCatalogSource.observe().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SessionWorkspaceCatalogState())
     val workspaces = workspaceCatalog.map { it.projects }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private val remoteSessions = ChatRemoteSessionSupport(viewModelScope, workspaceCatalogSource, terminalSessionManager) { _notice.value = it }
+    val remoteProjectsByServer = remoteSessions.remoteProjectsByServer
+    fun setWatchedRemoteProjects(serverIds: Set<String>) = remoteSessions.setWatchedRemoteProjects(serverIds)
     /** 思考过程块是否默认展开（持久化，重启后保留）。 */
     val thinkingExpanded: StateFlow<Boolean> = settingsDataStore.thinkingExpanded
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -1141,14 +1144,11 @@ class ChatViewModel(
 
     fun clearError() { sessionDeletionFeedback.clear(); harnessLoop.clearError() }
 
-    fun createSession(title: String = "", workspace: String = "", projectType: String = "") {
-        sessionStartup.select(viewModelScope) {
-            try { workspaceCatalogSource.validate(workspaceCatalog.value, workspace); harnessLoop.newSession(title.trim().ifBlank { context.getString(R.string.chat_new_session) }, workspace, projectType) }
-            catch (e: kotlinx.coroutines.CancellationException) { throw e }
-            catch (e: Exception) { _notice.value = e.message ?: "会话创建失败，请检查执行环境" }
-        }
+    fun createSession(title: String = "", workspace: String = "", projectType: String = "", distribution: String? = null) = sessionStartup.select(viewModelScope) {
+        remoteSessions.createSession(title, workspace, projectType, distribution, workspaceCatalog.value, context.getString(R.string.chat_new_session)) { t, w, p, d -> harnessLoop.newSession(t, w, p, d) }
     }
-
+    fun createRemoteTerminal(distribution: String, label: String = "", onResult: (Boolean) -> Unit = {}) = remoteSessions.createRemoteTerminal(distribution, label, onResult)
+    fun showNotice(message: String) { _notice.value = message }
     fun switchSession(id: String) = sessionStartup.select(viewModelScope) { harnessLoop.loadSession(id) }
 
     /** 跨会话消息全文搜索（会话侧栏「消息命中」分组，防抖在 UI 层）；空词返回空。 */
