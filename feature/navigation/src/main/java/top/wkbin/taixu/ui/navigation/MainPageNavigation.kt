@@ -36,3 +36,14 @@ internal fun MutableList<NavKey>.openSettingsPath(vararg pages: NavKey) {
     openMainOverlay(MainDestination.Settings)
     pages.forEach { if (lastOrNull() != it) add(it) }
 }
+
+/** 同一服务器概览只保留一份：已在栈中则弹到该页，避免重复入返回栈。 */
+internal fun MutableList<NavKey>.openRemoteHome(serverId: String) {
+    val target = RemoteHomeDestination(serverId)
+    val existing = indexOfLast { (it as? RemoteHomeDestination)?.serverId == serverId }
+    if (existing >= 0) {
+        while (lastIndex > existing) removeAt(lastIndex)
+        return
+    }
+    if (lastOrNull() != target) add(target)
+}

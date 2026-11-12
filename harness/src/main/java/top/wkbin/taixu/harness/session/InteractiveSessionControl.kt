@@ -29,7 +29,7 @@ interface InteractiveSessionControl : SessionControl, QueuedPromptEditingControl
     fun prepareRewind(sessionId: String, turn: Int, scope: RewindScope): RewindPlan
     suspend fun commitRewind(plan: RewindPlan, workspace: String = ""): RewindResult
     suspend fun undoRewind(sessionId: String, workspace: String = ""): RewindResult?
-    suspend fun newSession(title: String, workspace: String = "", projectType: String = ""): String
+    suspend fun newSession(title: String, workspace: String = "", projectType: String = "", distribution: String? = null): String
     suspend fun loadSession(id: String)
     suspend fun renameSession(id: String, title: String)
     fun regenerateLast(targetSessionId: String? = null)

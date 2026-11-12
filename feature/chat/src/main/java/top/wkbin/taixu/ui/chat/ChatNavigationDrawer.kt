@@ -1,6 +1,7 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -10,11 +11,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
+import top.wkbin.taixu.core.datastore.RemoteServerRepository
 import top.wkbin.taixu.core.datastore.hiddenBotSessionIdsPreference
 import top.wkbin.taixu.core.datastore.setBotSessionHidden
+import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.feature.components.R as ComponentsR
 import top.wkbin.taixu.ui.components.AppNavigationSection
 import top.wkbin.taixu.ui.components.LocalPluginDestinationActive
+import top.wkbin.taixu.ui.components.LocalRuntimeWidthClass
 import top.wkbin.taixu.ui.components.MainDestination
 import top.wkbin.taixu.ui.components.RuntimeAdaptiveNavigationScaffold
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -36,6 +40,7 @@ fun ChatNavigationDrawer(
     onNavigate: (MainDestination) -> Unit,
     onOpenTerminal: () -> Unit,
     onOpenTools: () -> Unit,
+    onOpenRemoteHome: (serverId: String) -> Unit = {},
     gesturesEnabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
@@ -55,7 +60,13 @@ fun ChatNavigationDrawer(
     val catalog by viewModel.workspaceCatalog.collectAsStateWithLifecycle()
     val currentSessionId by viewModel.currentSessionId.collectAsStateWithLifecycle()
     val runStates by viewModel.sessionRunStates.collectAsStateWithLifecycle()
+    val remoteServers by koinInject<RemoteServerRepository>().servers.collectAsStateWithLifecycle()
+    val remoteProjectsByServer by viewModel.remoteProjectsByServer.collectAsStateWithLifecycle()
     val pluginActive = LocalPluginDestinationActive.current
+    val sidebarShowing = remoteSidebarWatchEnabled(LocalRuntimeWidthClass.current, visible, docked)
+    LaunchedEffect(sidebarShowing) {
+        if (!sidebarShowing) viewModel.setWatchedRemoteProjects(emptySet())
+    }
 
     ChatIdentityHost {
         RuntimeAdaptiveNavigationScaffold(
@@ -86,6 +97,7 @@ fun ChatNavigationDrawer(
             drawerContent = { onCollapse ->
                 SessionsSideDrawer(
                     visible = true,
+                    remoteWatchEnabled = sidebarShowing,
                     sessions = normalSessions,
                     botSessions = botSessions,
                     botSessionGroups = botSessionGroups,
@@ -95,6 +107,8 @@ fun ChatNavigationDrawer(
                     },
                     currentSessionId = currentSessionId,
                     workspaces = catalog.projects,
+                    remoteServers = remoteServers,
+                    remoteProjectsByServer = remoteProjectsByServer,
                     sessionRunStates = runStates,
                     onDismiss = onDismiss,
                     onSettings = { onDismiss(); onNavigate(MainDestination.Settings) },
@@ -106,6 +120,40 @@ fun ChatNavigationDrawer(
                         viewModel.createSession("", project.linuxPath, project.projectType.name)
                         onNavigate(MainDestination.Agent); onDismiss()
                     },
+                    onCreateOnServer = { group ->
+                        if (!group.profilePresent) {
+                            viewModel.showNotice(context.getString(R.string.chat_drawer_remote_profile_unavailable))
+                        } else {
+                            viewModel.createSession("", "/workspace", "", group.distribution)
+                            onNavigate(MainDestination.Agent); onDismiss()
+                        }
+                    },
+                    onCreateInRemoteProject = { group, bucket ->
+                        if (!group.profilePresent) {
+                            viewModel.showNotice(context.getString(R.string.chat_drawer_remote_profile_unavailable))
+                        } else {
+                            viewModel.createSession("", bucket.linuxPath, "", group.distribution)
+                            onNavigate(MainDestination.Agent); onDismiss()
+                        }
+                    },
+                    onCreateTerminalOnServer = { group ->
+                        if (!group.profilePresent) {
+                            viewModel.showNotice(context.getString(R.string.chat_drawer_remote_profile_unavailable))
+                        } else {
+                            viewModel.createRemoteTerminal(group.distribution, group.serverName) { ok ->
+                                onDismiss()
+                                if (ok) onOpenTerminal()
+                            }
+                        }
+                    },
+                    onOpenRemoteHome = { group ->
+                        if (!group.profilePresent) {
+                            viewModel.showNotice(context.getString(R.string.chat_drawer_remote_profile_unavailable))
+                        } else {
+                            onDismiss(); onOpenRemoteHome(group.serverId)
+                        }
+                    },
+                    onSetWatchedRemoteProjects = viewModel::setWatchedRemoteProjects,
                     onDelete = viewModel::deleteSession,
                     onRename = viewModel::renameSession,
                     onCollapse = onCollapse,

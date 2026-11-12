@@ -290,11 +290,11 @@ class HarnessLoop(
         return true
     }
 
-    /** 新建会话。workspace 为关联的工作区 Linux 路径（如 /workspace/proj），空串表示不关联。 */
-    override suspend fun newSession(title: String, workspace: String, projectType: String): String {
+    /** 新建会话。workspace 为关联的工作区 Linux 路径（如 /workspace/proj），空串表示不关联。distribution 为 null 时绑定本机；显式 `ssh:<id>` 绑定远程且不改全局主系统。 */
+    override suspend fun newSession(title: String, workspace: String, projectType: String, distribution: String?): String {
         val selection = sessionTracker.reserveSelection()
         val id = UUID.randomUUID().toString()
-        val executionTarget = executionEnvironments?.captureTarget(workspace)
+        val executionTarget = executionEnvironments?.captureTarget(workspace, distribution)
         val defaultModel = modelRepository.activeModel()
         tombstonedSessions.remove(id)
         sessionDao.upsert(

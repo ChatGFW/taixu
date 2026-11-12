@@ -21,7 +21,7 @@ import top.wkbin.taixu.runtime.environment.ExecutionEnvironmentContext
 /** Immutable session binding; STDIO connections and child owners follow its resource scope. */
 class SessionExecutionEnvironments(private val factory: ExecutionEnvironmentFactory) {
     suspend fun bindSession(session: String, workspace: String) = factory.bind(session, workspace)
-    suspend fun captureTarget(workspace: String) = factory.capture(workspace)
+    suspend fun captureTarget(workspace: String, distribution: String? = null) = factory.capture(workspace, distribution)
     private data class BindingKey(val session: String, val anonymousWorkspace: String, val owner: String?)
     private class Entry(val key: BindingKey, val workspace: String, val parent: Entry?) {
         val resources = SessionResourceScope()

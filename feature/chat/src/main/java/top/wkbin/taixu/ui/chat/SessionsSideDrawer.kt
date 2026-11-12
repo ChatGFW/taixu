@@ -27,25 +27,25 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.database.HarnessSessionEntity
+import top.wkbin.taixu.core.database.MessageSearchHitRow
+import top.wkbin.taixu.core.model.RemoteServer
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.BotSessionGroupRef
 import top.wkbin.taixu.feature.chat.R
+import top.wkbin.taixu.runtime.SessionWorkspaceCatalogState
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
 import top.wkbin.taixu.ui.components.RuntimeTextButton
-import top.wkbin.taixu.core.database.MessageSearchHitRow
 
 /**
  * 会话侧栏：固定搜索与底部功能入口，会话列表独立滚动。
- * - 屏幕左侧展开，含背景遮罩与进退场滑动动画。
- * - 搜索会话标题/工作区，顶部 + 创建新会话，底部展开主功能与插件。
- * - 分区自上而下为「项目」→「Bot 会话」→「最近」，统一用名称 + 数量 + 折叠箭头的分区头。
- * - 「项目」展示关联工作区工程，支持展开/折叠与单项目一键「+」新建会话。
- * - 「最近」展示未关联工作区的普通会话，按最近修改时间倒序排列。
+ * 分区：项目 → 远程服务器 → Bot → 最近；远程分组不切换全局主系统。
  */
 @Composable
 internal fun SessionsSideDrawer(
     visible: Boolean,
+    /** 抽屉真正打开时才订阅远程项目；关闭后必须空集以停 SSH/SFTP 轮询。 */
+    remoteWatchEnabled: Boolean = visible,
     sessions: List<HarnessSessionEntity>,
     botSessions: List<HarnessSessionEntity> = emptyList(),
     botSessionGroups: Map<String, BotSessionGroupRef> = emptyMap(),
@@ -53,12 +53,19 @@ internal fun SessionsSideDrawer(
     onHideBotSession: (String, Boolean) -> Unit = { _, _ -> },
     currentSessionId: String,
     workspaces: List<WorkspaceProject>,
+    remoteServers: List<RemoteServer> = emptyList(),
+    remoteProjectsByServer: Map<String, SessionWorkspaceCatalogState> = emptyMap(),
     sessionRunStates: Map<String, SessionRunState>,
     onDismiss: () -> Unit,
     onSettings: () -> Unit,
     onSwitch: (String) -> Unit,
     onNew: () -> Unit,
     onCreateInWorkspace: (WorkspaceProject) -> Unit,
+    onCreateOnServer: (RemoteServerSessionGroup) -> Unit = {},
+    onCreateInRemoteProject: (RemoteServerSessionGroup, RemoteProjectBucket) -> Unit = { _, _ -> },
+    onCreateTerminalOnServer: (RemoteServerSessionGroup) -> Unit = {},
+    onOpenRemoteHome: (RemoteServerSessionGroup) -> Unit = {},
+    onSetWatchedRemoteProjects: (Set<String>) -> Unit = {},
     onDelete: (String) -> Unit,
     onRename: (String, String) -> Unit,
     onCollapse: (() -> Unit)? = null, navigationContent: @Composable () -> Unit = {},
@@ -72,34 +79,40 @@ internal fun SessionsSideDrawer(
     var deleteTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     var projectsExpanded by rememberSaveable { mutableStateOf(true) }
+    var remotesExpanded by rememberSaveable { mutableStateOf(true) }
     // Search reveals matching projects without overwriting the user's normal collapsed state.
     var searchProjectsExpanded by rememberSaveable(query.isNotBlank()) { mutableStateOf(true) }
-    val (partition, botMatches, pinnedMatches) = remember(sessions, botSessions, botSessionGroups, hiddenBotSessionIds, workspaces, query) {
-        val term = query.trim()
-        fun HarnessSessionEntity.matches() = term.isEmpty() ||
-            title.contains(term, ignoreCase = true) || workspace.contains(term, ignoreCase = true)
-        val filtered = sessions.filter { it.matches() && it.pinnedAt == 0L }
-        val pinnedMatches = sessions.filter { it.matches() && it.pinnedAt != 0L }.sortedByDescending { it.pinnedAt }
-        val result = partitionSessions(filtered, workspaces)
-        val bots = botSessions.filter { it.matches() && it.id !in hiddenBotSessionIds }
-            // 私有/独立会话默认不进抽屉（Bot 详情页可直达），搜索时才作为历史入口出现。
-            .filter { term.isNotEmpty() || it.id in botSessionGroups }
-            .sortedByDescending { it.updatedAt }
-        Triple(
-            if (term.isEmpty()) result else result.copy(projectGroups = result.projectGroups.filter { it.sessions.isNotEmpty() }),
-            bots,
-            pinnedMatches,
+    var searchRemotesExpanded by rememberSaveable(query.isNotBlank()) { mutableStateOf(true) }
+    val projectsByServer = remember(remoteProjectsByServer) {
+        remoteProjectsByServer.mapValues { (_, state) -> state.projects }
+    }
+    val drawer = remember(
+        sessions, botSessions, botSessionGroups, hiddenBotSessionIds, workspaces, remoteServers, projectsByServer, query,
+    ) {
+        buildDrawerPartitions(
+            sessions, botSessions, botSessionGroups, hiddenBotSessionIds,
+            workspaces, remoteServers, projectsByServer, query,
         )
     }
     val hiddenBotSessions = remember(botSessions, hiddenBotSessionIds) {
         botSessions.filter { it.id in hiddenBotSessionIds }.sortedByDescending { it.updatedAt }
     }
+    val partition = drawer.local
+    val remoteGroups = drawer.remotes
+    val botMatches = drawer.bots
+    val pinnedMatches = drawer.pinned
     var expandedProjects by rememberSaveable {
         val initialExpanded = partition.projectGroups
             .filter { group -> group.sessions.any { it.id == currentSessionId } }
             .map { it.workspacePath }
             .toSet()
         mutableStateOf(initialExpanded)
+    }
+    var expandedServers by rememberSaveable {
+        mutableStateOf(initialExpandedServers(remoteGroups, currentSessionId))
+    }
+    var expandedRemoteProjects by rememberSaveable {
+        mutableStateOf(initialExpandedRemoteProjects(remoteGroups, currentSessionId))
     }
     val attentionSessions = remember(sessions, botSessions, sessionRunStates) {
         (sessions + botSessions)
@@ -132,7 +145,9 @@ internal fun SessionsSideDrawer(
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (query.isNotBlank() && partition.projectGroups.isEmpty() && partition.recentSessions.isEmpty() && botMatches.isEmpty() && pinnedMatches.isEmpty()) {
+                if (query.isNotBlank() && partition.projectGroups.isEmpty() && remoteGroups.isEmpty() &&
+                    partition.recentSessions.isEmpty() && botMatches.isEmpty() && pinnedMatches.isEmpty()
+                ) {
                     Text(stringResource(R.string.chat_drawer_no_matches),
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
                         style = RuntimeTheme.typography.bodySmall,
@@ -188,6 +203,40 @@ internal fun SessionsSideDrawer(
                         onDelete = { id -> deleteTargetId = id },
                     )
                 }
+
+                SessionsDrawerRemoteServers(
+                    query = query,
+                    remoteGroups = remoteGroups,
+                    remotesExpanded = remotesExpanded,
+                    searchRemotesExpanded = searchRemotesExpanded,
+                    watchEnabled = remoteWatchEnabled,
+                    onToggleSection = {
+                        if (query.isBlank()) remotesExpanded = !remotesExpanded
+                        else searchRemotesExpanded = !searchRemotesExpanded
+                    },
+                    currentSessionId = currentSessionId,
+                    sessionRunStates = sessionRunStates,
+                    expandedServers = expandedServers,
+                    expandedRemoteProjects = expandedRemoteProjects,
+                    remoteProjectsByServer = remoteProjectsByServer,
+                    onToggleExpand = { id ->
+                        expandedServers = if (expandedServers.contains(id)) expandedServers - id else expandedServers + id
+                    },
+                    onToggleProjectExpand = { key ->
+                        expandedRemoteProjects =
+                            if (expandedRemoteProjects.contains(key)) expandedRemoteProjects - key
+                            else expandedRemoteProjects + key
+                    },
+                    onSetWatchedProjects = onSetWatchedRemoteProjects,
+                    onSwitch = onSwitch,
+                    onCreateOnServer = onCreateOnServer,
+                    onCreateInProject = onCreateInRemoteProject,
+                    onCreateTerminal = onCreateTerminalOnServer,
+                    onOpenRemoteHome = onOpenRemoteHome,
+                    onRename = { id -> renameTargetId = id },
+                    onDelete = { id -> deleteTargetId = id },
+                    onTogglePin = onTogglePin,
+                )
 
                 if (botMatches.isNotEmpty()) {
                     BotSessionsSection(

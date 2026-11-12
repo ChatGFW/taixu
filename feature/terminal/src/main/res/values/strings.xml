@@ -15,7 +15,9 @@
     <string name="terminal_quick_git">Git 运维</string>
     <string name="terminal_quick_python">Python 环境</string>
     <string name="terminal_new_session">新建终端会话</string>
-    <string name="terminal_target_distribution">目标 Linux 发行版：</string>
+    <string name="terminal_target_distribution">目标环境：</string>
+    <string name="terminal_remote_target_hint">远程终端将在服务器工作目录启动，不切换本机主系统。</string>
+    <string name="terminal_remote_workspace">服务器工作目录</string>
     <string name="terminal_label">终端标签名称：</string>
     <string name="terminal_label_hint">例如：后台构建 / Git 运维</string>
     <string name="terminal_initial_cwd">初始工作目录 (CWD)：</string>

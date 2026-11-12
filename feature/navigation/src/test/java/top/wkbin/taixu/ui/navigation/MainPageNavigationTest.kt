@@ -71,4 +71,19 @@ class MainPageNavigationTest {
         assertFalse(stack.openMainOverlay(MainDestination.Agent))
         assertEquals(listOf(AgentDestination), stack)
     }
+
+    @Test fun remoteHomeReopensExistingEntryWithoutDuplicatingBackStack() {
+        val stack = mutableListOf<NavKey>(AgentDestination, HomeDestination)
+        stack.openRemoteHome("srv-a")
+        stack.add(ToolCenterDestination)
+        stack.openRemoteHome("srv-a")
+        assertEquals(listOf(AgentDestination, HomeDestination, RemoteHomeDestination("srv-a")), stack)
+        stack.openRemoteHome("srv-a")
+        assertEquals(listOf(AgentDestination, HomeDestination, RemoteHomeDestination("srv-a")), stack)
+        stack.openRemoteHome("srv-b")
+        assertEquals(
+            listOf(AgentDestination, HomeDestination, RemoteHomeDestination("srv-a"), RemoteHomeDestination("srv-b")),
+            stack,
+        )
+    }
 }

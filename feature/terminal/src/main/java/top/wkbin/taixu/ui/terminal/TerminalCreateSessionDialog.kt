@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.InstalledDistro
+import top.wkbin.taixu.core.model.RemoteServer
 import top.wkbin.taixu.feature.terminal.R
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
@@ -41,6 +42,7 @@ import top.yukonga.miuix.kmp.basic.Text
 internal fun CreateTerminalDialog(
     workspaces: List<WorkspaceProject>,
     installedDistros: List<InstalledDistro> = emptyList(),
+    remoteServers: List<RemoteServer> = emptyList(),
     nextSessionIndex: Int,
     onDismiss: () -> Unit,
     onCreate: (label: String, workingDirectory: String, distroId: String?) -> Unit,
@@ -48,7 +50,10 @@ internal fun CreateTerminalDialog(
     val defaultLabel = stringResource(R.string.terminal_default_label, nextSessionIndex)
     var label by remember(nextSessionIndex) { mutableStateOf(defaultLabel) }
     var selectedDir by remember { mutableStateOf("/root") }
-    var selectedDistroId by remember(installedDistros) { mutableStateOf(installedDistros.firstOrNull { it.isActive }?.id ?: installedDistros.firstOrNull()?.id) }
+    var selectedDistroId by remember(installedDistros, remoteServers) {
+        mutableStateOf(installedDistros.firstOrNull { it.isActive }?.id ?: installedDistros.firstOrNull()?.id)
+    }
+    val remoteSelected = selectedDistroId?.startsWith("ssh:") == true
     val quickLabels = listOf(
         stringResource(R.string.terminal_quick_main),
         stringResource(R.string.terminal_quick_build),
@@ -72,7 +77,7 @@ internal fun CreateTerminalDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                if (installedDistros.size > 1) {
+                if (installedDistros.size > 1 || remoteServers.isNotEmpty()) {
                     Text(stringResource(R.string.terminal_target_distribution), style = RuntimeTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                     Row(
                         modifier = Modifier
@@ -81,8 +86,24 @@ internal fun CreateTerminalDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         installedDistros.forEach { d ->
-                            TerminalChoiceChip(d.displayName, selectedDistroId == d.id) { selectedDistroId = d.id }
+                            TerminalChoiceChip(d.displayName, selectedDistroId == d.id) {
+                                selectedDistroId = d.id
+                                selectedDir = "/root"
+                            }
                         }
+                        remoteServers.forEach { server ->
+                            TerminalChoiceChip(server.name, selectedDistroId == server.distributionId) {
+                                selectedDistroId = server.distributionId
+                                selectedDir = "/root"
+                            }
+                        }
+                    }
+                    if (remoteSelected) {
+                        Text(
+                            stringResource(R.string.terminal_remote_target_hint),
+                            style = RuntimeTheme.typography.bodySmall,
+                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     HorizontalDivider(color = RuntimeTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 }
@@ -115,12 +136,24 @@ internal fun CreateTerminalDialog(
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     TerminalDirOption(
-                        name = stringResource(R.string.terminal_root_directory), path = "/root",
-                        selected = selectedDir == "/root", onSelect = { selectedDir = "/root" },
+                        name = if (remoteSelected) {
+                            stringResource(R.string.terminal_remote_workspace)
+                        } else {
+                            stringResource(R.string.terminal_root_directory)
+                        },
+                        path = "/root",
+                        selected = selectedDir == "/root",
+                        onSelect = { selectedDir = "/root" },
                     )
-                    workspaces.forEach { ws ->
-                        TerminalDirOption(name = ws.name, path = ws.linuxPath,
-                            selected = selectedDir == ws.linuxPath, onSelect = { selectedDir = ws.linuxPath })
+                    if (!remoteSelected) {
+                        workspaces.forEach { ws ->
+                            TerminalDirOption(
+                                name = ws.name,
+                                path = ws.linuxPath,
+                                selected = selectedDir == ws.linuxPath,
+                                onSelect = { selectedDir = ws.linuxPath },
+                            )
+                        }
                     }
                 }
 
