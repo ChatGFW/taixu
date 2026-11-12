@@ -1,8 +1,5 @@
 #!/bin/sh
-set -e
-
-TOOL_DIR="${TAIXU_TOOL_DIR:-/opt/taixu/tools/cc-switch}"
-echo "[*] Uninstalling CC-Switch Agent Hub..."
-rm -f "$TOOL_DIR/bin/cc-switch-daemon"
-rm -f "$TOOL_DIR/lib/cc-switch-server"
-echo "[+] CC-Switch Agent Hub uninstalled."
+set -eu
+tool_dir=${TAIXU_TOOL_DIR:-/opt/taixu/tools/cc-switch}
+rm -f "$tool_dir/bin/cc-switch-daemon" "$tool_dir/lib/cc-switch-server"
+echo 'CC Switch removed. User data and the old Web-fork database are retained.'

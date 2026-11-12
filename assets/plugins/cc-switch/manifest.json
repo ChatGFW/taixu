@@ -1,13 +1,14 @@
 {
   "schemaVersion": 1,
   "id": "cc-switch",
-  "name": "CC-Switch 智能体中枢",
-  "description": "Claude Code、OpenClaw、Hermes Agent 与 Codex 统一多模型切源、版本管理与本地协议代理中枢",
-  "version": "1.0.1",
-  "latestVersion": "1.0.1",
-  "publisher": "TaiXu Ecosystem",
+  "name": "CC Switch Web",
+  "description": "官方 v4.0.30 的太墟 Web 移植版，含官方前端、提供商管理、路由与隐私过滤。插件中心启动/停止，本机端口 19870；首次登录密码位于独立 official-v4 数据目录的 web_password 文件。",
+  "version": "4.0.30",
+  "latestVersion": "4.0.30",
+  "publisher": "farion1231 / TaiXu Web adapter",
+  "homepage": "https://github.com/farion1231/cc-switch",
   "category": "AI_AGENT",
-  "launchType": "service",
+  "launchType": "web",
   "servicePort": 19870,
   "servicePath": "/",
   "architectures": ["ARM64"],
@@ -22,11 +23,11 @@
   "uninstallSteps": [
     "/bin/sh \"$TAIXU_PLUGIN_PAYLOAD/scripts/uninstall.sh\""
   ],
-  "launchCommand": "cc-switch-daemon --port 19870 --data-dir /opt/taixu/data/cc-switch",
+  "launchCommand": "cc-switch-daemon",
   "verifyCommand": "/bin/sh \"$TAIXU_PLUGIN_PAYLOAD/scripts/verify.sh\"",
   "commandLinks": ["cc-switch-daemon"],
   "environment": {
     "CC_SWITCH_PORT": "19870",
-    "CC_SWITCH_DATA_DIR": "/opt/taixu/data/cc-switch"
+    "CC_SWITCH_DATA_DIR": "/opt/taixu/data/cc-switch/official-v4"
   }
 }
