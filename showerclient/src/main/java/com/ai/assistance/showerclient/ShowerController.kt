@@ -357,6 +357,33 @@ class ShowerController {
         }
     }
 
+    /** UiAutomation ACTION_SET_TEXT；失败时由上层回退剪贴板粘贴。 */
+    suspend fun setText(text: String, replace: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+        val service = getBinder() ?: return@withContext false
+        val id = virtualDisplayId ?: return@withContext false
+        try {
+            service.setText(id, text, replace)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ShowerLog.e(TAG, "setText failed on $id", e)
+            false
+        }
+    }
+
+    /** 原样注入 MotionEvent（多指）；坐标须已映射到 VD。 */
+    suspend fun injectMotionEvent(event: android.view.MotionEvent): Boolean = withContext(Dispatchers.IO) {
+        val service = getBinder() ?: return@withContext false
+        val id = virtualDisplayId ?: return@withContext false
+        try {
+            service.injectMotionEvent(id, event)
+            true
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ShowerLog.e(TAG, "injectMotionEvent failed on $id", e)
+            false
+        }
+    }
+
     suspend fun injectTouchEvent(
         action: Int,
         x: Float,

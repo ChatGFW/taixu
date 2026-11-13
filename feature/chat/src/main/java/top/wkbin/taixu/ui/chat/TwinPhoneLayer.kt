@@ -41,12 +41,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import top.wkbin.taixu.runtime.virtualdisplay.TwinPhonePresence
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 
 private val MiniPhoneWidth = 124.dp
@@ -190,6 +193,16 @@ internal fun TwinPhoneLayer(
                 .offset { IntOffset(left.roundToInt(), top.roundToInt()) }
                 .width(with(density) { widthPx.toDp() })
                 .height(with(density) { heightPx.toDp() })
+                .onGloballyPositioned { coords ->
+                    val pos = coords.positionInWindow()
+                    TwinPhonePresence.updateSourceRectHint(
+                        pos.x.roundToInt(),
+                        pos.y.roundToInt(),
+                        (pos.x + coords.size.width).roundToInt(),
+                        (pos.y + coords.size.height).roundToInt(),
+                        aspect,
+                    )
+                }
                 .graphicsLayer {
                     alpha = if (expanded) 1f else miniAlpha
                     translationX = if (!expanded && !miniVisible && progress < 0.05f) -10_000f else 0f

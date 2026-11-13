@@ -3,15 +3,12 @@ package top.wkbin.taixu.runtime.virtualdisplay
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Color
-import android.graphics.PixelFormat
-import android.graphics.RectF
+import android.graphics.SurfaceTexture
 import android.util.AttributeSet
 import android.view.MotionEvent
-import android.view.SurfaceHolder
-import android.view.SurfaceView
+import android.view.Surface
+import android.view.TextureView
 import android.view.View
-import android.view.PixelCopy
 import kotlin.math.max
 import kotlin.math.min
 import com.ai.assistance.showerclient.ShowerController
@@ -22,20 +19,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.resume
 
 /**
- * SurfaceView 的 Surface 经 Binder 直挂 VirtualDisplay。
+ * TextureView 预览：缓冲用 [SurfaceTexture.setDefaultBufferSize] 锁成 VD 分辨率，
+ * 再经 Binder [ShowerController.setDisplaySurface] 直挂。
  *
- * 缓冲必须等于 VD 分辨率（[setFixedSize]）；小窗/大窗由系统 FIT_CENTER 缩放。
- * 缓冲跟 View 走会导致小窗黑屏，进而 PixelCopy 黑帧、screencap/Binder 间歇失败。
+ * 默认铺满 View（identity transform）；外层 Compose 已按 VD 宽高比定框，
+ * 勿再做 FIT_CENTER 矩阵，否则小窗会出现「画面挤在一角 + 大块黑边」。
  */
 class TwinPhoneEmbedView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-) : SurfaceView(context, attrs), SurfaceHolder.Callback {
+) : TextureView(context, attrs), TextureView.SurfaceTextureListener {
 
     private var boundSession: String? = null
     private var boundController: ShowerController? = null
@@ -43,20 +39,17 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
     private var surfaceJob: Job? = null
     private var surfaceReady = false
     private var frameCapture: (suspend () -> ByteArray?)? = null
+    private var displaySurface: Surface? = null
     private var fixedBufferW = 0
     private var fixedBufferH = 0
 
-    /** 为 false 时拦截触控（任务 RUNNING、尚未点「我来」）。 */
     private var touchAllowed: (() -> Boolean)? = null
     private var onTouchBlocked: (() -> Unit)? = null
     private var gestureBlocked = false
 
     init {
-        setBackgroundColor(Color.BLACK)
-        holder.setFormat(PixelFormat.OPAQUE)
-        holder.addCallback(this)
-        setZOrderOnTop(false)
-        setZOrderMediaOverlay(false)
+        surfaceTextureListener = this
+        isOpaque = true
     }
 
     fun bind(
@@ -79,19 +72,19 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         frameCapture?.let { VirtualDisplayFrameCaptures.unregister(sessionId, it) }
         frameCapture = capture
         VirtualDisplayFrameCaptures.register(sessionId, capture)
-        if (surfaceReady) attachSurface()
+        if (surfaceReady) prepareAndAttach()
     }
 
     fun applyPreviewVisibility() {
         val show = TwinPhonePresence.previewVisible
         visibility = if (show) View.VISIBLE else View.INVISIBLE
-        if (show && surfaceReady) attachSurface()
+        if (show && surfaceReady) prepareAndAttach()
     }
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
         if (changedView === this && visibility == View.VISIBLE && surfaceReady) {
-            attachSurface()
+            prepareAndAttach()
         }
     }
 
@@ -100,7 +93,7 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         val capture = frameCapture
         surfaceJob?.cancel()
         surfaceJob = null
-        detachSurfaceAsync()
+        detachSurfaceAsync(releaseLocal = false)
         if (session != null && capture != null) {
             VirtualDisplayFrameCaptures.unregister(session, capture)
         }
@@ -113,42 +106,51 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         gestureBlocked = false
     }
 
-    override fun surfaceCreated(holder: SurfaceHolder) {
+    override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
         surfaceReady = true
-        attachSurface()
+        prepareAndAttach(surfaceTexture = surface)
     }
 
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        // View 变了只重挂 Surface；缓冲仍锁 VD，不跟 View 走。
-        if (surfaceReady) attachSurface()
+    override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
+        if (surfaceReady) prepareAndAttach(surfaceTexture = surface)
     }
 
-    override fun surfaceDestroyed(holder: SurfaceHolder) {
+    override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
         surfaceReady = false
         surfaceJob?.cancel()
         surfaceJob = null
-        detachSurfaceAsync()
+        detachSurfaceAsync(releaseLocal = true)
+        return true
     }
 
-    private fun attachSurface() {
+    override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
+
+    private fun prepareAndAttach(surfaceTexture: SurfaceTexture? = this.surfaceTexture) {
         val controller = boundController ?: return
         val attachScope = scope ?: return
-        val surface = holder.surface ?: return
+        val st = surfaceTexture ?: return
+        val size = controller.getVideoSize()
+        val vw = size?.first?.takeIf { it > 0 } ?: width.takeIf { it > 0 } ?: return
+        val vh = size?.second?.takeIf { it > 0 } ?: height.takeIf { it > 0 } ?: return
+
+        if (vw != fixedBufferW || vh != fixedBufferH) {
+            st.setDefaultBufferSize(vw, vh)
+            fixedBufferW = vw
+            fixedBufferH = vh
+            ShowerLog.d(TAG, "setDefaultBufferSize ${vw}x${vh}")
+        }
+        // identity：铺满 View，与外层宽高比框一致。
+        setTransform(android.graphics.Matrix())
+
+        val existing = displaySurface
+        val surface = if (existing != null && existing.isValid) {
+            existing
+        } else {
+            existing?.release()
+            Surface(st).also { displaySurface = it }
+        }
         if (!surface.isValid) return
 
-        // 缓冲锁 VD 分辨率；setFixedSize 会销毁并重建 Surface，必须等 surfaceChanged
-        // 再挂 VD，否则旧/无效 Surface → 用户看黑屏，screencap 仍正常。
-        val size = controller.getVideoSize()
-        if (size != null) {
-            val (vw, vh) = size
-            if (vw > 0 && vh > 0 && (vw != fixedBufferW || vh != fixedBufferH)) {
-                runCatching { holder.setFixedSize(vw, vh) }
-                fixedBufferW = vw
-                fixedBufferH = vh
-                ShowerLog.d(TAG, "setFixedSize ${vw}x${vh}, wait surfaceChanged")
-                return
-            }
-        }
         surfaceJob?.cancel()
         surfaceJob = attachScope.launch(Dispatchers.IO) {
             val ok = controller.setDisplaySurface(surface)
@@ -160,43 +162,37 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         }
     }
 
-    private fun detachSurfaceAsync() {
-        val controller = boundController ?: return
-        val attachScope = scope ?: return
+    private fun detachSurfaceAsync(releaseLocal: Boolean) {
+        val controller = boundController
+        val attachScope = scope
+        val local = displaySurface
+        if (releaseLocal) {
+            displaySurface = null
+            fixedBufferW = 0
+            fixedBufferH = 0
+        }
+        if (controller == null || attachScope == null) {
+            if (releaseLocal) local?.release()
+            return
+        }
         attachScope.launch(Dispatchers.IO) {
             runCatching { controller.setDisplaySurface(null) }
+            if (releaseLocal) local?.release()
         }
     }
 
     private suspend fun capturePng(): ByteArray? {
         if (!surfaceReady || width <= 0 || height <= 0) return null
         return withContext(Dispatchers.Main) {
-            suspendCancellableCoroutine { cont ->
-                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                try {
-                    PixelCopy.request(this@TwinPhoneEmbedView, bitmap, { result ->
-                        if (result != PixelCopy.SUCCESS) {
-                            bitmap.recycle()
-                            cont.resume(null)
-                            return@request
-                        }
-                        // 近全黑帧视为无效，交给 screencap/Binder，避免链式假成功。
-                        if (isMostlyBlack(bitmap)) {
-                            bitmap.recycle()
-                            cont.resume(null)
-                            return@request
-                        }
-                        val bytes = ByteArrayOutputStream().use { out ->
-                            bitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
-                            out.toByteArray()
-                        }
-                        bitmap.recycle()
-                        cont.resume(bytes)
-                    }, handler)
-                } catch (_: Throwable) {
-                    bitmap.recycle()
-                    cont.resume(null)
+            val bitmap = runCatching { getBitmap(width, height) }.getOrNull() ?: return@withContext null
+            try {
+                if (isMostlyBlack(bitmap)) return@withContext null
+                ByteArrayOutputStream().use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
+                    out.toByteArray()
                 }
+            } finally {
+                bitmap.recycle()
             }
         }
     }
@@ -220,18 +216,11 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         val attachScope = scope ?: return true
         val (vw, vh) = controller.getVideoSize() ?: return true
         val action = event.actionMasked
-        if (action !in setOf(
-                MotionEvent.ACTION_DOWN,
-                MotionEvent.ACTION_MOVE,
-                MotionEvent.ACTION_UP,
-                MotionEvent.ACTION_CANCEL,
-            )
-        ) {
-            return true
-        }
-        if (action == MotionEvent.ACTION_DOWN) {
+        if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) {
             val allowed = touchAllowed?.invoke() != false
-            gestureBlocked = !allowed
+            if (action == MotionEvent.ACTION_DOWN) {
+                gestureBlocked = !allowed
+            }
             if (!allowed) {
                 onTouchBlocked?.invoke()
                 return true
@@ -239,6 +228,21 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         } else if (gestureBlocked) {
             if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
                 gestureBlocked = false
+            }
+            return true
+        }
+        // 多指：映射全部指针后原样注入 MotionEvent。
+        if (event.pointerCount > 1 ||
+            action == MotionEvent.ACTION_POINTER_DOWN ||
+            action == MotionEvent.ACTION_POINTER_UP
+        ) {
+            val mapped = mapMotionEvent(event, width, height, vw, vh) ?: return true
+            attachScope.launch(Dispatchers.IO) {
+                try {
+                    controller.injectMotionEvent(mapped)
+                } finally {
+                    mapped.recycle()
+                }
             }
             return true
         }
@@ -288,9 +292,7 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
     private companion object {
         const val TAG = "TwinPhoneEmbed"
 
-        /**
-         * FIT_CENTER：与 SurfaceView 对 VD 缓冲的系统缩放一致，触控才不偏。
-         */
+        /** 铺满映射：View 坐标线性落到 VD。 */
         fun mapViewToDisplay(
             viewX: Float,
             viewY: Float,
@@ -300,26 +302,45 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
             vdH: Int,
         ): Pair<Float, Float> {
             if (viewW <= 0 || viewH <= 0 || vdW <= 1 || vdH <= 1) return 0f to 0f
-            val content = fitCenterContent(viewW.toFloat(), viewH.toFloat(), vdW.toFloat(), vdH.toFloat())
-            val nx = ((viewX - content.left) / content.width()).coerceIn(0f, 1f)
-            val ny = ((viewY - content.top) / content.height()).coerceIn(0f, 1f)
+            val nx = (viewX / viewW).coerceIn(0f, 1f)
+            val ny = (viewY / viewH).coerceIn(0f, 1f)
             return nx * (vdW - 1) to ny * (vdH - 1)
         }
 
-        fun fitCenterContent(viewW: Float, viewH: Float, vdW: Float, vdH: Float): RectF {
-            val viewAspect = viewW / viewH
-            val vdAspect = vdW / vdH
-            return if (viewAspect > vdAspect) {
-                val h = viewH
-                val w = h * vdAspect
-                val left = (viewW - w) / 2f
-                RectF(left, 0f, left + w, h)
-            } else {
-                val w = viewW
-                val h = w / vdAspect
-                val top = (viewH - h) / 2f
-                RectF(0f, top, w, top + h)
+        fun mapMotionEvent(
+            event: MotionEvent,
+            viewW: Int,
+            viewH: Int,
+            vdW: Int,
+            vdH: Int,
+        ): MotionEvent? {
+            val count = event.pointerCount
+            if (count <= 0) return null
+            val props = Array(count) { MotionEvent.PointerProperties() }
+            val coords = Array(count) { MotionEvent.PointerCoords() }
+            for (i in 0 until count) {
+                event.getPointerProperties(i, props[i])
+                event.getPointerCoords(i, coords[i])
+                val (dx, dy) = mapViewToDisplay(coords[i].x, coords[i].y, viewW, viewH, vdW, vdH)
+                coords[i].x = dx
+                coords[i].y = dy
             }
+            return MotionEvent.obtain(
+                event.downTime,
+                event.eventTime,
+                event.action,
+                count,
+                props,
+                coords,
+                event.metaState,
+                event.buttonState,
+                event.xPrecision,
+                event.yPrecision,
+                event.deviceId,
+                event.edgeFlags,
+                event.source,
+                event.flags,
+            )
         }
 
         fun isMostlyBlack(bitmap: Bitmap): Boolean {

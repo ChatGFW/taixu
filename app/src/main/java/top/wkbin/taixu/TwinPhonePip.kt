@@ -71,20 +71,30 @@ internal object TwinPhonePip {
     }
 
     @RequiresApi(26)
-    fun syncParams(activity: Activity, aspect: Float = ASPECT_NUM / ASPECT_DEN.toFloat()) {
+    fun syncParams(activity: Activity, aspect: Float = TwinPhonePresence.contentAspect) {
         if (!supports(activity)) return
         try {
-            activity.setPictureInPictureParams(buildParams(activity, aspect = aspect))
+            val hint = Rect()
+            val source = if (TwinPhonePresence.copySourceRectHint(hint)) hint else null
+            val ratio = aspect.takeIf { it > 0.05f } ?: (ASPECT_NUM / ASPECT_DEN.toFloat())
+            activity.setPictureInPictureParams(
+                buildParams(activity, aspect = ratio, sourceRect = source),
+            )
         } catch (t: Throwable) {
             Log.w(TAG, "setPictureInPictureParams refused: ${t.message}")
         }
     }
 
     @RequiresApi(26)
-    fun enter(activity: Activity, aspect: Float = ASPECT_NUM / ASPECT_DEN.toFloat()): Boolean {
+    fun enter(activity: Activity, aspect: Float = TwinPhonePresence.contentAspect): Boolean {
         if (!supports(activity) || !shouldOfferPip()) return false
         return try {
-            activity.enterPictureInPictureMode(buildParams(activity, aspect = aspect, autoEnter = true))
+            val hint = Rect()
+            val source = if (TwinPhonePresence.copySourceRectHint(hint)) hint else null
+            val ratio = aspect.takeIf { it > 0.05f } ?: (ASPECT_NUM / ASPECT_DEN.toFloat())
+            activity.enterPictureInPictureMode(
+                buildParams(activity, aspect = ratio, sourceRect = source, autoEnter = true),
+            )
         } catch (t: Throwable) {
             Log.w(TAG, "enterPictureInPictureMode refused: ${t.message}")
             false

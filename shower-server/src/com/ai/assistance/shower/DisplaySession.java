@@ -42,7 +42,8 @@ final class DisplaySession {
     private final HandlerThread offscreenThread;
     private final Object offscreenLock = new Object();
     private Image latestOffscreen;
-    private Surface clientSurface;
+    /** 包内可见：创建时若已直挂客户端 Surface 可直接赋值。 */
+    Surface clientSurface;
     private final boolean trusted;
 
     private DisplaySession(
@@ -69,7 +70,13 @@ final class DisplaySession {
         this.hasSecondaryHome = hasSecondaryHome;
     }
 
-    static DisplaySession create(Context context, int width, int height, int dpi) throws Exception {
+    /**
+     * @param preferredClient 非空且 valid 时创建即挂客户端 Surface（与 HostDisplay 一致），
+     *                        否则先挂 ImageReader 占位。
+     */
+    static DisplaySession create(
+            Context context, int width, int height, int dpi, Surface preferredClient
+    ) throws Exception {
         int w = ((width + 15) / 16) * 16;
         int h = ((height + 15) / 16) * 16;
 
@@ -82,28 +89,30 @@ final class DisplaySession {
         } else {
             reader = ImageReader.newInstance(w, h, PixelFormat.RGBA_8888, 2);
         }
-        Surface placeholder = reader.getSurface();
+        boolean useClient = preferredClient != null && preferredClient.isValid();
+        Surface bootstrap = useClient ? preferredClient : reader.getSurface();
         String owner = resolveOwnerPackage(context);
         DisplayManager dm = createOwnedDisplayManager(context, owner);
 
         String secondaryName = SecondaryHome.resolveActivityName(context);
-        boolean secondaryHome = SecondaryHome.matchesLauncher3(secondaryName)
-                || (secondaryName != null && !secondaryName.isEmpty());
+        // 仅 Launcher3 SecondaryDisplayLauncher 才开 16201，与 HostDisplay 一致。
+        boolean secondaryHome = SecondaryHome.matchesLauncher3(secondaryName);
         ServerLog.d(
-                "secondary home name=" + secondaryName + " enableFlags=" + secondaryHome,
+                "secondary home name=" + secondaryName + " enableFlags=" + secondaryHome
+                        + " bootstrapClient=" + useClient,
                 null);
 
         boolean trusted = true;
         VirtualDisplay vd;
         try {
             vd = dm.createVirtualDisplay(
-                    DISPLAY_NAME, w, h, dpi, placeholder, trustedFlags(secondaryHome));
+                    DISPLAY_NAME, w, h, dpi, bootstrap, trustedFlags(secondaryHome));
         } catch (SecurityException se) {
             ServerLog.d("trusted display refused, creating an untrusted one: " + se.getMessage(), se);
             trusted = false;
             secondaryHome = false;
             vd = dm.createVirtualDisplay(
-                    DISPLAY_NAME, w, h, dpi, placeholder, FLAGS_UNTRUSTED);
+                    DISPLAY_NAME, w, h, dpi, bootstrap, FLAGS_UNTRUSTED);
         }
         if (vd == null || vd.getDisplay() == null) {
             reader.close();
@@ -113,6 +122,7 @@ final class DisplaySession {
         int id = vd.getDisplay().getDisplayId();
         applyImePolicy(id);
         applyWindowingMode(id);
+        DisplayKeepAwake.pulse(id);
 
         InputController input = new InputController();
         input.setDisplayId(id);
@@ -121,10 +131,14 @@ final class DisplaySession {
                 "Created virtual display id=" + id + " size=" + w + "x" + h
                         + " owner=" + owner + " trusted=" + trusted
                         + " secondaryHome=" + hasSecondary
+                        + " clientBoot=" + useClient
                         + " name=" + DISPLAY_NAME,
                 null);
         final DisplaySession session = new DisplaySession(
                 id, w, h, dpi, vd, reader, offscreen, input, trusted, hasSecondary);
+        if (useClient) {
+            session.clientSurface = preferredClient;
+        }
         reader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
             @Override
             public void onImageAvailable(ImageReader imageReader) {
@@ -204,9 +218,17 @@ final class DisplaySession {
     }
 
     synchronized void setClientSurface(Surface surface) {
+        if (surface != null && !surface.isValid()) {
+            ServerLog.d(
+                    "setClientSurface ignored: invalid surface display=" + displayId, null);
+            return;
+        }
         clientSurface = surface;
         Surface target = surface != null ? surface : imageReader.getSurface();
         virtualDisplay.setSurface(target);
+        if (surface != null) {
+            DisplayKeepAwake.pulse(displayId);
+        }
         ServerLog.d(
                 "setClientSurface display=" + displayId + " attached=" + (surface != null)
                         + " trusted=" + trusted + " secondaryHome=" + hasSecondaryHome,
@@ -214,17 +236,26 @@ final class DisplaySession {
     }
 
     /**
-     * 有客户端 Surface 时禁止切 ImageReader（避免预览黑屏连锁）。
+     * 预览挂着时短暂切到 ImageReader 取帧，再挂回客户端 Surface。
      */
     synchronized byte[] captureJpeg() {
-        if (clientSurface != null) {
-            ServerLog.d(
-                    "captureJpeg skipped: client surface attached display=" + displayId
-                            + " (avoid black preview)",
-                    null);
-            return null;
-        }
+        Surface restore = clientSurface;
+        boolean switched = false;
         try {
+            if (restore != null) {
+                virtualDisplay.setSurface(imageReader.getSurface());
+                switched = true;
+                // 丢掉旧帧，等新合成。
+                synchronized (offscreenLock) {
+                    if (latestOffscreen != null) {
+                        try {
+                            latestOffscreen.close();
+                        } catch (Throwable ignored) {
+                        }
+                        latestOffscreen = null;
+                    }
+                }
+            }
             Image snapshot = null;
             long deadline = System.currentTimeMillis() + 700L;
             while (System.currentTimeMillis() < deadline) {
@@ -249,6 +280,14 @@ final class DisplaySession {
         } catch (Throwable t) {
             ServerLog.d("captureJpeg failed: " + t.getMessage(), t);
             return null;
+        } finally {
+            if (switched && restore != null && restore.isValid()) {
+                try {
+                    virtualDisplay.setSurface(restore);
+                } catch (Throwable t) {
+                    ServerLog.d("captureJpeg restore surface failed: " + t.getMessage(), t);
+                }
+            }
         }
     }
 

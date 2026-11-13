@@ -1,6 +1,7 @@
 package top.wkbin.taixu.runtime.virtualdisplay
 
 import android.content.Intent
+import android.graphics.Rect
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -53,10 +54,32 @@ object TwinPhonePresence {
     /** 系统画中画中；UI 应只保留分身画面。 */
     val inPip: StateFlow<Boolean> = _inPip.asStateFlow()
 
+    /** 小窗/手机画面在窗口坐标中的矩形，供 PiP sourceRectHint。 */
+    private val sourceRectLock = Any()
+    private val _sourceRectHint = Rect()
+    @Volatile
+    var contentAspect: Float = 0.516f
+        private set
+
     /** 成功结果 sticky 约 1800ms。 */
     private const val STICKY_DONE_MS = 1800L
     /** 失败/取消 sticky 约 1600ms。 */
     private const val STICKY_FAIL_MS = 1600L
+
+    fun updateSourceRectHint(left: Int, top: Int, right: Int, bottom: Int, aspect: Float) {
+        synchronized(sourceRectLock) {
+            _sourceRectHint.set(left, top, right, bottom)
+        }
+        if (aspect > 0.05f) contentAspect = aspect
+    }
+
+    fun copySourceRectHint(out: Rect): Boolean {
+        synchronized(sourceRectLock) {
+            if (_sourceRectHint.isEmpty) return false
+            out.set(_sourceRectHint)
+            return true
+        }
+    }
 
     /** 手机任务开始时请求 UI 切到分身 Tab（若尚未打开），并钉住小窗。 */
     fun requestOpen(): Boolean {

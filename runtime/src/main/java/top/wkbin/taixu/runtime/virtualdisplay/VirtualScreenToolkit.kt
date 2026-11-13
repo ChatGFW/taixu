@@ -22,8 +22,7 @@ import top.wkbin.taixu.runtime.gui.toSwipe
  * 与主屏 [top.wkbin.taixu.runtime.gui.HostGuiToolkit] 的差异：
  * - 虚拟屏输入走 shower-server 的 Binder 注入（InputManager.injectInputEvent +
  *   setDisplayId），无多后端降级链——server 端自带拟人化抖动，成功率即可用性；
- * - PasteText 通过主屏剪贴板（系统全局共享）+ KEYCODE_PASTE 注入，依赖目标
- *   应用响应 PASTE 键；虚拟屏无无障碍节点树，不支持 ACTION_SET_TEXT 直设。
+ * - PasteText 优先 UiAutomation ACTION_SET_TEXT；失败再回退剪贴板 + KEYCODE_PASTE。
  */
 class VirtualScreenToolkit(
     private val context: Context,
@@ -165,7 +164,15 @@ class VirtualScreenToolkit(
         if (text.isEmpty() && !replace) {
             return GuiExecResult(false, "粘贴文本为空", backend)
         }
-        // 先准备剪贴板，避免写剪贴板失败时已清空用户文本。
+        // 优先 UiAutomation ACTION_SET_TEXT（与 HostDisplay 一致）。
+        if (canInject() && controller.setText(text, replace = replace)) {
+            return GuiExecResult(
+                true,
+                "已通过无障碍直接${if (replace) "写入" else "追加"}文本（${text.length} 字）",
+                backend,
+            )
+        }
+        // 回退：系统剪贴板 + KEYCODE_PASTE。
         if (text.isNotEmpty() && !writeClipboard(text)) {
             return GuiExecResult(false, "写入剪贴板失败，虚拟屏粘贴中止", backend)
         }

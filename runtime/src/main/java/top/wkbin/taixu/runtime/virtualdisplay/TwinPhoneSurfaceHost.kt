@@ -6,7 +6,7 @@ import android.widget.FrameLayout
 import kotlinx.coroutines.CoroutineScope
 
 /**
- * SurfaceView + 不拦截触控的轨迹叠层。Compose Canvas 会抢事件，故用 Android View。
+ * TextureView 预览 + 不拦截触控的轨迹叠层。Compose Canvas 会抢事件，故用 Android View。
  */
 class TwinPhoneSurfaceHost @JvmOverloads constructor(
     context: Context,

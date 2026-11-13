@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.Surface;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -17,6 +18,9 @@ final class ShowerService extends IShowerService.Stub {
     private final ConcurrentHashMap<Integer, DisplaySession> sessions;
     private final InputController mainInput;
     private final TaskReclaimer taskReclaimer;
+    private final AccessibilityInput accessibilityInput = new AccessibilityInput();
+    /** 重建 VD 时直挂；TextureView 会在 ensure 前后通过 setDisplaySurface 更新。 */
+    private volatile Surface preferredClientSurface;
 
     ShowerService(Context context, ConcurrentHashMap<Integer, DisplaySession> sessions, InputController mainInput) {
         this.context = context;
@@ -46,6 +50,7 @@ final class ShowerService extends IShowerService.Stub {
         input.setAfterInject(new Runnable() {
             @Override
             public void run() {
+                DisplayKeepAwake.pulse(displayId);
                 taskReclaimer.scheduleAfterInput(displayId);
             }
         });
@@ -54,7 +59,8 @@ final class ShowerService extends IShowerService.Stub {
     @Override
     public int ensureDisplay(int width, int height, int dpi, int bitrateKbps) {
         try {
-            DisplaySession session = DisplaySession.create(context, width, height, dpi);
+            Surface boot = preferredClientSurface;
+            DisplaySession session = DisplaySession.create(context, width, height, dpi, boot);
             sessions.put(session.displayId, session);
             wireInputHooks(session.displayId, session.input);
 
@@ -150,9 +156,12 @@ final class ShowerService extends IShowerService.Stub {
 
     @Override
     public void setDisplaySurface(int displayId, Surface surface) {
+        preferredClientSurface = surface;
         DisplaySession session = sessions.get(displayId);
         if (session == null) {
-            ServerLog.d("setDisplaySurface unknown displayId=" + displayId, null);
+            ServerLog.d(
+                    "setDisplaySurface stashed preferred surface displayId=" + displayId,
+                    null);
             return;
         }
         session.setClientSurface(surface);
@@ -273,6 +282,25 @@ final class ShowerService extends IShowerService.Stub {
         inputFor(displayId).key(keyCode, metaState);
         if (keyCode == KeyEvent.KEYCODE_HOME) {
             bringHome(displayId);
+        }
+    }
+
+    @Override
+    public boolean setText(int displayId, String text, boolean replace) {
+        DisplayKeepAwake.pulse(displayId);
+        return accessibilityInput.setText(displayId, text != null ? text : "", replace);
+    }
+
+    @Override
+    public void injectMotionEvent(int displayId, MotionEvent event) {
+        if (event == null) return;
+        try {
+            inputFor(displayId).injectMotion(event);
+        } finally {
+            try {
+                event.recycle();
+            } catch (Throwable ignored) {
+            }
         }
     }
 

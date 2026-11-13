@@ -48,8 +48,11 @@ public interface IShowerService extends IInterface {
 
     void setVideoSink(int displayId, IBinder sink) throws RemoteException;
 
-    /** 把虚拟屏输出直挂到客户端 Surface；传 null 回到保活占位面。 */
     void setDisplaySurface(int displayId, android.view.Surface surface) throws RemoteException;
+
+    boolean setText(int displayId, String text, boolean replace) throws RemoteException;
+
+    void injectMotionEvent(int displayId, android.view.MotionEvent event) throws RemoteException;
 
     abstract class Stub extends Binder implements IShowerService {
 
@@ -68,6 +71,8 @@ public interface IShowerService extends IInterface {
         static final int TRANSACTION_setVideoSink = IBinder.FIRST_CALL_TRANSACTION + 11;
         static final int TRANSACTION_injectTouchEvent = IBinder.FIRST_CALL_TRANSACTION + 12;
         static final int TRANSACTION_setDisplaySurface = IBinder.FIRST_CALL_TRANSACTION + 13;
+        static final int TRANSACTION_setText = IBinder.FIRST_CALL_TRANSACTION + 14;
+        static final int TRANSACTION_injectMotionEvent = IBinder.FIRST_CALL_TRANSACTION + 15;
 
         public Stub() {
             attachInterface(this, DESCRIPTOR);
@@ -242,6 +247,27 @@ public interface IShowerService extends IInterface {
                     android.view.Surface surface =
                             data.readInt() != 0 ? android.view.Surface.CREATOR.createFromParcel(data) : null;
                     setDisplaySurface(displayId, surface);
+                    reply.writeNoException();
+                    return true;
+                }
+                case TRANSACTION_setText: {
+                    data.enforceInterface(DESCRIPTOR);
+                    int displayId = data.readInt();
+                    String text = data.readString();
+                    boolean replace = data.readInt() != 0;
+                    boolean ok = setText(displayId, text, replace);
+                    reply.writeNoException();
+                    reply.writeInt(ok ? 1 : 0);
+                    return true;
+                }
+                case TRANSACTION_injectMotionEvent: {
+                    data.enforceInterface(DESCRIPTOR);
+                    int displayId = data.readInt();
+                    android.view.MotionEvent event =
+                            data.readInt() != 0
+                                    ? android.view.MotionEvent.CREATOR.createFromParcel(data)
+                                    : null;
+                    injectMotionEvent(displayId, event);
                     reply.writeNoException();
                     return true;
                 }
@@ -520,6 +546,46 @@ public interface IShowerService extends IInterface {
                         data.writeInt(0);
                     }
                     remote.transact(TRANSACTION_setDisplaySurface, data, reply, 0);
+                    reply.readException();
+                } finally {
+                    reply.recycle();
+                    data.recycle();
+                }
+            }
+
+            @Override
+            public boolean setText(int displayId, String text, boolean replace) throws RemoteException {
+                Parcel data = Parcel.obtain();
+                Parcel reply = Parcel.obtain();
+                try {
+                    data.writeInterfaceToken(DESCRIPTOR);
+                    data.writeInt(displayId);
+                    data.writeString(text);
+                    data.writeInt(replace ? 1 : 0);
+                    remote.transact(TRANSACTION_setText, data, reply, 0);
+                    reply.readException();
+                    return reply.readInt() != 0;
+                } finally {
+                    reply.recycle();
+                    data.recycle();
+                }
+            }
+
+            @Override
+            public void injectMotionEvent(int displayId, android.view.MotionEvent event)
+                    throws RemoteException {
+                Parcel data = Parcel.obtain();
+                Parcel reply = Parcel.obtain();
+                try {
+                    data.writeInterfaceToken(DESCRIPTOR);
+                    data.writeInt(displayId);
+                    if (event != null) {
+                        data.writeInt(1);
+                        event.writeToParcel(data, 0);
+                    } else {
+                        data.writeInt(0);
+                    }
+                    remote.transact(TRANSACTION_injectMotionEvent, data, reply, 0);
                     reply.readException();
                 } finally {
                     reply.recycle();

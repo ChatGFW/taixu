@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
@@ -13,8 +12,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import org.koin.core.context.GlobalContext
-import top.wkbin.taixu.runtime.virtualdisplay.VirtualDisplayCoordinator.Companion.DEFAULT_SESSION_ID
 
 /**
  * 叠在 [TwinPhoneEmbedView] 上的轨迹层：不消费触控（回传 false），只绘制 AI 注入点。
@@ -77,8 +74,7 @@ class TwinTouchTrailView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat().coerceAtLeast(1f)
         val h = height.toFloat().coerceAtLeast(1f)
-        // 轨迹落在 FIT_CENTER 内容矩形内，与 SurfaceView 画面对齐。
-        val content = contentRect(w, h)
+        // 轨迹铺满 View，与 TextureView stretch 对齐。
         val now = System.currentTimeMillis()
         for (trail in TwinTouchTrailBus.trails.value) {
             val remain = (trail.untilEpochMs - now).toFloat()
@@ -88,8 +84,8 @@ class TwinTouchTrailView @JvmOverloads constructor(
             }
             val t = (1f - (remain / hold)).coerceIn(0f, 1f)
             val alpha = ((1f - t) * 255f).toInt().coerceIn(0, 255)
-            val x1 = content.left + trail.x1 * content.width()
-            val y1 = content.top + trail.y1 * content.height()
+            val x1 = trail.x1 * w
+            val y1 = trail.y1 * h
             when (trail.kind) {
                 TwinTouchTrailKind.Tap -> {
                     tapPaint.alpha = alpha
@@ -99,8 +95,8 @@ class TwinTouchTrailView @JvmOverloads constructor(
                     canvas.drawCircle(x1, y1, dp(5f), tapFill)
                 }
                 TwinTouchTrailKind.Swipe -> {
-                    val x2 = content.left + trail.x2 * content.width()
-                    val y2 = content.top + trail.y2 * content.height()
+                    val x2 = trail.x2 * w
+                    val y2 = trail.y2 * h
                     val hx = x1 + (x2 - x1) * t
                     val hy = y1 + (y2 - y1) * t
                     swipePaint.alpha = alpha
@@ -114,27 +110,6 @@ class TwinTouchTrailView @JvmOverloads constructor(
                     canvas.drawCircle(hx, hy, dp(7f), swipeHead)
                 }
             }
-        }
-    }
-
-    private fun contentRect(viewW: Float, viewH: Float): RectF {
-        val size = runCatching {
-            GlobalContext.get().get<VirtualDisplayCoordinator>().getVideoSize(DEFAULT_SESSION_ID)
-        }.getOrNull()
-        val vdW = size?.first?.toFloat()?.takeIf { it > 1f } ?: (9f)
-        val vdH = size?.second?.toFloat()?.takeIf { it > 1f } ?: (19.5f)
-        val viewAspect = viewW / viewH
-        val vdAspect = vdW / vdH
-        return if (viewAspect > vdAspect) {
-            val h = viewH
-            val w = h * vdAspect
-            val left = (viewW - w) / 2f
-            RectF(left, 0f, left + w, h)
-        } else {
-            val w = viewW
-            val h = w / vdAspect
-            val top = (viewH - h) / 2f
-            RectF(0f, top, w, top + h)
         }
     }
 
