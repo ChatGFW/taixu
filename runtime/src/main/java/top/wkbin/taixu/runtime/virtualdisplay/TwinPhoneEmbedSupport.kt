@@ -2,8 +2,12 @@ package top.wkbin.taixu.runtime.virtualdisplay
 
 import android.graphics.Bitmap
 import android.view.MotionEvent
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.yield
 
 /** [TwinPhoneEmbedView] 触点映射与黑帧判定。 */
 internal object TwinPhoneEmbedSupport {
@@ -81,5 +85,58 @@ internal object TwinPhoneEmbedSupport {
             y += step
         }
         return total > 0 && dark * 100 / total >= 96
+    }
+}
+
+/**
+ * 串行化 VirtualDisplay 的 Surface 挂载/摘除。
+ * 代数已过期的命令在拿到锁时直接跳过，不补发 setSurface(null)：
+ * 后到的命令会自己挂上或摘掉当前 Surface。补发 null 会把仍在使用的同一 Surface 摘掉。
+ */
+internal class SurfaceAttachGate {
+    private val mutex = Mutex()
+    private val generation = AtomicInteger()
+    private val applied = AtomicInteger()
+
+    fun bump(): Int = generation.incrementAndGet()
+
+    /** 拿到锁时若 [gen] 已过期则不执行。不会代为摘除 Surface。 */
+    suspend fun runIfCurrent(gen: Int, block: suspend () -> Unit) {
+        mutex.withLock {
+            if (gen != generation.get()) return@withLock
+            try {
+                block()
+            } finally {
+                applied.set(gen)
+            }
+        }
+    }
+
+    /**
+     * 仍是最新一代时先 [detach] 再 [release]。
+     * 已被更新的挂载取代时，等那次挂载落地后再 [release]，避免先释放仍挂在 VD 上的纹理。
+     */
+    suspend fun detachThenRelease(
+        gen: Int,
+        detach: suspend () -> Unit,
+        release: suspend () -> Unit,
+    ) {
+        while (true) {
+            val shouldRelease = mutex.withLock {
+                val latest = generation.get()
+                if (gen == latest) {
+                    detach()
+                    applied.set(gen)
+                    true
+                } else {
+                    applied.get() >= latest
+                }
+            }
+            if (shouldRelease) {
+                release()
+                return
+            }
+            yield()
+        }
     }
 }

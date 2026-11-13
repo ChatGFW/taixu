@@ -15,6 +15,7 @@ import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,8 +45,8 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
     private var touchAllowed: (() -> Boolean)? = null
     private var onTouchBlocked: (() -> Unit)? = null
     private var gestureBlocked = false
-    /** 挂载/拆卸代数：忽略过期 Binder 结果，避免把废弃 Surface 挂回。 */
-    private var attachGeneration = 0
+    /** 串行挂载/摘除。过期命令直接跳过，不把仍在使用的 Surface 摘掉。 */
+    private val surfaceGate = SurfaceAttachGate()
 
     init {
         surfaceTextureListener = this
@@ -99,10 +100,10 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
     fun unbind() {
         val session = boundSession
         val capture = frameCapture
-        attachGeneration++
+        val gen = surfaceGate.bump()
         surfaceJob?.cancel()
         surfaceJob = null
-        detachSurfaceAsync(releaseLocal = false, releaseTexture = null)
+        detachSurfaceAsync(gen, releaseLocal = false, releaseTexture = null)
         if (session != null && capture != null) {
             VirtualDisplayFrameCaptures.unregister(session, capture)
         }
@@ -126,7 +127,7 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
 
     override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
         surfaceReady = false
-        val gen = ++attachGeneration
+        val gen = surfaceGate.bump()
         surfaceJob?.cancel()
         surfaceJob = null
         val controller = boundController
@@ -139,14 +140,20 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
             local?.release()
             return true
         }
-        // 返回 false：先从 VD 摘掉，再自行 release，避免系统抢先释放后异步 setSurface(null)。
-        surfaceJob = attachScope.launch(Dispatchers.IO) {
-            runCatching { controller.setDisplaySurface(null) }
-            withContext(Dispatchers.Main) {
-                local?.release()
-                if (gen == attachGeneration) {
-                    runCatching { surface.release() }
+        // 返回 false：本回调拥有 SurfaceTexture。先排队摘掉 VD，再 release。
+        // 不放进 surfaceJob，避免 unbind 取消掉这次 release。
+        attachScope.launch(Dispatchers.IO) {
+            var released = false
+            try {
+                surfaceGate.detachThenRelease(
+                    gen,
+                    detach = { runCatching { controller.setDisplaySurface(null) } },
+                ) {
+                    releaseDestroyedSurface(local, surface)
+                    released = true
                 }
+            } finally {
+                if (!released) releaseDestroyedSurface(local, surface)
             }
         }
         return false
@@ -203,30 +210,28 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         }
         if (!surface.isValid) return
 
-        val gen = ++attachGeneration
+        val gen = surfaceGate.bump()
         surfaceJob?.cancel()
         surfaceJob = attachScope.launch(Dispatchers.IO) {
-            if (gen != attachGeneration) return@launch
-            val ok = controller.setDisplaySurface(surface)
-            if (gen != attachGeneration) {
-                if (displaySurface === surface) {
-                    runCatching { controller.setDisplaySurface(null) }
-                }
-                return@launch
+            surfaceGate.runIfCurrent(gen) {
+                val ok = controller.setDisplaySurface(surface)
+                ShowerLog.d(
+                    TAG,
+                    "setDisplaySurface ok=$ok vd=${controller.getVideoSize()} " +
+                        "buffer=${fixedBufferW}x${fixedBufferH} view=${width}x${height}",
+                )
             }
-            ShowerLog.d(
-                TAG,
-                "setDisplaySurface ok=$ok vd=${controller.getVideoSize()} " +
-                    "buffer=${fixedBufferW}x${fixedBufferH} view=${width}x${height}",
-            )
         }
     }
 
-    private fun detachSurfaceAsync(releaseLocal: Boolean, releaseTexture: SurfaceTexture?) {
+    private fun detachSurfaceAsync(
+        gen: Int,
+        releaseLocal: Boolean,
+        releaseTexture: SurfaceTexture?,
+    ) {
         val controller = boundController
         val attachScope = scope
         val local = displaySurface
-        val gen = attachGeneration
         if (releaseLocal) {
             displaySurface = null
             fixedBufferW = 0
@@ -238,12 +243,22 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
             return
         }
         attachScope.launch(Dispatchers.IO) {
-            if (gen != attachGeneration && !releaseLocal) return@launch
-            runCatching { controller.setDisplaySurface(null) }
-            withContext(Dispatchers.Main) {
-                if (releaseLocal) local?.release()
-                releaseTexture?.let { runCatching { it.release() } }
+            surfaceGate.runIfCurrent(gen) {
+                runCatching { controller.setDisplaySurface(null) }
             }
+            if (releaseLocal || releaseTexture != null) {
+                withContext(NonCancellable + Dispatchers.Main) {
+                    if (releaseLocal) local?.release()
+                    releaseTexture?.let { runCatching { it.release() } }
+                }
+            }
+        }
+    }
+
+    private suspend fun releaseDestroyedSurface(local: Surface?, texture: SurfaceTexture) {
+        withContext(NonCancellable + Dispatchers.Main) {
+            runCatching { local?.release() }
+            runCatching { texture.release() }
         }
     }
 
