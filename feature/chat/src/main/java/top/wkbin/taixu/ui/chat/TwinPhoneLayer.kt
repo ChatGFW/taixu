@@ -110,7 +110,9 @@ internal fun TwinPhoneLayer(
         } else {
             statusTop + with(density) { (CompactTopBarClearance + 12.dp).toPx() }
         }
-        val bottomPad = with(density) { if (immersive) 0.dp.toPx() else 12.dp.toPx() }
+        // bottomInsets（导航栏 ∪ IME）此前未消费，「操作手机」底栏会压在系统导航上。
+        val bottomInsetPx = if (immersive) 0f else bottomInsets.getBottom(density).toFloat()
+        val bottomPad = bottomInsetPx + with(density) { if (immersive) 0.dp.toPx() else 12.dp.toPx() }
         val sidePad = with(density) { if (immersive) 0.dp.toPx() else 12.dp.toPx() }
         val chromeGap = with(density) { 10.dp.toPx() }
         val chromeH = with(density) {
@@ -118,7 +120,7 @@ internal fun TwinPhoneLayer(
         }
         val edgeInset = with(density) { MiniEdgeInset.toPx() }
         val edgeMin = with(density) { MiniEdgeMin.toPx() }
-        val bottomSlack = with(density) { MiniBottomSlack.toPx() }
+        val bottomSlack = bottomInsetPx + with(density) { MiniBottomSlack.toPx() }
         val fullW = constraints.maxWidth.toFloat().coerceAtLeast(1f)
         val fullH = constraints.maxHeight.toFloat().coerceAtLeast(1f)
         val availW = (fullW - sidePad * 2f).coerceAtLeast(1f)
