@@ -16,7 +16,8 @@ internal object TrustedToolRiskPolicy {
         register(Rule("high", HOST_REASON, assistedAuto = true),
             "screen_double_click", "screen_long_press", "screen_scroll", "paste_text",
             "virtual_screen_task", "virtual_screen_click", "virtual_screen_double_click", "virtual_screen_long_press",
-            "virtual_screen_swipe", "virtual_screen_scroll", "virtual_screen_key", "virtual_screen_input_text", "virtual_screen_screenshot")
+            "virtual_screen_swipe", "virtual_screen_scroll", "virtual_screen_key", "virtual_screen_back",
+            "virtual_screen_input_text", "virtual_screen_screenshot")
         register(Rule("critical", HOST_REASON), "exec")
         register(Rule("critical", "操作将为指定 Android 用户卸载应用；系统应用通常可用 install-existing 恢复，但其数据可能丢失。"), "package_uninstall_user")
         register(Rule("high", "操作将修改真实 Android 系统设置。"), "settings_put")
