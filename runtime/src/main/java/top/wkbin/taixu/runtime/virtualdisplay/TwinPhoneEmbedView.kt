@@ -20,9 +20,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * TextureView 预览：缓冲跟 **View 像素** 对齐（勿锁成 VD 全分辨率）。
- * 全分辨率 buffer 塞进小窗/大窗会按中心裁切，只露出画面中间一条。
- * VD 输出缩放到 View 大小后 identity 铺满；截图仍按 VD 尺寸取样以对齐点击坐标。
+ * TextureView 预览：缓冲必须锁成 **VD 分辨率**（与 VirtualDisplay 一致）。
+ *
+ * VirtualDisplay 合成进 SurfaceTexture 时会按 consumer 默认缓冲尺寸取样；若缓冲是
+ * View 小窗像素，合成器会中心裁切，只露出中间一条。缓冲=VD 后 identity 铺满 View；
+ * 外层 Compose 按 VD 宽高比定框，勿再套 FIT 矩阵（会叠在「先铺满」上挤到一角）。
  */
 class TwinPhoneEmbedView @JvmOverloads constructor(
     context: Context,
@@ -156,25 +158,38 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         val controller = boundController ?: return
         val attachScope = scope ?: return
         val st = surfaceTexture ?: return
-        // 必须等 layout；缓冲跟 View 像素对齐，让 VD 整帧缩进 Surface。
-        // 勿用 VD 全分辨率 buffer：TextureView 会按中心裁切，小窗/大窗只剩中间一条。
-        val bw = width.takeIf { it > 0 } ?: return
-        val bh = height.takeIf { it > 0 } ?: return
-        // 展开动画每帧改尺寸；≥8px 才重建，避免狂刷 setSurface。
-        val bufferChanged =
-            fixedBufferW == 0 ||
-                fixedBufferH == 0 ||
-                kotlin.math.abs(bw - fixedBufferW) >= 8 ||
-                kotlin.math.abs(bh - fixedBufferH) >= 8
+        // 必须等 layout，否则 width/height=0，外层宽高比框尚未落地。
+        if (width <= 0 || height <= 0) return
+
+        val size = controller.getVideoSize()
+        val rawW = size?.first?.takeIf { it > 0 }
+        val rawH = size?.second?.takeIf { it > 0 }
+        if (rawW == null || rawH == null) {
+            // 建屏尚未回写尺寸：稍后重试，切勿用 View 像素当缓冲（会触发合成中心裁切）。
+            surfaceJob?.cancel()
+            surfaceJob = attachScope.launch {
+                kotlinx.coroutines.delay(120)
+                if (surfaceReady && boundController === controller) {
+                    withContext(Dispatchers.Main) { prepareAndAttach() }
+                }
+            }
+            return
+        }
+        // 与 shower-server DisplaySession 16 对齐，避免缓冲与真实 VD 差几像素。
+        val bw = TwinPhoneEmbedSupport.alignBlock(rawW)
+        val bh = TwinPhoneEmbedSupport.alignBlock(rawH)
+
+        val bufferChanged = bw != fixedBufferW || bh != fixedBufferH
         if (bufferChanged) {
             st.setDefaultBufferSize(bw, bh)
             fixedBufferW = bw
             fixedBufferH = bh
             displaySurface?.release()
             displaySurface = null
-            ShowerLog.d(TAG, "setDefaultBufferSize view=${bw}x${bh} vd=${controller.getVideoSize()}")
+            TwinPhonePresence.updateContentAspect(bw.toFloat() / bh.toFloat())
+            ShowerLog.d(TAG, "setDefaultBufferSize vd=${bw}x${bh} view=${width}x${height}")
         }
-        // identity：缓冲已是 View 大小，整窗铺满；外层 Compose 按 VD 宽高比定框。
+        // identity：整帧铺满 View；外层已按 VD 宽高比定框。
         setTransform(android.graphics.Matrix())
 
         val existing = displaySurface
@@ -196,11 +211,6 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
                     runCatching { controller.setDisplaySurface(null) }
                 }
                 return@launch
-            }
-            controller.getVideoSize()?.let { (vw, vh) ->
-                if (vw > 0 && vh > 0) {
-                    TwinPhonePresence.updateContentAspect(vw.toFloat() / vh.toFloat())
-                }
             }
             ShowerLog.d(
                 TAG,

@@ -7,6 +7,9 @@ import kotlin.math.min
 
 /** [TwinPhoneEmbedView] 触点映射与黑帧判定。 */
 internal object TwinPhoneEmbedSupport {
+    /** 与 shower-server DisplaySession 一致：宽高 16 对齐。 */
+    fun alignBlock(value: Int): Int = ((value + 15) / 16) * 16
+
     /** 铺满映射：View 坐标线性落到 VD（与 identity transform 一致）。 */
     fun mapViewToDisplay(
         viewX: Float,
