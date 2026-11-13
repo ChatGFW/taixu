@@ -3,6 +3,8 @@ package top.wkbin.taixu.ui.chat
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.res.stringResource
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.ToolCall
@@ -32,11 +34,33 @@ private object FileToolUi : ToolUiRenderer {
     }
 }
 
+/** start_task / read_screen 在时间线上与泛化「操作设备」区分开。 */
+private object HostToolUi : ToolUiRenderer {
+    @Composable
+    override fun title(context: ToolUiContext): String {
+        val action = (context.call.args["action"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
+        return when (action) {
+            "virtual_screen_task" -> stringResource(R.string.chat_action_twin_task)
+            "virtual_screen_screenshot" -> stringResource(R.string.chat_action_twin_read)
+            else -> stringResource(R.string.chat_action_host)
+        }
+    }
+
+    override fun target(context: ToolUiContext): String? {
+        val action = (context.call.args["action"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
+        if (action != "virtual_screen_task") return null
+        val ack = (context.call.args["ack"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
+        val goal = (context.call.args["goal"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
+        return (ack.ifBlank { goal }).replace(Regex("[\\r\\n\\t]+"), " ").take(100).takeIf { it.isNotBlank() }
+    }
+}
+
 /** Immutable native registration. Exact raw-name renderers are scoped to MCP/extension calls. */
 internal class ToolUiRegistry(
     extensions: Map<String, ToolUiRenderer> = emptyMap(),
     builtIns: Map<HarnessTool, ToolUiRenderer> = mapOf(
         HarnessTool.READ to FileToolUi, HarnessTool.WRITE to FileToolUi, HarnessTool.EDIT to FileToolUi,
+        HarnessTool.HOST to HostToolUi,
     ),
 ) {
     private val extensions = extensions.toMap()

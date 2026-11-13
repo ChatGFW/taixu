@@ -23,6 +23,7 @@ sealed interface AppDestination : NavKey
 @Serializable data object AppearanceSettingsDestination : AppDestination
 @Serializable data object SystemDevSettingsDestination : AppDestination
 @Serializable data object AboutCommunityDestination : AppDestination
+@Serializable data object OpenSourceLicensesDestination : AppDestination
 @Serializable data object SponsorDestination : AppDestination
 @Serializable data object AgentSettingsDestination : AppDestination
 @Serializable data object AgentSubagentSettingsDestination : AppDestination

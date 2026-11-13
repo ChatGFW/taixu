@@ -42,6 +42,8 @@ object HostCapabilityDirectory {
         "status", "exec", "settings_get", "package_list", "app_list", "logcat", "device_status",
         "screen_observe", "screen_click", "screen_double_click", "screen_long_press",
         "screen_swipe", "screen_scroll", "screen_input_text", "paste_text", "screen_key", "app_launch",
+        // 多步手机 GUI 必须走分身虚拟屏，放进 direct 以免模型只会点主屏 screen_*/app_launch。
+        "virtual_screen_task",
     )
 
     /** 迁入按需发现域的低频管理动作与虚拟屏原语。 */
@@ -69,8 +71,8 @@ object HostCapabilityDirectory {
         ),
         DeferredAction(
             "virtual_screen_ensure",
-            "在一块独立的 Shower 虚拟屏上建立会话（需 Shizuku 或 Root，完全不影响主屏）。悬浮窗会自动弹出，标题栏实时显示当前步骤；" +
-                "没有「显示在其他应用上层」权限时用户看不到画面，必须告知用户去系统设置打开。",
+            "在一块独立的 Shower 虚拟屏上建立会话（需 Shizuku 或 Root，完全不影响主屏）。" +
+                "会打开聊天「分身」页看画面，进度走系统通知；不依赖「显示在其他应用上层」。",
             listOf("session"),
         ),
         DeferredAction("virtual_screen_launch", "在虚拟屏启动目标应用（先 virtual_screen_ensure 建屏）。", listOf("package", "session"), listOf("package")),
@@ -93,6 +95,7 @@ object HostCapabilityDirectory {
         ),
         DeferredAction("virtual_screen_scroll", "在虚拟屏滚动。", listOf("direction", "distance_ratio", "duration_ms", "session"), listOf("direction")),
         DeferredAction("virtual_screen_key", "向虚拟屏发送按键（back/home/recents/enter/delete/paste/power）。", listOf("key", "session"), listOf("key")),
+        DeferredAction("virtual_screen_back", "向虚拟屏注入返回键（等价 virtual_screen_key key=back）。", listOf("session")),
         DeferredAction(
             "virtual_screen_input_text",
             "向虚拟屏输入文本（中文走剪贴板粘贴）。虚拟屏打字必须用本动作；paste_text 和 screen_input_text 打到主屏焦点，会把虚拟屏里的应用切走。",
@@ -101,15 +104,8 @@ object HostCapabilityDirectory {
         DeferredAction("virtual_screen_set_text", "替换虚拟屏输入框文本（空文本清空）。", listOf("text", "session"), listOf("text")),
         DeferredAction("virtual_screen_wait", "等待虚拟屏界面稳定；duration_ms 可为 0。", listOf("duration_ms", "session"), listOf("duration_ms")),
         DeferredAction("virtual_screen_close", "释放虚拟屏；一轮虚拟屏操作完成后调用。", listOf("session")),
-        DeferredAction("virtual_screen_show", "恢复显示已隐藏的虚拟屏。", listOf("session")),
-        DeferredAction("virtual_screen_hide", "隐藏虚拟屏悬浮窗。不要调用本动作，除非用户明确要求隐藏。", listOf("session")),
-        DeferredAction(
-            "virtual_screen_task",
-            "多步虚拟屏界面操作的首选入口：goal 写要完成的事（可选 package 先打开应用），由设置里的手机操作模型执行，" +
-                "不要自己一轮轮截图点按。成功且无人工介入时可传 workflow_name 保存为可复用工作流。" +
-                "必须如实报告手机模型失败；主模型接管需明确说明。",
-            listOf("goal", "package", "workflow_name", "max_steps", "session"), listOf("goal"),
-        ),
+        DeferredAction("virtual_screen_show", "打开聊天「分身」页以查看虚拟屏画面。", listOf("session")),
+        DeferredAction("virtual_screen_hide", "收起分身任务进度通知。不要调用本动作，除非用户明确要求。", listOf("session")),
     )
 
     /** 目录级隐藏：inspect 不列出，调用入口拒绝。当前为空，作为 hidden 暴露级别的执行位。 */
@@ -217,14 +213,18 @@ object HostCapabilityDirectory {
         function = ApiFunctionDefinition(
             name = "host",
             description =
-                "在 Android 宿主侧执行状态查询、特权命令与主屏 GUI 自动化。只读查询（status/settings_get/package_list/" +
-                    "app_list/logcat/device_status/screen_observe）免审批；logcat 首选内置无线 ADB（无需 Shizuku/Root，可选 port），" +
-                    "其余特权操作需 Shizuku 或 Root。GUI 原语（screen_click/double_click/long_press/swipe/scroll/input_text/key）" +
-                    "坐标是物理像素，走 HostGuiToolkit：无障碍全局手势 → cmd input → bin input 自动降级；中文输入走剪贴板粘贴。" +
-                    "paste_text 和 screen_input_text 打到主屏焦点。设置修改、应用管理变更、屏幕截图与虚拟屏（virtual_screen_*，" +
-                    "在独立 Shower 虚拟屏上隔离启动并操控第三方应用）不在本工具内：用 " +
-                    "use_capability(action=\"inspect\", server=\"$SERVER_ID\") 查看清单后经 " +
-                    "use_capability(action=\"call\", server=\"$SERVER_ID\", tool=…) 调用，审批与特权要求与本工具一致。",
+                "在 Android 宿主侧执行状态查询、特权命令与 GUI 自动化。" +
+                    "【多步手机操作铁律】用户要打开 App、发消息、填表单、点多级菜单时，必须调用 action=virtual_screen_task；" +
+                    "只有调用它分身才会动，不要只口头答应，也不要描述点击步骤。" +
+                    "未配置专用手机操作模型时，自动用当前聊天主模型代跑（需支持看图）；配了专用接口则优先用专用模型。" +
+                    "参数：goal=一句清晰可执行目标，ack=一句自然的「这就去做」，allow=[send|delete] 仅填用户这句话明确要求的动作，" +
+                    "可选 package=包名。任务在独立分身虚拟屏执行，不抢主屏，并自动打开聊天「分身」页。" +
+                    "禁止用 app_launch / screen_click / screen_swipe / screen_key 等主屏动作完成这类任务。" +
+                    "主屏 screen_* / app_launch 仅当用户明确要求操作真机当前界面时使用（main_screen=true）；看一眼主屏用 screen_observe。" +
+                    "只读查询（status/settings_get/package_list/app_list/logcat/device_status/screen_observe）免审批；" +
+                    "logcat 首选内置无线 ADB（无需 Shizuku/Root，可选 port），其余特权操作需 Shizuku 或 Root。" +
+                    "其它虚拟屏细粒度原语与设置/应用管理变更：用 use_capability(action=\"inspect\", server=\"$SERVER_ID\") 后 " +
+                    "use_capability(action=\"call\", server=\"$SERVER_ID\", tool=…) 调用。",
             parameters = Json.parseToJsonElement(
                 """{"type":"object","properties":{"action":{"type":"string","enum":[${directActionsJson()}]},""" +
                     """"command":{"type":"string","description":"仅 exec 使用的原始宿主命令"},""" +
@@ -250,7 +250,14 @@ object HostCapabilityDirectory {
                     """"tag":{"type":"string","description":"logcat 的可选 tag"},""" +
                     """"priority":{"type":"string","enum":["V","D","I","W","E","F"],"description":"logcat 最低优先级，默认 V"},""" +
                     """"keyword":{"type":"string","description":"logcat 可选关键词（忽略大小写）"},""" +
-                    """"port":{"type":"integer","minimum":1,"maximum":65535,"description":"无线 ADB 端口（如 12345），logcat 时可选显式指定"}},"required":["action"]}""",
+                    """"port":{"type":"integer","minimum":1,"maximum":65535,"description":"无线 ADB 端口（如 12345），logcat 时可选显式指定"},""" +
+                    """"goal":{"type":"string","description":"virtual_screen_task：一句清晰完整、可直接执行的任务目标"},""" +
+                    """"ack":{"type":"string","description":"virtual_screen_task：一句自然的话，告诉用户你这就去做"},""" +
+                    """"allow":{"type":"array","items":{"type":"string","enum":["send","delete"]},"description":"用户这句话明确要求、可在 App 内不再确认的动作：发消息/回复/评论/发帖填 send，删除/清理填 delete；用户没明确要求则省略或空数组"},""" +
+                    """"workflow_name":{"type":"string","description":"virtual_screen_task：成功且无人工介入时保存的工作流名"},""" +
+                    """"max_steps":{"type":"integer","minimum":1,"maximum":30,"description":"virtual_screen_task 最多步数，默认 20"},""" +
+                    """"session":{"type":"string","description":"虚拟屏会话 ID，默认 default"},""" +
+                    """"main_screen":{"type":"boolean","description":"仅当用户明确要求操作真机当前界面时，对 app_launch/screen_* 传 true；默认禁止主屏抢前台"}},"required":["action"]}""",
             ).jsonObject,
         ),
     )
@@ -283,11 +290,18 @@ object HostCapabilityDirectory {
         "priority" to jsonObj("""{"type":"string","enum":["V","D","I","W","E","F"],"description":"最低优先级"}"""),
         "keyword" to jsonObj("""{"type":"string","description":"可选关键词（忽略大小写）"}"""),
         "port" to jsonObj("""{"type":"integer","minimum":1,"maximum":65535,"description":"无线 ADB 端口"}"""),
-        "goal" to jsonObj("""{"type":"string","description":"要在虚拟屏上完成的任务描述"}"""),
+        "goal" to jsonObj("""{"type":"string","description":"一句清晰完整、可直接执行的任务目标"}"""),
+        "ack" to jsonObj("""{"type":"string","description":"一句自然的话，告诉用户你这就去做"}"""),
+        "allow" to jsonObj(
+            """{"type":"array","items":{"type":"string","enum":["send","delete"]},"description":"用户明确要求可直接做的动作：send/delete"}""",
+        ),
         "workflow_name" to jsonObj("""{"type":"string","description":"成功且无人工介入时保存为此名称的可编辑工作流"}"""),
-        "max_steps" to jsonObj("""{"type":"integer","minimum":1,"maximum":20,"description":"最多操作步数，默认 12"}"""),
+        "max_steps" to jsonObj("""{"type":"integer","minimum":1,"maximum":30,"description":"最多操作步数，默认 20"}"""),
         "session" to jsonObj(
             """{"type":"string","description":"虚拟屏会话 ID，默认 default；不同会话对应相互独立的虚拟屏，可并行操控多个应用"}""",
+        ),
+        "main_screen" to jsonObj(
+            """{"type":"boolean","description":"仅当用户明确要求操作真机当前界面时，对 app_launch/screen_* 传 true"}""",
         ),
     )
 

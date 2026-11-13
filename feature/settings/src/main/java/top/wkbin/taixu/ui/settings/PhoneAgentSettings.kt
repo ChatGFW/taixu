@@ -88,7 +88,7 @@ internal fun PhoneAgentSettingsEntry(
     SettingsRow(
         icon = RuntimeIconName.Android,
         title = "手机操作模型",
-        subtitle = "单独的接口、模型名和密钥，不会出现在聊天模型里",
+        subtitle = "可选；不配则用聊天主模型代跑虚拟屏操作",
         onClick = onOpen, tonalIcon = true,
     )
 }
@@ -118,7 +118,7 @@ fun PhoneAgentSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(RuntimeSpacing.cardGap),
         ) {
             Text(
-                "这里只给虚拟屏用，看画面、点击、滑动和输入。聊天主模型仍在「模型档案管理」里配置，两边互不影响。",
+                "可选。填了就用这里的专用接口看画面、点击、滑动和输入；留空时 virtual_screen_task 自动用当前聊天主模型代跑（需支持看图）。两边凭证互不影响。",
                 style = RuntimeTheme.typography.bodyMedium,
                 color = RuntimeTheme.colorScheme.onSurfaceVariant,
             )

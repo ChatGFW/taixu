@@ -30,9 +30,11 @@ internal class BotMemoryEditorState {
 }
 
 @Composable
-internal fun BotMemoryEditorDialog(path: String, onDismiss: () -> Unit,
+internal fun BotMemoryEditorDialog(
+    path: String, onDismiss: () -> Unit,
     state: BotMemoryEditorState = remember(path) { BotMemoryEditorState() },
-    load: suspend () -> BotMemoryDocument, save: suspend (BotMemoryDocument, String) -> Unit) {
+    load: suspend () -> BotMemoryDocument, save: suspend (BotMemoryDocument, String) -> Unit
+) {
     var document by remember(path) { mutableStateOf<BotMemoryDocument?>(null) }
     var draft by state.draft
     var revision by state.revision
@@ -46,23 +48,37 @@ internal fun BotMemoryEditorDialog(path: String, onDismiss: () -> Unit,
         try {
             val loaded = load()
             document = loaded
-            if (draft == null) { draft = loaded.content; revision = loaded.revision }
+            if (draft == null) {
+                draft = loaded.content; revision = loaded.revision
+            }
             error = null
-        } catch (cancelled: CancellationException) { throw cancelled }
-        catch (failure: Exception) { error = failure.message ?: "读取失败" }
-        finally { loading = false }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            error = failure.message ?: "读取失败"
+        } finally {
+            loading = false
+        }
     }
     RuntimeAlertDialog(
         onDismissRequest = { if (!saving) onDismiss() },
         title = { Text(stringResource(R.string.fbot_memory_edit)) },
         text = {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+            Column(Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())) {
                 Text(path, style = RuntimeTheme.typography.bodyMedium)
                 if (loading) RuntimeCircularProgressIndicator()
-                if (draft != null) RuntimeFilledTextField(value = draft.orEmpty(), onValueChange = { draft = it },
+                if (draft != null) RuntimeFilledTextField(
+                    value = draft.orEmpty(),
+                    onValueChange = { draft = it },
                     enabled = !saving && !loading,
- labelText = stringResource(R.string.fbot_memory_body), minLines = 8, maxLines = 18,
-                    textStyle = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), modifier = Modifier.fillMaxWidth())
+                    labelText = stringResource(R.string.fbot_memory_body),
+                    minLines = 8,
+                    maxLines = 18,
+                    textStyle = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    modifier = Modifier.fillMaxWidth()
+                )
                 error?.let { Text(it, color = RuntimeTheme.colorScheme.error) }
                 RuntimeTextButton(enabled = !saving && !loading, onClick = {
                     draft = null; revision = null; document = null; reload++
@@ -70,45 +86,79 @@ internal fun BotMemoryEditorDialog(path: String, onDismiss: () -> Unit,
             }
         },
         confirmButton = {
-            RuntimeTextButton(enabled = !saving && !loading && document != null && draft != null && revision != null, onClick = {
-                val source = document?.copy(revision = revision ?: return@RuntimeTextButton) ?: return@RuntimeTextButton
-                saving = true
-                scope.launch {
-                    try { save(source, draft.orEmpty()); onDismiss() }
-                    catch (cancelled: CancellationException) { throw cancelled }
-                    catch (failure: Exception) { error = failure.message ?: "保存失败" }
-                    finally { saving = false }
-                }
-            }) { Text(stringResource(R.string.fbot_save)) }
+            RuntimeTextButton(
+                enabled = !saving && !loading && document != null && draft != null && revision != null,
+                onClick = {
+                    val source = document?.copy(revision = revision ?: return@RuntimeTextButton)
+                        ?: return@RuntimeTextButton
+                    saving = true
+                    scope.launch {
+                        try {
+                            save(source, draft.orEmpty()); onDismiss()
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (failure: Exception) {
+                            error = failure.message ?: "保存失败"
+                        } finally {
+                            saving = false
+                        }
+                    }
+                }) { Text(stringResource(R.string.fbot_save)) }
         },
-        dismissButton = { RuntimeTextButton(enabled = !saving, onClick = onDismiss) { Text(stringResource(R.string.fbot_close)) } },
+        dismissButton = {
+            RuntimeTextButton(enabled = !saving, onClick = onDismiss) {
+                Text(
+                    stringResource(R.string.fbot_close)
+                )
+            }
+        },
     )
 }
 
 @Composable
-internal fun BotMemoryDiffDialog(hash: String, onDismiss: () -> Unit, load: suspend () -> BotMemoryDiff) {
+internal fun BotMemoryDiffDialog(
+    hash: String,
+    onDismiss: () -> Unit,
+    load: suspend () -> BotMemoryDiff
+) {
     var diff by remember(hash) { mutableStateOf<BotMemoryDiff?>(null) }
     var error by remember(hash) { mutableStateOf<String?>(null) }
     var attempt by remember(hash) { mutableIntStateOf(0) }
     LaunchedEffect(hash, attempt) {
         error = null
-        try { diff = load() }
-        catch (cancelled: CancellationException) { throw cancelled }
-        catch (failure: Exception) { error = failure.message ?: "读取失败" }
+        try {
+            diff = load()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            error = failure.message ?: "读取失败"
+        }
     }
-    RuntimeAlertDialog(onDismissRequest = onDismiss,
+    RuntimeAlertDialog(
+        onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.fbot_memory_diff) + " · " + hash.take(8)) },
         text = {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+            Column(Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())) {
                 val shown = diff
                 if (shown == null && error == null) RuntimeCircularProgressIndicator()
                 if (shown != null) {
-                    Text(stringResource(R.string.fbot_memory_diff_hint), style = RuntimeTheme.typography.bodySmall)
-                    if (shown.truncated) Text(stringResource(R.string.fbot_memory_diff_truncated), color = RuntimeTheme.colorScheme.error)
+                    Text(
+                        stringResource(R.string.fbot_memory_diff_hint),
+                        style = RuntimeTheme.typography.bodySmall
+                    )
+                    if (shown.truncated) Text(
+                        stringResource(R.string.fbot_memory_diff_truncated),
+                        color = RuntimeTheme.colorScheme.error
+                    )
                     SelectionContainer {
-                        Text(shown.text.ifEmpty { stringResource(R.string.fbot_memory_diff_empty) },
+                        Text(
+                            shown.text.ifEmpty { stringResource(R.string.fbot_memory_diff_empty) },
                             modifier = Modifier.horizontalScroll(rememberScrollState()),
-                            style = RuntimeTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                            style = RuntimeTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace
+                        )
                     }
                 }
                 error?.let {

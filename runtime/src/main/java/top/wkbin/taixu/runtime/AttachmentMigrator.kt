@@ -87,7 +87,7 @@ class AttachmentMigrator(
 
         // 没有被任何消息引用的旧文件同样移出全局根：它已不再挂进 guest。
         global.listFiles().orEmpty()
-            .filter { it.isFile && it.name != MARKER_NAME && it.name != MANIFEST_NAME }
+            .filter { it.isFile && it.name != MARKER_NAME && it.name != MANIFEST_NAME && it.name != RECONCILE_STAMP }
             .forEach { leftover ->
                 if (moveInto(leftover, AttachmentPaths.orphan(filesDir))) {
                     orphaned++
@@ -148,6 +148,66 @@ class AttachmentMigrator(
         runCatching { if (root.listFiles().isNullOrEmpty()) root.delete() }
     }
 
+    /**
+     * 冷启动要不要、以及怎么读 `harness_blobs`。
+     *
+     * - [AttachmentReferenceScanMode.FULL]：首次迁移，需要全部附件引用。
+     * - [AttachmentReferenceScanMode.ORPHANS]：迁移已完成，只补 `legacy/` 里现有孤儿。
+     * - [AttachmentReferenceScanMode.NONE]：对过账，或没有孤儿可补；不要打开任何 blob。
+     */
+    fun referenceScanMode(): AttachmentReferenceScanMode {
+        if (!File(AttachmentPaths.global(filesDir), MARKER_NAME).isFile) {
+            return AttachmentReferenceScanMode.FULL
+        }
+        val orphans = orphanAttachmentNames()
+        val signature = orphanSignature(orphans)
+        val stamp = File(AttachmentPaths.global(filesDir), RECONCILE_STAMP)
+        val recorded = stamp.takeIf { it.isFile }?.let { runCatching { it.readText() }.getOrNull() }
+        if (recorded == signature) return AttachmentReferenceScanMode.NONE
+        return if (orphans.isEmpty()) AttachmentReferenceScanMode.NONE else AttachmentReferenceScanMode.ORPHANS
+    }
+
+    /** `attachments/legacy/` 里可作为附件名补回的文件。 */
+    fun orphanAttachmentNames(): Set<String> {
+        val orphan = AttachmentPaths.orphan(filesDir)
+        if (!orphan.isDirectory) return emptySet()
+        return orphan.listFiles().orEmpty()
+            .asSequence()
+            .filter { it.isFile }
+            .map { it.name }
+            .filter { name ->
+                name.isNotEmpty() &&
+                    name[0].isLetterOrDigit() &&
+                    name.length <= 255 &&
+                    name.all { it.isLetterOrDigit() || it == '.' || it == '_' || it == '-' } &&
+                    name != "skills" &&
+                    name != "legacy"
+            }
+            .toCollection(linkedSetOf())
+    }
+
+    /** 本次已经按当前孤儿集合核对过消息引用。迁移标记还不在时不落盘。 */
+    fun markReferencesScanned() {
+        val global = AttachmentPaths.global(filesDir)
+        if (!File(global, MARKER_NAME).isFile) return
+        runCatching {
+            global.mkdirs()
+            File(global, RECONCILE_STAMP).writeText(orphanSignature(orphanAttachmentNames()))
+        }.onFailure { logger.w("附件引用对账标记写入失败", it) }
+    }
+
+    private fun orphanSignature(names: Set<String>): String {
+        if (names.isEmpty()) return ""
+        val orphan = AttachmentPaths.orphan(filesDir)
+        return names.asSequence()
+            .sorted()
+            .map { name ->
+                val file = File(orphan, name)
+                "$name\t${file.length()}\t${file.lastModified()}"
+            }
+            .joinToString("\n")
+    }
+
     private fun action(name: String, action: String, targets: List<String>): Map<String, String> =
         mapOf("name" to name, "action" to action, "targets" to targets.joinToString(","))
 
@@ -173,10 +233,8 @@ class AttachmentMigrator(
     companion object {
         private const val MARKER_NAME = ".attachments-v2.done"
         private const val MANIFEST_NAME = ".attachments-v2.manifest.json"
+        private const val RECONCILE_STAMP = ".attachments-v2.reconciled"
         private const val STAGED_TTL_MS = 24L * 60 * 60 * 1000
-
-        /** `/attachments/<name>` 里的一级名字；`skills` 是全局技能根，永远不算附件。 */
-        private val REFERENCE = Regex("""/attachments/([A-Za-z0-9][A-Za-z0-9._-]{0,254})(?![A-Za-z0-9._-])""")
 
         /**
          * 一行式布局摘要，供 `taixu-host doctor` 显示：迁移是否执行、文件分布在哪。
@@ -193,10 +251,20 @@ class AttachmentMigrator(
             return "global=$globalFiles legacy=$legacyFiles sessions=$sessions migrated=${if (migrated) "yes" else "no"}"
         }
 
-        fun referencedAttachmentNames(payload: String): Set<String> =
-            REFERENCE.findAll(payload)
-                .map { it.groupValues[1] }
-                .filter { it != "skills" && it != "legacy" }
-                .toSet()
+        fun referencedAttachmentNames(payload: String, limitTo: Set<String>? = null): Set<String> =
+            AttachmentReferenceScan.names(payload, limitTo)
+
+        fun referencedAttachmentNames(file: File, limitTo: Set<String>? = null): Set<String> =
+            AttachmentReferenceScan.names(file, limitTo = limitTo)
+
+        internal fun referencedAttachmentNames(file: File, chunkSize: Int, limitTo: Set<String>? = null): Set<String> =
+            AttachmentReferenceScan.names(file, chunkSize, limitTo)
     }
+}
+
+/** 启动时附件引用扫描范围。 */
+enum class AttachmentReferenceScanMode {
+    FULL,
+    ORPHANS,
+    NONE,
 }

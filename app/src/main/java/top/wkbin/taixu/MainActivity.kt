@@ -12,6 +12,7 @@ import top.wkbin.taixu.ui.onboarding.OnboardingViewModel
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
@@ -83,6 +84,8 @@ import org.koin.android.ext.android.getKoin
 import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
 import top.wkbin.taixu.navigation.AgentNotificationIntentExtractor
 import top.wkbin.taixu.core.model.ThemePalette
+import top.wkbin.taixu.runtime.virtualdisplay.TwinPhonePresence
+
 class MainActivity : AppCompatActivity() {
     val settingsDataStore: AppearancePreferences by inject()
     val appUpdateManager: AppUpdateManager by inject()
@@ -93,16 +96,17 @@ class MainActivity : AppCompatActivity() {
     val mcpManager: McpManager by inject()
     private val botGroupSessions: BotGroupSessionRepository? get() = runCatching { getKoin().getOrNull<BotGroupSessionRepository>() }.getOrNull()
 
-    /** 控制 SplashScreen 持续显示，直到 onboarding 偏好从 DataStore 加载完成，避免白屏空窗。 */
+    /** Splash 等到 onboarding 偏好就绪。 */
     private val keepSplashOnScreen: MutableState<Boolean> = mutableStateOf(true)
-
     private var createdUptimeMs: Long = 0L
+    private val twinPipHost = TwinPhonePipHost(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         createdUptimeMs = SystemClock.uptimeMillis()
         val splashScreen = installSplashScreen()
         splashScreen.setupTaiXuSplashAnimation { keepSplashOnScreen.value }
         super.onCreate(savedInstanceState)
+        lifecycle.addObserver(twinPipHost)
         handleNavigationIntent(intent)
         enableEdgeToEdge()
         setContent {
@@ -132,7 +136,6 @@ class MainActivity : AppCompatActivity() {
                 val onboardingViewModel: OnboardingViewModel = koinViewModel()
                 val onboarding by onboardingViewModel.status.collectAsStateWithLifecycle()
 
-                // onboarding 偏好读盘完成后让 SplashScreen 退场；只要 420ms 动画合并完成且数据就绪即刻退出，绝不多等。
                 LaunchedEffect(onboarding.loaded) {
                     if (onboarding.loaded && keepSplashOnScreen.value) {
                         val elapsed = SystemClock.uptimeMillis() - createdUptimeMs
@@ -149,7 +152,6 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                // 启动时静默检查更新
                 var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
                 var downloadProgress by remember { mutableStateOf<Float?>(null) }
                 var isDownloading by remember { mutableStateOf(false) }
@@ -326,10 +328,17 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // 主应用回到前台时，自动关闭智枢桌面悬浮小窗，避免主界面与悬浮窗重叠
-        runCatching {
-            FloatingChatService.stop(this)
-        }
+        runCatching { FloatingChatService.stop(this) }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        twinPipHost.onUserLeaveHint()
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        twinPipHost.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -354,7 +363,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val action = intentToHandle.action
-        // 系统分享入口：分享文本进聊天页预填（不自动发送）
+        TwinPhonePresence.consumeOpenTwinIntent(intentToHandle)
         ShareIntentExtractor.extractSharedText(intentToHandle)?.let { sharedText ->
             globalNavigationBus.navigateTo(AppNavigationTarget.SharedText(sharedText))
             return
@@ -362,11 +371,9 @@ class MainActivity : AppCompatActivity() {
         val navigateTo = intentToHandle.getStringExtra("navigate_to")
         val isAdbLogcat = action == "top.wkbin.taixu.action.OPEN_ADB_LOGCAT" || navigateTo == "adb_logcat"
         if (isAdbLogcat) globalNavigationBus.navigateTo(AppNavigationTarget.AdbLogcat)
-        // 工作流通知点入：打开运行页并定位到对应执行
         if (action == WorkflowForegroundService.ACTION_OPEN_RUN) {
             globalNavigationBus.navigateTo(AppNavigationTarget.WorkflowRun(intentToHandle.getStringExtra(WorkflowForegroundService.EXTRA_EXECUTION_ID)))
         }
-        // 任务/会话通知点入：打开对应群聊或独立对话
         if (intentToHandle.data?.scheme == "taixu" && intentToHandle.data?.authority == "agent-notification") {
             lifecycleScope.launch { AgentNotificationIntentExtractor.extractTarget(intentToHandle, botGroupSessions)?.let(globalNavigationBus::navigateTo) }
         }
@@ -374,14 +381,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPostResume() {
         super.onPostResume()
-        // 只检查现有授权；通知请求由用户在权限引导中主动发起。
         window.decorView.post {
-            if (!isFinishing && !isDestroyed) {
-                // MIUI 会在 POST_NOTIFICATIONS 尚未授权时拒绝 START_FOREGROUND AppOp。
-                // 先完成权限门，再启动需要常驻通知的 Runtime 服务，避免无通知的幽灵服务
-                // 和随后出现的系统转场噪声。
-                startRuntimeServiceWhenNotificationAllowed()
-            }
+            if (!isFinishing && !isDestroyed) startRuntimeServiceWhenNotificationAllowed()
         }
     }
 

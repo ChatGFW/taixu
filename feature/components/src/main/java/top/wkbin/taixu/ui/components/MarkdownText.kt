@@ -10,14 +10,21 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.markdown.*
+import top.wkbin.taixu.ui.theme.ChatReadingTypography
+import top.wkbin.taixu.ui.theme.chatReadingTypography
+
+internal val LocalMarkdownReadingTypography = staticCompositionLocalOf<ChatReadingTypography?> { null }
 
 /**
  * 轻量 markdown 渲染组件：支持标题、段落、粗体/斜体、行内代码、
  * 代码块（带语言徽章、一键复制与语法高亮）、无序/有序列表、引用、链接、
  * 远程图片与表格。远程图片由 Coil 加载，网页链接由 Compose LinkAnnotation 打开。
+ *
+ * 正文字阶走 [chatReadingTypography]：略小、行距更松，标题 SemiBold/Medium 而不强制 Bold。
  */
 @Composable
 fun MarkdownText(
@@ -47,10 +54,13 @@ fun StreamingMarkdownText(
 
 @Composable
 private fun MarkdownBlocks(blocks: List<MdBlock>, modifier: Modifier, cacheKey: String?) {
-    SelectionContainer {
-        Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            blocks.forEachIndexed { index, block ->
-                key(index) { MarkdownBlock(block, cacheKey?.let { "$it:media:$index" }) }
+    val reading = LocalMarkdownReadingTypography.current ?: chatReadingTypography()
+    CompositionLocalProvider(LocalMarkdownReadingTypography provides reading) {
+        SelectionContainer {
+            Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                blocks.forEachIndexed { index, block ->
+                    key(index) { MarkdownBlock(block, cacheKey?.let { "$it:media:$index" }) }
+                }
             }
         }
     }
@@ -58,17 +68,19 @@ private fun MarkdownBlocks(blocks: List<MdBlock>, modifier: Modifier, cacheKey: 
 
 @Composable
 private fun MarkdownBlock(block: MdBlock, mediaCacheKey: String?) {
+    val reading = LocalMarkdownReadingTypography.current ?: chatReadingTypography()
     when (block) {
-        is MdParagraph -> InlineText(block.text, RuntimeTheme.typography.bodyMedium)
+        is MdParagraph -> InlineText(block.text, reading.body)
         is MdHeading -> InlineText(
             block.text,
             when (block.level) {
-                1 -> RuntimeTheme.typography.headlineSmall
-                2 -> RuntimeTheme.typography.titleLarge
-                3 -> RuntimeTheme.typography.titleMedium
-                else -> RuntimeTheme.typography.titleSmall
+                1 -> reading.heading1
+                2 -> reading.heading2
+                3 -> reading.heading3
+                else -> reading.heading4
             },
-            bold = true,
+            // 字重已在 heading* 中设好，勿再叠 Bold，否则标题过重。
+            bold = false,
         )
         is MdCodeBlock -> LocalMarkdownComponents.current.codeBlock(block)
         is MdList -> ListBlock(block)

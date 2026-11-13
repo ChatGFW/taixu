@@ -1,4 +1,18 @@
 <resources>
     <string name="chat_pane_terminal">终端</string>
     <string name="chat_pane_browser">浏览器</string>
+    <string name="chat_pane_twin">分身</string>
+    <!-- 顶栏主切换：对话分身 / 虚拟手机 -->
+    <string name="chat_surface_avatar">分身</string>
+    <string name="chat_surface_phone">手机</string>
+    <string name="chat_surface_fullscreen">全屏</string>
+    <string name="chat_surface_exit_fullscreen">退出全屏</string>
+    <!-- 虚拟屏小窗角标 -->
+    <string name="chat_twin_mini_need">需要你</string>
+    <string name="chat_twin_mini_paused">接管中</string>
+    <string name="chat_twin_mini_confirm">待确认</string>
+    <string name="chat_twin_mini_done">已完成</string>
+    <string name="chat_twin_mini_failed">失败</string>
+    <string name="chat_twin_mini_cancelled">已取消</string>
+    <string name="chat_twin_takeover_nudge">分身正在自动操作，请先点「我来」再触摸屏幕</string>
 </resources>

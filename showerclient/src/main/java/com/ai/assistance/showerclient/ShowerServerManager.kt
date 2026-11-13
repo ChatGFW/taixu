@@ -12,6 +12,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.zip.CRC32
 
 /**
  * Helper to manage the lifecycle of the Shower server (shower-server.jar) on the device.
@@ -47,16 +48,25 @@ object ShowerServerManager {
     @Volatile
     var additionalTargetPackages: Set<String> = emptySet()
 
+    /** 上次成功拉起的 assets jar CRC；变更则强制杀旧进程重部署。 */
+    @Volatile
+    private var deployedAssetCrc: Long = -1L
+
     /**
      * Ensure the Shower server is started in the background.
      * Returns true if the start command was issued successfully and a Binder
      * was received within the timeout window.
      */
     suspend fun ensureServerStarted(context: Context, onFailure: (String) -> Unit = {}): Boolean {
-        // 0) If we already have an alive Binder from the handoff broadcast, just reuse it.
-        if (ShowerBinderRegistry.hasAliveService()) {
+        val assetCrc = assetJarCrc(context.applicationContext)
+        // 0) Binder 仍活着且 jar 未变：直接复用；jar 变了必须重部署（否则 APK 更新后仍跑旧 server）。
+        if (ShowerBinderRegistry.hasAliveService() && deployedAssetCrc == assetCrc) {
             ShowerLog.d(TAG, "Shower Binder already cached and alive, skipping start")
             return true
+        }
+        if (ShowerBinderRegistry.hasAliveService() && deployedAssetCrc != assetCrc) {
+            ShowerLog.w(TAG, "Asset jar CRC changed ($deployedAssetCrc -> $assetCrc); restarting server")
+            ShowerBinderRegistry.setService(null)
         }
 
         val runner = ShowerEnvironment.shellRunner
@@ -159,9 +169,10 @@ object ShowerServerManager {
             for (attempt in 0 until 50) { // 50 * 200ms = 10s
                 delay(200)
                 if (ShowerBinderRegistry.hasAliveService()) {
+                    deployedAssetCrc = assetCrc
                     ShowerLog.d(
                         TAG,
-                        "Shower Binder cached and alive after ~${(attempt + 1) * 200}ms"
+                        "Shower Binder cached and alive after ~${(attempt + 1) * 200}ms crc=$assetCrc"
                     )
                     return true
                 }
@@ -294,6 +305,24 @@ object ShowerServerManager {
         )
         stageShowerJar(candidates) { context.assets.open(ASSET_JAR_NAME) }.also {
             ShowerLog.d(TAG, "Copied $ASSET_JAR_NAME to ${it.absolutePath}")
+        }
+    }
+
+    private fun assetJarCrc(context: Context): Long {
+        return try {
+            context.assets.open(ASSET_JAR_NAME).use { input ->
+                val crc = CRC32()
+                val buf = ByteArray(8192)
+                while (true) {
+                    val n = input.read(buf)
+                    if (n <= 0) break
+                    crc.update(buf, 0, n)
+                }
+                crc.value
+            }
+        } catch (e: Exception) {
+            ShowerLog.w(TAG, "assetJarCrc failed: ${e.message}")
+            -1L
         }
     }
 }

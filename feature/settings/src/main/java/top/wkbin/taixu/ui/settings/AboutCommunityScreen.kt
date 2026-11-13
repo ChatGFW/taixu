@@ -1,10 +1,5 @@
 package top.wkbin.taixu.ui.settings
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,7 +30,6 @@ import top.wkbin.taixu.core.model.UpdateCheckState
 import top.wkbin.taixu.feature.settings.R
 import top.wkbin.taixu.ui.components.MarkdownText
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeButton as Button
 import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
@@ -44,7 +39,8 @@ import top.wkbin.taixu.ui.components.RuntimeSettingsScaffold
 import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
-import top.wkbin.taixu.ui.miuix.*
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.miuix.Surface
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
 /**
  * 二级子页 4：关于、版本更新与官方社区
@@ -53,6 +49,7 @@ import top.wkbin.taixu.ui.settings.LocalizedText as Text
 fun AboutCommunityScreen(
     onBack: () -> Unit,
     onOpenSponsor: () -> Unit,
+    onOpenLicenses: () -> Unit,
     viewModel: SettingsViewModel? = previewOrNull { koinViewModel() },
 ) {
     val autoCheckUpdates by viewModel?.autoCheckUpdates?.collectAsStateWithLifecycle() ?: previewStateOf(false)
@@ -229,6 +226,12 @@ fun AboutCommunityScreen(
                     onClick = onOpenSponsor,
                 )
                 SettingsRow(
+                    icon = RuntimeIconName.Document,
+                    title = stringResource(R.string.settings_oss_entry_title),
+                    subtitle = stringResource(R.string.settings_oss_entry_subtitle),
+                    onClick = onOpenLicenses,
+                )
+                SettingsRow(
                     icon = RuntimeIconName.Info,
                     title = "关于太墟 · TaiXu",
                     subtitle = "Android 原生 Linux PRoot 沙箱与 AI 结对中枢",
@@ -259,7 +262,7 @@ private fun AboutAppDialog(
                 Text("Android 原生 Linux PRoot 沙箱与 AI 结对编程中枢", style = RuntimeTheme.typography.bodyMedium)
                 Text("版本: v$appVersion", style = RuntimeTheme.typography.labelMedium, color = RuntimeTheme.colorScheme.primary)
                 Text("架构: aarch64 · chroot-less user-space virtualization", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
-                Text("协议: Apache-2.0 License", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                Text("协议: GNU GPL-3.0 License", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(4.dp))
                 OutlinedButton(
                     onClick = onOpenReleaseNotes,
@@ -377,36 +380,6 @@ private fun UpdateInfoDialog(
     )
 }
 
-private fun joinQqGroup(context: Context, groupId: String = "964382207") {
-    val uri = Uri.parse("mqqapi://card/show_pslcard?src_type=internal&version=1&uin=$groupId&card_type=group&source=qrcode")
-    val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
-    runCatching {
-        context.startActivity(intent)
-    }.onFailure {
-        // 剪贴板兜底
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-        val clip = ClipData.newPlainText("太墟官方交流群", groupId)
-        clipboard?.setPrimaryClip(clip)
-        Toast.makeText(context, "已复制 QQ 群号：$groupId，可打开 QQ 搜索加入", Toast.LENGTH_LONG).show()
-    }
-}
-
-private fun openBrowser(context: Context, url: String) {
-    runCatching {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(intent)
-    }.onFailure {
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-        val clip = ClipData.newPlainText("URL", url)
-        clipboard?.setPrimaryClip(clip)
-        Toast.makeText(context, "已复制链接：$url", Toast.LENGTH_SHORT).show()
-    }
-}
-
 @Composable
 private fun VersionReleaseNotesDialog(
     version: String,
@@ -451,7 +424,7 @@ private fun VersionReleaseNotesDialog(
                         )
                     }
                 } else {
-                    Text(androidx.compose.ui.res.stringResource(R.string.settings_release_notes_unavailable), color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.settings_release_notes_unavailable), color = RuntimeTheme.colorScheme.onSurfaceVariant)
                 }
             }
         },

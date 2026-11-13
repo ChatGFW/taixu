@@ -84,6 +84,7 @@ import top.wkbin.taixu.harness.checkpoint.RewindScope
 import top.wkbin.taixu.ui.components.RuntimeExpandChevron
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.theme.chatReadingTypography
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import java.io.File
@@ -158,12 +159,7 @@ internal fun UserBubble(
                         formatMentionText(displayText, knownMentionNames, mentionColor, mentionBg)
                     }
                     SelectionContainer {
-                        Text(
-                            text = annotatedText,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            style = RuntimeTheme.typography.bodyMedium,
-                            color = RuntimeTheme.colorScheme.onPrimaryContainer,
-                        )
+                        Text(text = annotatedText, modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), style = chatReadingTypography().body, color = RuntimeTheme.colorScheme.onPrimaryContainer)
                     }
                 }
             } else if (message.imageUrls.isNotEmpty()) {
@@ -467,7 +463,7 @@ internal fun AssistantBubble(
                         Text(
                             text = message.text.take(MAX_LIVE_TEXT_CHARS),
                             modifier = Modifier.fillMaxWidth(),
-                            style = RuntimeTheme.typography.bodyMedium,
+                            style = chatReadingTypography().body,
                         )
                     }
                 }
@@ -713,7 +709,7 @@ internal fun ThinkingBlock(
                                     Text(
                                         text = reasoning,
                                         modifier = Modifier.fillMaxWidth().verticalScroll(liveScroll),
-                                        style = RuntimeTheme.typography.bodyMedium.copy(
+                                        style = chatReadingTypography().body.copy(
                                             color = chatProcessColor(),
                                         ),
                                     )
