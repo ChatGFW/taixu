@@ -158,11 +158,12 @@ internal class PhoneAgentPilot(
                 "\n需要录制可复用工作流，请先用 Launch 打开目标应用，再操作。" else ""
             if (!task.isCurrent(version)) { recordingClean = false; continue }
             val mime = VirtualScreenHostActions.imageMimeType(shot)
+            val shotSize = VirtualScreenHostActions.imageDimensions(shot)
             val image = ImagePayloadCompressor.downscaleDataUrl(
                 "data:$mime;base64," + Base64.getEncoder().encodeToString(shot),
             )
             val started = System.nanoTime()
-            services?.log(session, "ModelRequest request=${++request} step=${step + 1} display=${coordinator.getDisplayId(session)} frame=${size.first}x${size.second} shotBytes=${shot.size} mime=$mime imageChars=${image.length}")
+            services?.log(session, "ModelRequest request=${++request} step=${step + 1} display=${coordinator.getDisplayId(session)} displaySize=${size.first}x${size.second} screenshotSize=${shotSize.first}x${shotSize.second} shotBytes=${shot.size} mime=$mime imageChars=${image.length}")
             val reply = try {
                 providerClient.chat(
                     model,
@@ -281,7 +282,15 @@ internal class PhoneAgentPilot(
         session: String, action: PhoneAgentAction, size: Pair<Int, Int>, task: PhoneTaskControl, version: Long,
     ): Pair<Boolean, String> {
         val canInject = { task.isCurrent(version) }
-        suspend fun execute(primitive: GuiPrimitive) = toolkit.execute(session, primitive, canInject)
+        suspend fun execute(primitive: GuiPrimitive): top.wkbin.taixu.runtime.gui.GuiExecResult {
+            // 只记录指针几何，不把输入文字写入诊断日志。
+            if (primitive is GuiPrimitive.Tap || primitive is GuiPrimitive.DoubleTap ||
+                primitive is GuiPrimitive.LongPress || primitive is GuiPrimitive.Swipe
+            ) {
+                services?.log(session, "PointerMapping displaySize=${size.first}x${size.second} relative=${phoneActionLog(action)} pixels=$primitive")
+            }
+            return toolkit.execute(session, primitive, canInject)
+        }
         val result = when (action) {
             is PhoneAgentAction.Tap -> execute(GuiPrimitive.Tap(phoneAgentPoint(action.x, size.first), phoneAgentPoint(action.y, size.second)))
             is PhoneAgentAction.DoubleTap -> execute(

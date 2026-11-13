@@ -30,6 +30,7 @@ internal fun phoneAgentSystemPrompt(date: LocalDate = LocalDate.now(), allow: Se
         <answer>下面定义的一条指令</answer>$allowHint
 
         坐标按 0–1000 归一化，左上角 [0, 0]，右下角 [1000, 1000]。
+        坐标以整张截图为基准，包括截图中可见的状态栏、导航栏和留白；不要扣除系统栏高度，也不要以应用内容区为原点。点击目标按钮的可见中心，不输出截图像素坐标。
         do(action="Launch", app="应用名")
         do(action="Tap", element=[x, y])
         do(action="Tap", element=[x, y], message="涉及支付、隐私或不可撤销操作时写明原因")

@@ -3,6 +3,7 @@ package com.ai.assistance.showerclient
 import android.content.Context
 import android.os.DeadObjectException
 import android.os.RemoteException
+import android.view.KeyEvent
 import android.view.Surface
 import com.ai.assistance.shower.IShowerService
 import kotlinx.coroutines.CancellationException
@@ -216,6 +217,15 @@ class ShowerController {
                 resetLocalDisplayState()
                 ShowerLog.e(TAG, "ensureDisplay: server reported invalid displayId=$id")
                 return false
+            }
+            // 建屏时 server 的 launchBackdrop 可能选到厂商 SECONDARY_HOME 空白页，
+            // 与 Soft Home 的落点不同。仅新屏执行一次相同的 Home 路径，复用屏幕不抢前台。
+            // 在发布 ID 前完成，防止 UI/任务把“屏已创建”误当作桌面初始化已发起。
+            try {
+                service.injectKey(id, KeyEvent.KEYCODE_HOME)
+            } catch (e: Exception) {
+                runCatching { service.destroyDisplay(id) }
+                throw e
             }
             virtualDisplayId = id
             videoWidth = targetWidth

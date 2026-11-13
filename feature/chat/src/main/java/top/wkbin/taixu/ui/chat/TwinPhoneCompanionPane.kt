@@ -122,11 +122,11 @@ internal fun TwinPhoneCompanionPane(modifier: Modifier = Modifier) {
         }
         status = "正在创建虚拟屏…"
         var displayId: Int? = null
-        repeat(3) { attempt ->
+        for (attempt in 0 until 3) {
             displayId = withContext(Dispatchers.IO) {
                 coordinator.ensureVirtualDisplay(previewSession)
             }
-            if (displayId != null) return@repeat
+            if (displayId != null) break
             if (attempt < 2) delay(400L * (attempt + 1))
         }
         if (displayId == null) {
@@ -136,7 +136,7 @@ internal fun TwinPhoneCompanionPane(modifier: Modifier = Modifier) {
             coordinator.getVideoSize(previewSession)?.let { (w, h) ->
                 if (w > 0 && h > 0) TwinPhonePresence.updateContentAspect(w.toFloat() / h.toFloat())
             }
-            // ensureDisplay 已 am start TwinLauncher；勿再 warm 盖 Settings/系统桌面导致黑屏。
+            // ensureDisplay 新建后已走 Soft Home 初始化；勿再 warm 盖 Settings/系统桌面。
             status = "分身已就绪"
             ready = true
         }
