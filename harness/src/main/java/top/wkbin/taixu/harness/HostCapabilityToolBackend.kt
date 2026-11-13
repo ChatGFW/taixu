@@ -149,6 +149,7 @@ class HostCapabilityToolBackend(
                 )
             }
             "screen_click" -> {
+                refuseMainScreenSteal(args, "screen_click")?.let { return it }
                 val gui = hostGuiController ?: return false to "未初始化 GUI 控制器"
                 val x = JsonArgs.requireInt(args, "x")
                 val y = JsonArgs.requireInt(args, "y")
@@ -159,6 +160,7 @@ class HostCapabilityToolBackend(
                 )
             }
             "screen_double_click" -> {
+                refuseMainScreenSteal(args, "screen_double_click")?.let { return it }
                 val gui = hostGuiController ?: return false to "未初始化 GUI 控制器"
                 gui.doubleClick(JsonArgs.requireInt(args, "x"), JsonArgs.requireInt(args, "y")).fold(
                     onSuccess = { true to it },
@@ -166,6 +168,7 @@ class HostCapabilityToolBackend(
                 )
             }
             "screen_long_press" -> {
+                refuseMainScreenSteal(args, "screen_long_press")?.let { return it }
                 val gui = hostGuiController ?: return false to "未初始化 GUI 控制器"
                 val duration = JsonArgs.optionalLong(args, "duration_ms", 800L, 200L, 5_000L)
                 gui.longPress(JsonArgs.requireInt(args, "x"), JsonArgs.requireInt(args, "y"), duration).fold(
@@ -174,6 +177,7 @@ class HostCapabilityToolBackend(
                 )
             }
             "screen_swipe" -> {
+                refuseMainScreenSteal(args, "screen_swipe")?.let { return it }
                 val gui = hostGuiController ?: return false to "未初始化 GUI 控制器"
                 val x1 = JsonArgs.requireInt(args, "x1")
                 val y1 = JsonArgs.requireInt(args, "y1")
@@ -187,6 +191,7 @@ class HostCapabilityToolBackend(
                 )
             }
             "screen_scroll" -> {
+                refuseMainScreenSteal(args, "screen_scroll")?.let { return it }
                 val gui = hostGuiController ?: return false to "未初始化 GUI 控制器"
                 val direction = when (JsonArgs.requireString(args, "direction").lowercase()) {
                     "up" -> ScrollDirection.UP
@@ -203,6 +208,7 @@ class HostCapabilityToolBackend(
                 )
             }
             "screen_input_text", "paste_text" -> {
+                refuseMainScreenSteal(args, action)?.let { return it }
                 val gui = hostGuiController ?: return false to "未初始化 GUI 控制器"
                 val text = JsonArgs.requireString(args, "text")
                 val res = gui.inputText(text)
@@ -212,6 +218,7 @@ class HostCapabilityToolBackend(
                 )
             }
             "screen_key" -> {
+                refuseMainScreenSteal(args, "screen_key")?.let { return it }
                 val gui = hostGuiController ?: return false to "未初始化 GUI 控制器"
                 val key = JsonArgs.requireString(args, "key")
                 val res = gui.sendKey(key)
@@ -221,6 +228,7 @@ class HostCapabilityToolBackend(
                 )
             }
             "app_launch" -> {
+                refuseMainScreenSteal(args, "app_launch")?.let { return it }
                 val gui = hostGuiController ?: return false to "未初始化 GUI 控制器"
                 val packageName = requireHostIdentifier(args, "package", PACKAGE_NAME)
                 val res = gui.launchApp(packageName)
@@ -344,6 +352,9 @@ class HostCapabilityToolBackend(
         virtualDisplayCoordinator, virtualScreenToolkit, PACKAGE_NAME,
         ::requireHostIdentifier, JsonArgs::requireString, JsonArgs::requireInt, JsonArgs::optionalLong, ::virtualScreenSession,
         providerClient, settingsDataStore, attachImage, phoneAgentServices,
+        canInject = { true },
+        // 未配专用手机模型时，用当前激活/默认主模型代跑（关工具、开视觉）。
+        fallbackMainModel = providerClient?.let { client -> { client.resolveConfigured() } },
     )
 
     private fun requireSettingsNamespace(args: JsonObject): String {
@@ -358,7 +369,6 @@ class HostCapabilityToolBackend(
         return value
     }
 
-    // VirtualScreenHostActions 需要此方法引用：
     private fun virtualScreenSession(args: JsonObject): String =
         args["session"]?.jsonPrimitive?.content?.trim().orEmpty().ifBlank { ToolExecutor.VIRTUAL_SCREEN_DEFAULT_SESSION }
 

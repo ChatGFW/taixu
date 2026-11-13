@@ -48,6 +48,9 @@ public interface IShowerService extends IInterface {
 
     void setVideoSink(int displayId, IBinder sink) throws RemoteException;
 
+    /** 把虚拟屏输出直挂到客户端 Surface；传 null 回到保活占位面。 */
+    void setDisplaySurface(int displayId, android.view.Surface surface) throws RemoteException;
+
     abstract class Stub extends Binder implements IShowerService {
 
         private static final String DESCRIPTOR = "com.ai.assistance.shower.IShowerService";
@@ -64,6 +67,7 @@ public interface IShowerService extends IInterface {
         static final int TRANSACTION_injectKeyWithMeta = IBinder.FIRST_CALL_TRANSACTION + 10;
         static final int TRANSACTION_setVideoSink = IBinder.FIRST_CALL_TRANSACTION + 11;
         static final int TRANSACTION_injectTouchEvent = IBinder.FIRST_CALL_TRANSACTION + 12;
+        static final int TRANSACTION_setDisplaySurface = IBinder.FIRST_CALL_TRANSACTION + 13;
 
         public Stub() {
             attachInterface(this, DESCRIPTOR);
@@ -229,6 +233,15 @@ public interface IShowerService extends IInterface {
                             deviceId,
                             edgeFlags
                     );
+                    reply.writeNoException();
+                    return true;
+                }
+                case TRANSACTION_setDisplaySurface: {
+                    data.enforceInterface(DESCRIPTOR);
+                    int displayId = data.readInt();
+                    android.view.Surface surface =
+                            data.readInt() != 0 ? android.view.Surface.CREATOR.createFromParcel(data) : null;
+                    setDisplaySurface(displayId, surface);
                     reply.writeNoException();
                     return true;
                 }
@@ -486,6 +499,27 @@ public interface IShowerService extends IInterface {
                     data.writeInt(displayId);
                     data.writeStrongBinder(sink);
                     remote.transact(TRANSACTION_setVideoSink, data, reply, 0);
+                    reply.readException();
+                } finally {
+                    reply.recycle();
+                    data.recycle();
+                }
+            }
+
+            @Override
+            public void setDisplaySurface(int displayId, android.view.Surface surface) throws RemoteException {
+                Parcel data = Parcel.obtain();
+                Parcel reply = Parcel.obtain();
+                try {
+                    data.writeInterfaceToken(DESCRIPTOR);
+                    data.writeInt(displayId);
+                    if (surface != null) {
+                        data.writeInt(1);
+                        surface.writeToParcel(data, 0);
+                    } else {
+                        data.writeInt(0);
+                    }
+                    remote.transact(TRANSACTION_setDisplaySurface, data, reply, 0);
                     reply.readException();
                 } finally {
                     reply.recycle();

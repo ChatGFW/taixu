@@ -87,6 +87,105 @@ class AttachmentMigratorTest {
         )
     }
 
+    @Test fun scannerAgreesWithThePreviousExpression() {
+        val legacy = Regex("""/attachments/([A-Za-z0-9][A-Za-z0-9._-]{0,254})(?![A-Za-z0-9._-])""")
+        fun expect(payload: String) = legacy.findAll(payload)
+            .map { it.groupValues[1] }
+            .filter { it != "skills" && it != "legacy" }
+            .toSet()
+        val pieces = listOf(
+            "",
+            "a",
+            "skills",
+            "legacy",
+            "/attachments/",
+            "/attachments/a.png",
+            "/attachments/skills",
+            "/attachments/legacy",
+            "/attachments/" + "b".repeat(255),
+            "/attachments/" + "b".repeat(256),
+            " ",
+            "\n",
+            "/",
+            ".",
+            "中文",
+            "skills.bak",
+        )
+        for (left in pieces) for (right in pieces) {
+            val payload = left + right
+            assertEquals(payload, expect(payload), AttachmentMigrator.referencedAttachmentNames(payload))
+        }
+        val longName = "n".repeat(255)
+        val tooLong = "/attachments/" + "a".repeat(256) + "/attachments/ok.png"
+        assertEquals(setOf(longName), AttachmentMigrator.referencedAttachmentNames("/attachments/$longName "))
+        assertEquals(setOf("ok.png"), AttachmentMigrator.referencedAttachmentNames(tooLong))
+    }
+
+    @Test fun fileScanAgreesWithStringScanAcrossChunkBoundaries() {
+        val payload = "x".repeat(60) +
+            "/attachments/photo.png" +
+            "y".repeat(300) +
+            "/attachments/skills/skip.md" +
+            "/attachments/" + "n".repeat(255) +
+            "/attachments/" + "a".repeat(256) +
+            "/attachments/tail.txt"
+        val file = File(filesDir, "blob-scan.json").apply { writeText(payload) }
+        val expected = AttachmentMigrator.referencedAttachmentNames(payload)
+        listOf(1, 13, 64, 64 * 1024).forEach { chunk ->
+            assertEquals("chunk=$chunk", expected, AttachmentMigrator.referencedAttachmentNames(file, chunk))
+        }
+    }
+
+    @Test fun referenceScanStaysIdleOnceOrphansAreReconciled() = runBlocking {
+        assertEquals(AttachmentReferenceScanMode.FULL, migrator.referenceScanMode())
+        writeGlobal("unused.bin")
+        migrator.migrate(emptyList())
+        // 迁移完成、legacy 里有孤儿但还没对账 → 只按孤儿名扫，不要 FULL。
+        assertEquals(AttachmentReferenceScanMode.ORPHANS, migrator.referenceScanMode())
+        migrator.markReferencesScanned()
+        assertEquals(AttachmentReferenceScanMode.NONE, migrator.referenceScanMode())
+
+        File(AttachmentPaths.orphan(filesDir), "extra.bin").writeText("e")
+        assertEquals(AttachmentReferenceScanMode.ORPHANS, migrator.referenceScanMode())
+        migrator.markReferencesScanned()
+        assertEquals(AttachmentReferenceScanMode.NONE, migrator.referenceScanMode())
+    }
+
+    @Test fun upgradedInstallWithEmptyLegacyDoesNotNeedBlobScan() = runBlocking {
+        val global = AttachmentPaths.global(filesDir)
+        global.mkdirs()
+        File(global, ".attachments-v2.done").writeText("{}")
+        assertEquals(AttachmentReferenceScanMode.NONE, migrator.referenceScanMode())
+        migrator.markReferencesScanned()
+        assertEquals(AttachmentReferenceScanMode.NONE, migrator.referenceScanMode())
+        assertTrue(File(global, ".attachments-v2.reconciled").isFile)
+    }
+
+    @Test fun orphanLimitedScanIgnoresUnrelatedAttachmentNames() {
+        val payload = """{"a":"/attachments/keep.png","b":"/attachments/other.png"}"""
+        assertEquals(setOf("keep.png"), AttachmentMigrator.referencedAttachmentNames(payload, setOf("keep.png")))
+        val file = File(filesDir, "limit-scan.json").apply {
+            writeText("z".repeat(80) + payload + "z".repeat(80))
+        }
+        assertEquals(
+            setOf("keep.png"),
+            AttachmentMigrator.referencedAttachmentNames(file, chunkSize = 17, limitTo = setOf("keep.png")),
+        )
+    }
+
+    @Test fun reconcileStampIsNotSweptIntoLegacy() = runBlocking {
+        val global = AttachmentPaths.global(filesDir)
+        global.mkdirs()
+        File(global, ".attachments-v2.reconciled").writeText("stale")
+        writeGlobal("unused.bin")
+
+        migrator.migrate(emptyList())
+
+        assertTrue(File(global, ".attachments-v2.reconciled").isFile)
+        assertTrue(File(AttachmentPaths.orphan(filesDir), "unused.bin").isFile)
+        assertFalse(File(AttachmentPaths.orphan(filesDir), ".attachments-v2.reconciled").exists())
+    }
+
     @Test fun movesSingleOwnerCopiesSharedAndOrphansTheRest() = runBlocking {
         writeGlobal("a.png")
         writeGlobal("b.png")

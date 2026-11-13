@@ -19,6 +19,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import top.wkbin.taixu.runtime.virtualdisplay.TwinPhonePresence
 import top.wkbin.taixu.ui.chat.ChatScreen
 import top.wkbin.taixu.ui.chat.ChatViewModel
 import top.wkbin.taixu.ui.components.MainDestination
@@ -55,6 +56,7 @@ import top.wkbin.taixu.ui.settings.EnvironmentVariableSettingsScreen
 import top.wkbin.taixu.ui.settings.FtpSettingsScreen
 import top.wkbin.taixu.ui.settings.LinuxEnvironmentSettingsScreen
 import top.wkbin.taixu.ui.settings.McpSettingsScreen
+import top.wkbin.taixu.ui.settings.OpenSourceLicensesScreen
 import top.wkbin.taixu.ui.settings.PhoneAgentSettingsScreen
 import top.wkbin.taixu.ui.settings.QuickPhrasesScreen
 import top.wkbin.taixu.ui.settings.SponsorScreen
@@ -107,7 +109,8 @@ fun TaiXuNavHost(
     fun NavBackStack<NavKey>.pushRaw(destination: NavKey) {
         if (lastOrNull() != destination) add(destination)
     }
-    val sidebarGesturesEnabled = activeStack.canSwipeOpenNavigation()
+    val phoneSurfaceOpen by TwinPhonePresence.phoneSurfaceOpen.collectAsStateWithLifecycle()
+    val sidebarGesturesEnabled = activeStack.canSwipeOpenNavigation() && !phoneSurfaceOpen
     LaunchedEffect(sidebarGesturesEnabled) { if (!sidebarGesturesEnabled) showNavigation = false }
     val selectedMain = activeStack.lastOrNull { it == HomeDestination || it == WorkspaceDestination || it == BotsDestination || it == SettingsDestination }.toMainDestination()
     fun navigateMain(destination: MainDestination) {
@@ -382,6 +385,7 @@ fun TaiXuNavHost(
                                 }
                                 SettingsSearchTarget.ABOUT_COMMUNITY,
                                 SettingsSearchTarget.ABOUT_UPDATE -> activeStack.push(SettingsSearchDestination, AboutCommunityDestination)
+                                SettingsSearchTarget.ABOUT_LICENSES -> activeStack.push(SettingsSearchDestination, OpenSourceLicensesDestination)
                                 SettingsSearchTarget.ABOUT_SPONSOR -> activeStack.push(SettingsSearchDestination, SponsorDestination)
                             }
                         }
@@ -452,15 +456,13 @@ fun TaiXuNavHost(
                     AboutCommunityScreen(
                         onBack = ::popBack,
                         onOpenSponsor = { activeStack.push(AboutCommunityDestination, SponsorDestination) },
+                        onOpenLicenses = { activeStack.push(AboutCommunityDestination, OpenSourceLicensesDestination) },
                         viewModel = settingsViewModel,
                     )
                 }
             }
-            entry<SponsorDestination> {
-                GuardedEntry(SponsorDestination) {
-                    SponsorScreen(onBack = ::popBack)
-                }
-            }
+            entry<OpenSourceLicensesDestination> { GuardedEntry(OpenSourceLicensesDestination) { OpenSourceLicensesScreen(onBack = ::popBack) } }
+            entry<SponsorDestination> { GuardedEntry(SponsorDestination) { SponsorScreen(onBack = ::popBack) } }
             entry<DistroManagementDestination> { GuardedEntry(DistroManagementDestination) { DistroManagementScreen(onBack = ::popBack, onOpenRemoteMetrics = { activeStack.openRemoteHome(it) }, viewModel = settingsViewModel) } }
             entry<AgentSettingsDestination> {
                 GuardedEntry(AgentSettingsDestination) {

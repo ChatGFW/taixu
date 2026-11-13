@@ -32,7 +32,12 @@ object SettingsSearchRegistry {
     /**
      * 全局功能及深度子功能全量清单（覆盖所有一级、二级、三级功能及具体参数项）
      */
-    val allItems: List<SettingsSearchItem> = listOf(firstResponseTimeoutSearchItem, pluginLibrarySearchItem, chatTopToolbarSearchItem) + listOf(
+    val allItems: List<SettingsSearchItem> = listOf(
+        firstResponseTimeoutSearchItem,
+        pluginLibrarySearchItem,
+        chatTopToolbarSearchItem,
+        openSourceLicenseSearchItem,
+    ) + listOf(
         // ==================== 1. 智能体与 AI 模型生态 ====================
         SettingsSearchItem(
             id = "agent_model_profiles",

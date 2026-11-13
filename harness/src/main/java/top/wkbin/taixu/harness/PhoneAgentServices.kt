@@ -2,10 +2,12 @@ package top.wkbin.taixu.harness
 
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.database.WorkflowRepository
+import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.core.datastore.PhoneAgentEndpoint
 import top.wkbin.taixu.core.model.workflow.PhoneOperationWorkflow
 import top.wkbin.taixu.core.model.workflow.PhoneWorkflowOperation
@@ -21,6 +23,40 @@ internal fun phoneAgentModel(endpoint: PhoneAgentEndpoint) = ModelConfig(
     pureChatMode = true, toolCallMode = ToolCallMode.DISABLED,
     visionEnabled = true, reasoningMode = ReasoningMode.DISABLED,
 )
+
+/**
+ * 把聊天主模型收成手机操作协议：关工具、开视觉、限制输出预算。
+ * 专用手机模型未配置时用它代跑，避免任务直接失败。
+ */
+internal fun phoneAgentModelFromMain(main: ModelConfig): ModelConfig = main.copy(
+    name = "${main.name}（主模型代跑手机）",
+    maxTokens = (main.maxTokens ?: 2048).coerceIn(512, 4096),
+    pureChatMode = true,
+    toolCallMode = ToolCallMode.DISABLED,
+    visionEnabled = true,
+    reasoningMode = ReasoningMode.DISABLED,
+    dynamicMcpTools = emptyList(),
+)
+
+/**
+ * @return first = 运行配置，second = 来源标记（phone-agent / main-fallback）
+ */
+internal suspend fun resolvePhoneRunModel(
+    preferences: AgentPreferences,
+    fallbackMain: (suspend () -> ModelConfig)? = null,
+): Pair<ModelConfig, String> {
+    val endpoint = preferences.phoneAgentConfig.first()
+    if (endpoint.ready) return phoneAgentModel(endpoint) to "phone-agent"
+    val main = runCatching { fallbackMain?.invoke() }.getOrNull()
+    if (main != null && main.baseUrl.isNotBlank() && main.model.isNotBlank()) {
+        return phoneAgentModelFromMain(main) to "main-fallback"
+    }
+    error(
+        "还没有可用的手机操作模型：专用接口未配置，且当前主模型也不可用。" +
+            "请到设置 → 智能体与模型 → 虚拟屏 → 手机操作模型填写接口，" +
+            "或先在设置 → 模型里激活一个支持看图的主模型（未配专用接口时会自动用主模型代跑）。",
+    )
+}
 
 class PhoneAgentServices(
     private val events: AgentEventLogger,

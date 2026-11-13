@@ -1,14 +1,21 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
 import top.wkbin.taixu.core.datastore.AppearancePreferences
@@ -22,6 +29,7 @@ import top.wkbin.taixu.ui.chat.floating.rememberFloatingChatLauncher
 import top.wkbin.taixu.ui.components.*
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.squircle.squircleSurface
 
 /** Floating navigation and actions; advanced controls unfold on demand. */
 @Composable
@@ -34,6 +42,7 @@ internal fun ChatTopBar(
     onOpenRepository: (() -> Unit)? = null, repositoryHighlight: Boolean = false,
     toolchainHighlight: Boolean = false, onOpenToolchain: () -> Unit,
     onOpenReasoning: (() -> Unit)? = null, companion: ChatCompanionToggle? = null,
+    surface: ChatSurfaceSwitch? = null,
     speech: ChatSpeechToggle? = null,
     onOpenMemory: () -> Unit = {},
     onOpenOutline: () -> Unit = {},
@@ -67,12 +76,16 @@ internal fun ChatTopBar(
         onFloatingChat = openFloatingChat,
         speech = speech,
     )
+    val phoneChrome = surface?.phoneOpen == true
     Row(
         Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        if (!LocalRuntimeWidthClass.current.hasPersistentNavigation) {
+        // 手机页：去掉左侧抽屉按钮，避免与虚拟屏手势抢触控。
+        if (phoneChrome) {
+            Spacer(Modifier.width(48.dp))
+        } else if (!LocalRuntimeWidthClass.current.hasPersistentNavigation) {
             RuntimeFloatingToolbar {
                 RuntimeIconButton(onClick = onOpenSessions, modifier = Modifier.size(40.dp),
                     contentDescription = stringResource(R.string.chat_open_session_list)) {
@@ -80,12 +93,46 @@ internal fun ChatTopBar(
                 }
             }
         } else Spacer(Modifier.width(48.dp))
+        // 居中小药丸：分身 | 手机（
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            if (surface != null) {
+                ChatSurfacePill(
+                    phoneOpen = surface.phoneOpen,
+                    onSelectPhone = surface.onSelectPhone,
+                )
+            }
+        }
         RuntimeFloatingToolbar {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                toolbarEntries.forEach { entry -> ChatTopToolbarButton(entry) }
-                RuntimeIconButton(onClick = { expanded = true }, modifier = Modifier.size(40.dp),
-                    contentDescription = stringResource(R.string.chat_workbench_controls)) {
-                    RuntimeIcon(RuntimeIconName.More, Modifier.size(22.dp), RuntimeTheme.colorScheme.onSurface)
+                when {
+                    phoneChrome -> {
+                        // 手机页：右侧只留全屏。
+                        val onFullscreen = surface?.onFullscreen
+                        if (onFullscreen != null) {
+                            RuntimeIconButton(
+                                onClick = onFullscreen,
+                                modifier = Modifier.size(40.dp),
+                                contentDescription = stringResource(R.string.chat_surface_fullscreen),
+                            ) {
+                                RuntimeIcon(
+                                    RuntimeIconName.OpenInNew,
+                                    Modifier.size(22.dp),
+                                    RuntimeTheme.colorScheme.onSurface,
+                                )
+                            }
+                        } else {
+                            Spacer(Modifier.width(40.dp))
+                        }
+                    }
+                    else -> {
+                        if (surface == null) {
+                            toolbarEntries.forEach { entry -> ChatTopToolbarButton(entry) }
+                        }
+                        RuntimeIconButton(onClick = { expanded = true }, modifier = Modifier.size(40.dp),
+                            contentDescription = stringResource(R.string.chat_workbench_controls)) {
+                            RuntimeIcon(RuntimeIconName.More, Modifier.size(22.dp), RuntimeTheme.colorScheme.onSurface)
+                        }
+                    }
                 }
             }
         }
@@ -154,6 +201,65 @@ internal fun ChatTopBar(
                 )
             }
         }
+    }
+}
+
+/** 紧凑灰底白滑块药丸（参考 顶栏尺寸）。 */
+@Composable
+private fun ChatSurfacePill(
+    phoneOpen: Boolean,
+    onSelectPhone: (Boolean) -> Unit,
+) {
+    val avatar = stringResource(R.string.chat_surface_avatar)
+    val phone = stringResource(R.string.chat_surface_phone)
+    val track = RuntimeTheme.colorScheme.surfaceContainerHighest
+    val onTrack = RuntimeTheme.colorScheme.onSurface
+    val muted = RuntimeTheme.colorScheme.onSurfaceVariant
+    Row(
+        Modifier
+            .squircleSurface(color = track, cornerRadius = 20.dp)
+            .padding(3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PillChip(avatar, selected = !phoneOpen, onClick = { onSelectPhone(false) }, onTrack, muted)
+        PillChip(phone, selected = phoneOpen, onClick = { onSelectPhone(true) }, onTrack, muted)
+    }
+}
+
+@Composable
+private fun PillChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onTrack: androidx.compose.ui.graphics.Color,
+    muted: androidx.compose.ui.graphics.Color,
+) {
+    val shape = RoundedCornerShape(17.dp)
+    Box(
+        Modifier
+            .clip(shape)
+            .then(
+                if (selected) {
+                    Modifier.background(RuntimeTheme.colorScheme.surface, shape)
+                } else {
+                    Modifier
+                },
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            color = if (selected) onTrack else muted,
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 1,
+        )
     }
 }
 

@@ -25,6 +25,8 @@
     <string name="chat_step_command_files">Inspect files</string>
     <string name="chat_action_process">Manage background process</string>
     <string name="chat_action_host">Device action</string>
+    <string name="chat_action_twin_task">Start twin task</string>
+    <string name="chat_action_twin_read">Read twin screen</string>
     <string name="chat_action_download">Download file</string>
     <string name="chat_action_search_web">Web search</string>
     <string name="chat_outline_title">Outline</string>

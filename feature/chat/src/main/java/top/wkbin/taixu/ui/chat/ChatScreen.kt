@@ -93,6 +93,7 @@ fun ChatScreen(
     onOpenFile: ((projectName: String, relativePath: String) -> Unit)? = null,
     terminalPane: (@Composable (project: String) -> Unit)? = null,
     browserPane: (@Composable (onExit: (() -> Unit)?) -> Unit)? = null,
+    twinPane: (@Composable () -> Unit)? = { TwinPhoneCompanionPane() },
     browserActivityTick: Long = 0L,
     browserBackPressed: (() -> Boolean)? = null,
     onOpenRepository: ((projectName: String) -> Unit)? = null,
@@ -334,8 +335,13 @@ fun ChatScreen(
     val noProjectHint = stringResource(R.string.chat_repository_no_project)
     var toolchainGap by remember { mutableStateOf(false) }; var showToolchainPanel by remember { mutableStateOf(false) }
 
-    val chatTopBar: @Composable (onOpenBrowser: (() -> Unit)?, browserHighlight: Boolean, companion: ChatCompanionToggle?) -> Unit =
-        { onOpenBrowser, browserHighlight, companion ->
+    val chatTopBar: @Composable (
+        onOpenBrowser: (() -> Unit)?,
+        browserHighlight: Boolean,
+        companion: ChatCompanionToggle?,
+        surface: ChatSurfaceSwitch?,
+    ) -> Unit =
+        { onOpenBrowser, browserHighlight, companion, surface ->
             ChatTopBar(
                 runMode = currentRunMode,
                 currentBranch = currentBranch,
@@ -360,7 +366,7 @@ fun ChatScreen(
                 },
                 repositoryHighlight = repositoryHighlight,
                 toolchainHighlight = toolchainGap, onOpenToolchain = { showToolchainPanel = true },
-                onOpenReasoning = { showReasoningSlider = true }, companion = companion, speech = speech,
+                onOpenReasoning = { showReasoningSlider = true }, companion = companion, surface = surface, speech = speech,
             )
         }
 
@@ -466,6 +472,7 @@ fun ChatScreen(
             // 三态布局：紧凑态浏览器整页、中间态右侧滑出、展开态常驻可拖拽双栏
             ChatAdaptiveLayout(
                 workspace = workspace, terminalPane = terminalPane, browserPane = browserPane,
+                twinPane = twinPane,
                 browserActivityTick = browserActivityTick, browserBackPressed = browserBackPressed,
                 bottomInsets = bottomInsets, topBar = chatTopBar, chatContent = chatContent,
             )

@@ -42,7 +42,12 @@ internal fun TaskDeliveryCard(
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 RuntimeTextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Text(stringResource(if (expanded) R.string.delivery_collapse else R.string.delivery_expand), maxLines = 1)
+                    Text(
+                        stringResource(if (expanded) R.string.delivery_collapse else R.string.delivery_expand),
+                        style = RuntimeTheme.typography.labelMedium,
+                        color = RuntimeTheme.colorScheme.primary,
+                        maxLines = 1,
+                    )
                 }
             }
             if (expanded) {
@@ -59,7 +64,14 @@ internal fun TaskDeliveryCard(
                     }
                 }
                 if (report.observations.size > 8 && !showAll) {
-                    RuntimeTextButton(onClick = { showAll = true }) { Text(stringResource(R.string.delivery_show_all), maxLines = 1) }
+                    RuntimeTextButton(onClick = { showAll = true }) {
+                        Text(
+                            stringResource(R.string.delivery_show_all),
+                            style = RuntimeTheme.typography.labelMedium,
+                            color = RuntimeTheme.colorScheme.primary,
+                            maxLines = 1,
+                        )
+                    }
                 }
                 report.artifacts.forEach { artifact ->
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

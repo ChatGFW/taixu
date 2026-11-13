@@ -17,39 +17,74 @@ import top.wkbin.taixu.runtime.virtualdisplay.VirtualDisplayCoordinator
 import top.wkbin.taixu.runtime.virtualdisplay.VirtualScreenToolkit
 import top.wkbin.taixu.runtime.virtualdisplay.PhoneTaskControl
 import top.wkbin.taixu.runtime.virtualdisplay.PhoneTaskState
+import top.wkbin.taixu.runtime.virtualdisplay.TwinPhonePresence
 import top.wkbin.taixu.runtime.virtualdisplay.VirtualDisplayHud
 
 /**
- * 用设置里选定的手机操作模型看虚拟屏截图，并按它输出的动作去点、滑、输入。
- * 主模型只负责下达任务，不再自己一轮轮截图猜坐标。
+ * 看虚拟屏截图并按模型输出的动作去点、滑、输入。
+ * 优先用设置里的专用手机操作模型；未配置时回退当前聊天主模型（关工具、开视觉）。
+ * 主对话模型只负责下达 virtual_screen_task，不再自己一轮轮截图猜坐标。
  */
+internal fun busyPhoneTaskMessage(
+    requestedSession: String,
+    owner: String? = null,
+): String {
+    val active = owner?.takeIf { it.isNotBlank() }
+    return if (active != null && active != requestedSession) {
+        "已有手机任务在执行（session=$active）。请先停止它；全局同时只能跑一个，避免抢屏黑屏。"
+    } else {
+        "已有手机任务在执行（session=${active ?: requestedSession}）。请先停止它；全局同时只能跑一个。"
+    }
+}
+
 internal class PhoneAgentPilot(
     private val providerClient: ProviderClient,
     private val preferences: AgentPreferences,
     private val coordinator: VirtualDisplayCoordinator,
     private val toolkit: VirtualScreenToolkit,
     private val services: PhoneAgentServices? = null,
+    private val fallbackMain: (suspend () -> ModelConfig)? = null,
 ) {
-    suspend fun run(session: String, goal: String, packageName: String, maxSteps: Int, workflowName: String = ""): Pair<Boolean, String> = coroutineScope {
+    suspend fun run(
+        session: String,
+        goal: String,
+        packageName: String,
+        maxSteps: Int,
+        workflowName: String = "",
+        allow: Set<String> = emptySet(),
+    ): Pair<Boolean, String> = coroutineScope {
         val task = coordinator.phoneTasks.start(session, currentCoroutineContext()[Job]!!)
-            ?: return@coroutineScope false to "这个虚拟屏会话已有手机任务，请先停止它或使用其他 session。"
+            ?: return@coroutineScope false to busyPhoneTaskMessage(
+                session,
+                coordinator.phoneTasks.activeSession(),
+            )
         try {
-            services?.log(session, "RunStart executor=phone-agent maxSteps=$maxSteps record=${workflowName.isNotBlank()}")
-            val result = runTask(session, goal, packageName, maxSteps.coerceIn(1, 20), task, workflowName)
-            if (task.state.value != PhoneTaskState.NEEDS_USER && task.state.value != PhoneTaskState.CANCELLED) {
-                task.finish(if (result.first) PhoneTaskState.COMPLETED else PhoneTaskState.FAILED)
-                if (!result.first) VirtualDisplayHud.setStep("任务未完成 · 查看聊天中的原因")
+            services?.log(session, "RunStart executor=phone-agent maxSteps=$maxSteps record=${workflowName.isNotBlank()} allow=$allow")
+            val result = runTask(session, goal, packageName, maxSteps.coerceIn(1, 30), task, workflowName, allow)
+            when (task.state.value) {
+                PhoneTaskState.CANCELLED -> Unit
+                PhoneTaskState.COMPLETED -> Unit
+                else -> {
+                    task.finish(if (result.first) PhoneTaskState.COMPLETED else PhoneTaskState.FAILED)
+                    if (result.first) {
+                        coordinator.publishPhoneTaskResult("任务完成", success = true)
+                    } else {
+                        coordinator.publishPhoneTaskResult("任务未完成 · 查看聊天中的原因", success = false)
+                    }
+                }
             }
             services?.log(session, "RunEnd success=${result.first} state=${task.state.value}")
-            result.first to "执行者：手机操作模型。\n${result.second}"
+            result
         } catch (e: CancellationException) {
-            task.finish(PhoneTaskState.CANCELLED)
-            VirtualDisplayHud.setStep("任务已停止")
+            if (task.state.value != PhoneTaskState.CANCELLED) {
+                task.finish(PhoneTaskState.CANCELLED)
+                coordinator.publishPhoneTaskResult("任务已停止", success = false, cancelled = true)
+            }
             throw e
         } catch (e: Exception) {
             task.finish(PhoneTaskState.FAILED)
             services?.log(session, "RunError kind=${e::class.java.simpleName}")
-            VirtualDisplayHud.setStep("任务执行失败")
+            coordinator.publishPhoneTaskResult("任务执行失败", success = false)
             throw e
         } finally {
             coordinator.phoneTasks.release(session, task)
@@ -57,17 +92,37 @@ internal class PhoneAgentPilot(
     }
 
     private suspend fun runTask(
-        session: String, goal: String, packageName: String, maxSteps: Int, task: PhoneTaskControl, workflowName: String,
+        session: String,
+        goal: String,
+        packageName: String,
+        maxSteps: Int,
+        task: PhoneTaskControl,
+        workflowName: String,
+        allow: Set<String>,
     ): Pair<Boolean, String> {
-        val endpoint = preferences.phoneAgentConfig.first()
-        if (!endpoint.ready) {
-            return false to "还没有配置手机操作模型。请到设置 → 智能体与模型 → 虚拟屏 → 手机操作模型，单独填写接口。这和聊天主模型不是同一个地方。智谱 Base URL 是 https://open.bigmodel.cn/api/paas/v4 ，模型名是 autoglm-phone。"
+        val (model, modelSource) = try {
+            resolvePhoneRunModel(preferences, fallbackMain)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return false to (e.message ?: "手机操作模型不可用")
         }
-        val model = phoneAgentModel(endpoint)
-        services?.log(session, "ModelConfig model=${model.model} max_tokens=${model.maxTokens}")
+        services?.log(
+            session,
+            "ModelConfig source=$modelSource model=${model.model} max_tokens=${model.maxTokens} vision=${model.visionEnabled}",
+        )
+        val executorLabel = when (modelSource) {
+            "main-fallback" -> "执行者：聊天主模型代跑（未配置专用手机操作模型）。"
+            else -> "执行者：手机操作模型。"
+        }
         val recording = mutableListOf<PhoneWorkflowOperation>()
         var recordingClean = true
         var lastVersion = task.awaitReady()
+        val notes = ArrayList<String>(maxSteps)
+        // 先打开常驻分身 Tab，再 ensure/launch；进度通知标题用任务目标（
+        TwinPhonePresence.requestOpen()
+        coordinator.setPhoneTaskTitle(goal.take(40))
+        coordinator.reveal(session, "准备分身画面", minimized = true)?.let { notes += it }
         if (coordinator.getDisplayId(session) == null && coordinator.ensureVirtualDisplay(session) == null) {
             return false to "虚拟屏创建失败，手机操作模型无法开始。"
         }
@@ -78,13 +133,14 @@ internal class PhoneAgentPilot(
             val pkg = resolveLaunchablePackage(packageName, coordinator.installedApps())
                 ?: return false to "找不到应用「$packageName」。请改用包名，或不要传 package，让手机操作模型自己打开。"
             if (!task.isCurrent(lastVersion)) return false to "启动应用前人工介入，任务已停止；请核对页面后重新运行。"
+            coordinator.publishPhoneTaskProgress("打开 $pkg", stepIndex = 0)
             if (!coordinator.launchApp(session, pkg)) return false to "虚拟屏启动应用失败：$pkg"
             recording += PhoneWorkflowOperation("virtual_screen_launch", mapOf("package" to pkg), 900)
             if (!task.isCurrent(lastVersion)) recordingClean = false
             delay(900)
         }
-        val notes = ArrayList<String>(maxSteps)
-        coordinator.reveal(session, "手机模型接手")?.let { notes += it }
+        // 给分身预览一点挂载/出帧时间，后续截图更容易走实时 PixelCopy。
+        delay(450)
         val progress = PhoneAgentProgress()
         var invalidReplies = 0
         var step = 0
@@ -94,9 +150,9 @@ internal class PhoneAgentPilot(
             if (version != lastVersion) recordingClean = false
             lastVersion = version
             val png = coordinator.requestScreenshot(session)
-                ?: return false to finish(notes, "第 ${step + 1} 步截图失败，虚拟屏没有画面。")
+                ?: return false to finish(notes, "第 ${step + 1} 步截图失败，虚拟屏没有画面。", executorLabel)
             val size = screenSize(session, png)
-                ?: return false to finish(notes, "第 ${step + 1} 步不知道虚拟屏尺寸，无法把相对坐标换成像素。")
+                ?: return false to finish(notes, "第 ${step + 1} 步不知道虚拟屏尺寸，无法把相对坐标换成像素。", executorLabel)
             val history = if (notes.isEmpty()) "这是第一步。" else "已经做过：\n" + notes.joinToString("\n")
             val recordingHint = if (workflowName.isNotBlank() && recording.isEmpty() && packageName.isBlank())
                 "\n需要录制可复用工作流，请先用 Launch 打开目标应用，再操作。" else ""
@@ -108,7 +164,7 @@ internal class PhoneAgentPilot(
                 providerClient.chat(
                     model,
                     listOf(
-                        ApiMessage(role = "system", content = phoneAgentSystemPrompt()),
+                        ApiMessage(role = "system", content = phoneAgentSystemPrompt(allow = allow)),
                         ApiMessage(
                             role = "user",
                             content = "任务：$goal\n$history$recordingHint\n请根据截图输出下一个动作。",
@@ -120,7 +176,7 @@ internal class PhoneAgentPilot(
                 throw e
             } catch (e: Exception) {
                 services?.log(session, "ModelError request=$request elapsedMs=${(System.nanoTime() - started) / 1_000_000} kind=${e::class.java.simpleName} outputBudgetRejected=${e.message?.contains("max_tokens", true) == true}")
-                return false to finish(notes, "手机操作模型请求失败：${e.message}")
+                return false to finish(notes, "手机操作模型请求失败：${e.message}", executorLabel)
             }
             services?.log(session, "ModelResponse request=$request elapsedMs=${(System.nanoTime() - started) / 1_000_000} contentChars=${reply.content?.length ?: 0} reasoningChars=${reply.reasoningContent?.length ?: 0} inputTokens=${reply.usage.inputTokens} outputTokens=${reply.usage.outputTokens}")
             currentCoroutineContext().ensureActive()
@@ -131,20 +187,23 @@ internal class PhoneAgentPilot(
             if (action == null) {
                 services?.log(session, "ActionParseFailed request=$request")
                 invalidReplies++
-                if (invalidReplies >= 2) return false to finish(notes, "连续两次无法解析正式动作，请检查手机模型协议。")
+                if (invalidReplies >= 2) {
+                    return false to finish(notes, "连续两次无法解析正式动作，请检查手机模型协议。", executorLabel)
+                }
                 notes += "格式错误：请仅在 <answer> 内输出一条完整 do(...) 或 finish(message=...)，使用定义的动作和参数。"
                 continue
             }
             invalidReplies = 0
             val frame = MessageDigest.getInstance("SHA-256").digest(png).joinToString("") { "%02x".format(it) }
-            progress.beforeAction(action, frame)?.let { return false to finish(notes, it) }
+            progress.beforeAction(action, frame)?.let { return false to finish(notes, it, executorLabel) }
             step++
+            val stepTitle = phoneAgentStepTitle(text, action)
             services?.log(session, "Action step=$step ${phoneActionLog(action)}")
             if (!task.isCurrent(version)) { recordingClean = false; continue }
             when (action) {
                 is PhoneAgentAction.Finish -> {
                     task.finish(PhoneTaskState.COMPLETED)
-                    coordinator.reveal(session, "任务完成")
+                    coordinator.publishPhoneTaskResult(action.message.take(40).ifBlank { "任务完成" }, success = true)
                     val saved = when {
                         workflowName.isBlank() -> ""
                         !recordingClean -> "\n存在人工介入或失败步骤，未自动保存工作流；请在编辑器中手动整理。"
@@ -154,18 +213,29 @@ internal class PhoneAgentPilot(
                             catch (e: CancellationException) { throw e }
                             catch (e: Exception) { "\n操作结束，但保存工作流失败：${e.message}" }
                     }
-                    return true to finish(notes, action.message + saved)
+                    return true to finish(notes, action.message + saved, executorLabel)
                 }
                 is PhoneAgentAction.TakeOver -> {
-                    task.finish(PhoneTaskState.NEEDS_USER)
-                    coordinator.reveal(session, "需要你接手")
-                    return false to finish(notes, "需要人工接手：${action.message.ifBlank { "登录、验证码或支付" }}。请在悬浮窗上继续操作。")
+
+                    val reason = action.message.ifBlank {
+                        if (action.confirm) "请确认是否继续" else "登录、验证码或支付"
+                    }
+                    notes += if (action.confirm) "$step. 请确认：$reason" else "$step. 请你接手：$reason"
+                    recordingClean = false
+                    if (action.confirm) {
+                        coordinator.publishPhoneTaskConfirm(session, reason.take(40))
+                    } else {
+                        coordinator.publishPhoneTaskHandoff(session, reason.take(40))
+                    }
+                    services?.log(session, "UserWait step=$step confirm=${action.confirm}")
+                    continue
                 }
                 is PhoneAgentAction.Note -> {
                     notes += "$step. 记录：${action.message.ifBlank { "当前页面" }}"
-                    coordinator.reveal(session, "记录页面")
+                    coordinator.publishPhoneTaskProgress(stepTitle, step)
                 }
                 else -> {
+                    coordinator.publishPhoneTaskProgress(stepTitle, step)
                     val actionStarted = System.nanoTime()
                     val performed = perform(session, action, size, task, version)
                     services?.log(session, "Injection step=$step success=${performed.first} elapsedMs=${(System.nanoTime() - actionStarted) / 1_000_000}")
@@ -174,9 +244,11 @@ internal class PhoneAgentPilot(
                         notes += "$step. ${actionLabel(action)} 期间人工介入，部分输入可能已发出；重新截图核对。"
                         continue
                     }
-                    notes += "$step. ${actionLabel(action)}：${if (performed.first) "输入已发出/等待截图核验" else "执行失败"}；${performed.second}"
-                    coordinator.reveal(session, performed.second.take(24))
-                    progress.afterAction(performed.first)?.let { return false to finish(notes, it) }
+                    notes += "$step. $stepTitle：${if (performed.first) "已发出，等待画面核验" else "执行失败"}；${performed.second}"
+                    if (!performed.first) {
+                        coordinator.publishPhoneTaskProgress(performed.second.take(40), step)
+                    }
+                    progress.afterAction(performed.first)?.let { return false to finish(notes, it, executorLabel) }
                     val waitMs = when (action) {
                         is PhoneAgentAction.Wait -> action.durationMs
                         is PhoneAgentAction.Launch -> 900
@@ -188,7 +260,11 @@ internal class PhoneAgentPilot(
                 }
             }
         }
-        return false to finish(notes, "已达到 $maxSteps 步，任务还没有完成。可以把下一步再交给手机操作模型。")
+        return false to finish(
+            notes,
+            "已达到 $maxSteps 步，任务还没有完成。可以把下一步再交给手机操作模型。",
+            executorLabel,
+        )
     }
 
     private fun screenSize(session: String, png: ByteArray): Pair<Int, Int>? {
@@ -235,17 +311,41 @@ internal class PhoneAgentPilot(
         return result.success to result.message
     }
 
-    private fun finish(notes: List<String>, outcome: String): String = buildString {
-        append(outcome)
-        if (notes.isNotEmpty()) {
-            append("\n操作记录：\n")
-            append(notes.joinToString("\n"))
+    private fun finish(notes: List<String>, outcome: String, executorLabel: String = "执行者：手机操作模型。"): String =
+        buildString {
+            append(executorLabel)
+            append('\n')
+            append(outcome)
+            if (notes.isNotEmpty()) {
+                append("\n操作记录：\n")
+                append(notes.joinToString("\n"))
+            }
         }
-    }
 
 }
 
 private fun actionLabel(action: PhoneAgentAction): String = when (action) {
-    is PhoneAgentAction.Type -> "Type(${action.text.length} 字)"
-    else -> action.toString()
+    is PhoneAgentAction.Tap -> "点击"
+    is PhoneAgentAction.DoubleTap -> "双击"
+    is PhoneAgentAction.LongPress -> "长按"
+    is PhoneAgentAction.Swipe -> "滑动"
+    is PhoneAgentAction.Type -> "输入「${action.text.take(16)}」"
+    is PhoneAgentAction.Launch -> "打开 ${action.app}"
+    PhoneAgentAction.Back -> "返回"
+    PhoneAgentAction.Home -> "回桌面"
+    is PhoneAgentAction.Wait -> "等待页面"
+    is PhoneAgentAction.Note -> "记录"
+    is PhoneAgentAction.Finish -> "完成"
+    is PhoneAgentAction.TakeOver -> "请你接手"
+}
+
+/**
+ * 优先用手机模型 <think> 里的一句人话当步骤标题，
+ * 没有再退回动作中文标签。
+ */
+internal fun phoneAgentStepTitle(raw: String, action: PhoneAgentAction): String {
+    val think = Regex("(?s)<think>(.*?)</think>").find(raw)?.groupValues?.get(1)
+        ?.lineSequence()?.map { it.trim() }?.firstOrNull { it.isNotBlank() }
+        ?.take(40)
+    return think?.takeIf { it.isNotBlank() } ?: actionLabel(action)
 }

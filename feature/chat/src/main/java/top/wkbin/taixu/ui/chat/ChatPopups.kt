@@ -43,8 +43,14 @@ internal fun SlashCommandPopup(
             .fillMaxWidth()
             .padding(bottom = 6.dp),
     ) {
-        Column(modifier = Modifier.padding(vertical = 4.dp)) {
-            commands.forEach { cmd ->
+        // 与 @ 能力面板同高：指令很多时固定上限，避免把聊天区顶成全屏。
+        LazyColumn(
+            modifier = Modifier
+                .heightIn(max = 240.dp)
+                .padding(vertical = 4.dp),
+        ) {
+            items(commands.size, key = { commands[it].command }) { index ->
+                val cmd = commands[index]
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

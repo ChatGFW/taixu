@@ -25,6 +25,8 @@
     <string name="chat_step_command_files">查看文件</string>
     <string name="chat_action_process">管理后台进程</string>
     <string name="chat_action_host">操作设备</string>
+    <string name="chat_action_twin_task">开始分身任务</string>
+    <string name="chat_action_twin_read">查看分身屏幕</string>
     <string name="chat_action_download">下载文件</string>
     <string name="chat_action_search_web">联网搜索</string>
     <string name="chat_outline_title">大纲</string>

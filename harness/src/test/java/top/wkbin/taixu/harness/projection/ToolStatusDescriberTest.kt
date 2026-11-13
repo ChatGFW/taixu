@@ -98,4 +98,30 @@ class ToolStatusDescriberTest {
             ToolStatusDescriber.describe(HarnessTool.HOST, args("action" to "screen_capture")),
         )
     }
+
+    @Test
+    fun `virtual screen task prefers ack like 
+        assertEquals(
+            "分身任务：这就去 QQ 发 hello…",
+            ToolStatusDescriber.describe(
+                HarnessTool.HOST,
+                args(
+                    "action" to "virtual_screen_task",
+                    "goal" to "在 QQ 太墟群发送 hello",
+                    "ack" to "这就去 QQ 发 hello",
+                ),
+            ),
+        )
+        assertEquals(
+            "分身任务：在 QQ 太墟群发送 hello…",
+            ToolStatusDescriber.describe(
+                HarnessTool.HOST,
+                args("action" to "virtual_screen_task", "goal" to "在 QQ 太墟群发送 hello"),
+            ),
+        )
+        assertEquals(
+            "正在查看分身屏幕…",
+            ToolStatusDescriber.describe(HarnessTool.HOST, args("action" to "virtual_screen_screenshot")),
+        )
+    }
 }

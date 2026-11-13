@@ -83,6 +83,8 @@ import org.koin.android.ext.android.getKoin
 import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
 import top.wkbin.taixu.navigation.AgentNotificationIntentExtractor
 import top.wkbin.taixu.core.model.ThemePalette
+import top.wkbin.taixu.runtime.virtualdisplay.TwinPhonePresence
+
 class MainActivity : AppCompatActivity() {
     val settingsDataStore: AppearancePreferences by inject()
     val appUpdateManager: AppUpdateManager by inject()
@@ -354,6 +356,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val action = intentToHandle.action
+        TwinPhonePresence.consumeOpenTwinIntent(intentToHandle)
         // 系统分享入口：分享文本进聊天页预填（不自动发送）
         ShareIntentExtractor.extractSharedText(intentToHandle)?.let { sharedText ->
             globalNavigationBus.navigateTo(AppNavigationTarget.SharedText(sharedText))

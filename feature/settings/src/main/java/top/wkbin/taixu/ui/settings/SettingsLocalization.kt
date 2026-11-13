@@ -231,7 +231,7 @@ private fun legacyStringResource(source: String): Int? = hashlineLegacyString(so
         "删除模型失败" -> R.string.settings_text_0063
         "加入 QQ 交流群 (964382207)" -> R.string.settings_text_0064
         "助手名称" -> R.string.settings_text_0065
-        "协议: Apache-2.0 License" -> R.string.settings_text_0066
+        "协议: GNU GPL-3.0 License" -> R.string.settings_text_0066
         "单 Key RPM 需为非负整数" -> R.string.settings_text_0067
         "单回合最大工具轮次上限" -> R.string.settings_text_0068
         "单轮最大工具调用数" -> R.string.settings_text_0069

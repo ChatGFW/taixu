@@ -211,7 +211,7 @@
     <string name="settings_text_0063" formatted="false">删除模型失败</string>
     <string name="settings_text_0064" formatted="false">加入 QQ 交流群 (964382207)</string>
     <string name="settings_text_0065" formatted="false">助手名称</string>
-    <string name="settings_text_0066" formatted="false">协议: Apache-2.0 License</string>
+    <string name="settings_text_0066" formatted="false">协议: GNU GPL-3.0 License</string>
     <string name="settings_text_0067" formatted="false">单 Key RPM 需为非负整数</string>
     <string name="settings_text_0068" formatted="false">单回合最大工具轮次上限</string>
     <string name="settings_text_0069" formatted="false">单轮最大工具调用数</string>

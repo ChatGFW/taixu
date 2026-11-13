@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.core.markdown.*
+import top.wkbin.taixu.ui.theme.chatReadingTypography
 
 @Composable
 internal fun CodeBlock(block: MdCodeBlock) {
@@ -216,16 +217,17 @@ private fun displayWidthOf(raw: String): Int {
 
 @Composable
 internal fun ListBlock(block: MdList) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    val body = LocalMarkdownReadingTypography.current?.body ?: chatReadingTypography().body
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         block.items.forEachIndexed { index, item ->
             Row(Modifier.fillMaxWidth()) {
                 Text(
                     if (block.ordered) "${index + 1}." else "\u2022",
-                    style = RuntimeTheme.typography.bodyMedium,
+                    style = body,
                     color = RuntimeTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(end = 8.dp),
                 )
-                InlineText(item, RuntimeTheme.typography.bodyMedium, modifier = Modifier.padding(end = 0.dp))
+                InlineText(item, body, modifier = Modifier.padding(end = 0.dp))
             }
         }
     }
@@ -233,15 +235,16 @@ internal fun ListBlock(block: MdList) {
 
 @Composable
 internal fun QuoteBlock(block: MdQuote) {
+    val body = LocalMarkdownReadingTypography.current?.body ?: chatReadingTypography().body
     Column(
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxWidth()
             .background(RuntimeTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
             .padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         block.lines.forEach { line ->
-            InlineText(line, RuntimeTheme.typography.bodyMedium, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+            InlineText(line, body, color = RuntimeTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

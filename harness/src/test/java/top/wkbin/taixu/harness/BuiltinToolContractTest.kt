@@ -124,11 +124,12 @@ class BuiltinToolContractTest {
         HostCapabilityDirectory.DEFERRED_ACTIONS.forEach { action ->
             assertFalse("deferred 动作 ${action.name} 不得出现在 host 直接声明中", action.name in enum)
         }
-        // 高频核心动作仍在场
-        listOf("status", "exec", "settings_get", "logcat", "device_status", "screen_click", "app_launch")
+        // 高频核心动作仍在场；多步手机 GUI 入口也必须在 direct
+        listOf("status", "exec", "settings_get", "logcat", "device_status", "screen_click", "app_launch", "virtual_screen_task")
             .forEach { action -> assertTrue("direct host 必须保留 $action", action in enum) }
         assertTrue(host.function.description.contains("Android"))
-        // direct 声明必须指引按需发现域（模型要知道 virtual_screen_* 去哪找）
+        assertTrue(host.function.description.contains("virtual_screen_task"))
+        // 其它低频 virtual_screen_* 仍经按需发现域
         assertTrue(host.function.description.contains("use_capability"))
         assertTrue(host.function.description.contains("server=\"host\""))
     }

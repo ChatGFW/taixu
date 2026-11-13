@@ -38,6 +38,16 @@ class HarnessBlobStore(
     }
 
     /**
+     * 外置指针对应的已存在文件。不是指针、路径越界或文件已缺失时返回 null，调用方不必把整份 JSON 读进内存。
+     */
+    fun existingBlob(payloadOrPointer: String): File? {
+        if (!payloadOrPointer.startsWith(BLOB_PREFIX)) return null
+        val relative = payloadOrPointer.removePrefix(BLOB_PREFIX)
+        if (!isSafeRelativePath(relative)) return null
+        return File(context.filesDir, relative).takeIf { it.isFile }
+    }
+
+    /**
      * 读取还原：如果 [payloadOrPointer] 是外置引用指针，则从沙箱文件中读取还原；
      * 否则原样返回。
      */
@@ -64,6 +74,12 @@ class HarnessBlobStore(
                 sessionDir.deleteRecursively()
             }
         }
+    }
+
+    private fun isSafeRelativePath(relative: String): Boolean {
+        if (relative.isEmpty() || relative.startsWith('/') || relative.startsWith('\\')) return false
+        if (relative.length >= 2 && relative[1] == ':') return false
+        return relative.split('/', '\\').none { it.isEmpty() || it == "." || it == ".." }
     }
 
     private fun sanitizeFileName(name: String): String =

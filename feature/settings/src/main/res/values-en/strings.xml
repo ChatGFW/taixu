@@ -94,4 +94,20 @@
     <string name="agent_running_send_mode_queue_description">While the current turn is still running, new input waits and starts as the next turn after it finishes.</string>
     <string name="agent_running_send_mode_steer_description">While the current turn is still running, new input is injected after the current batch of tool calls finishes and before the next inference round.</string>
     <string name="settings_local_network_permission_required">Local network is blocked. Allow Nearby devices / Local network. Android 17 blocks LAN access until this permission is granted.</string>
+    <string name="settings_oss_entry_title">Open-source licenses</string>
+    <string name="settings_oss_entry_subtitle">App GPL-3.0 and bundled third-party license texts</string>
+    <string name="settings_oss_title">Open-source licenses</string>
+    <string name="settings_oss_section_app">This app</string>
+    <string name="settings_oss_section_third_party">Third-party components</string>
+    <string name="settings_oss_footer">See docs/THIRD_PARTY_LICENSES.md in the project repository for the full dependency inventory.</string>
+    <string name="settings_oss_load_failed">Could not load the license text. Try again later, or view it on the GitHub repository.</string>
+    <string name="settings_oss_taixu_title">TaiXu</string>
+    <string name="settings_oss_taixu_subtitle">GNU GPL-3.0</string>
+    <string name="settings_oss_miuix_title">Miuix</string>
+    <string name="settings_oss_material_symbols_title">Material Symbols Rounded</string>
+    <string name="settings_oss_a2ui_title">AndroidX A2UI (adapted sources)</string>
+    <string name="settings_oss_rtk_title">RTK</string>
+    <string name="settings_oss_agency_agents_title">Agency Agents</string>
+    <string name="settings_oss_apache_subtitle">Apache License 2.0</string>
+    <string name="settings_oss_mit_subtitle">MIT License</string>
 </resources>

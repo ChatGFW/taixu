@@ -1,6 +1,7 @@
 package top.wkbin.taixu.harness
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -68,8 +69,12 @@ class PhoneAgentActionTest {
     @Test
     fun parsesSensitiveTapAndNote() {
         assertEquals(
-            PhoneAgentAction.TakeOver("确认支付"),
+            PhoneAgentAction.TakeOver("确认支付", confirm = true),
             parsePhoneAgentAction("""do(action="Tap", element=[10, 20], message="确认支付")"""),
+        )
+        assertEquals(
+            PhoneAgentAction.TakeOver("请登录微信", confirm = false),
+            parsePhoneAgentAction("""do(action="Take_over", message="请登录微信")"""),
         )
         assertEquals(
             PhoneAgentAction.Note("订单已提交"),
@@ -82,6 +87,26 @@ class PhoneAgentActionTest {
     fun rejectsUnknownAction() {
         assertNull(parsePhoneAgentAction("我先看看画面"))
         assertNull(parsePhoneAgentAction("""do(action="Fly")"""))
+    }
+
+    @Test
+    fun stepTitlePrefersThinkSentence() {
+        val raw = """
+            <think>先点开太墟群会话</think>
+            <answer>do(action="Tap", element=[200, 400])</answer>
+        """.trimIndent()
+        assertEquals("先点开太墟群会话", phoneAgentStepTitle(raw, PhoneAgentAction.Tap(200, 400)))
+        assertEquals("打开 QQ", phoneAgentStepTitle("do(action=\"Launch\", app=\"QQ\")", PhoneAgentAction.Launch("QQ")))
+    }
+
+    @Test
+    fun systemPromptIncludesAllowHintsWhenAuthorized() {
+        val withSend = phoneAgentSystemPrompt(allow = setOf("send"))
+        assertTrue(withSend.contains("send"))
+        assertTrue(withSend.contains("发消息"))
+        assertTrue(withSend.contains("Take_over"))
+        val plain = phoneAgentSystemPrompt()
+        assertFalse(plain.contains("用户已在下达任务时明确授权"))
     }
 
     @Test
@@ -99,7 +124,7 @@ class PhoneAgentActionTest {
     @Test
     fun parsesWhitespaceSingleQuotesEmptyTextAndParameterOrder() {
         assertEquals(PhoneAgentAction.Type(""), parsePhoneAgentAction("""do ( text = '', action = 'Type' )"""))
-        assertEquals(PhoneAgentAction.TakeOver("确认, 支付"),
+        assertEquals(PhoneAgentAction.TakeOver("确认, 支付", confirm = true),
             parsePhoneAgentAction("""do(message="确认, 支付", element=[10, 20], action="Tap")"""))
         assertEquals(PhoneAgentAction.Type("C:\\tmp\\a"),
             parsePhoneAgentAction("""do(action="Type", text="C:\\tmp\\a")"""))

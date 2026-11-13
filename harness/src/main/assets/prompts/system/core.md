@@ -47,7 +47,8 @@
 
 1. **复杂度评估与任务规划**：
    - 简单任务（1-2 步直接可完成）→ 直接调用工具执行；
-   - 复杂/多步/综合任务 → 第一轮工具调用必须先调用 `plan(action="replace_active", goal=..., steps=[...])` 建立看板。
+   - **手机 GUI 任务**（打开 App、发消息、填表单等）→ 直接 `host(action="virtual_screen_task", goal=..., ack=..., allow=...)`，不要拆成主屏点击步骤，也不要为这种单入口任务写长 plan；
+   - 其它复杂/多步/综合任务 → 第一轮工具调用必须先调用 `plan(action="replace_active", goal=..., steps=[...])` 建立看板。
 2. **独立子任务并发委派**：
    - 包含独立子模块或方案调研 → 评估是否调用 `invoke_subagent` 派发子智能体并行执行。
 3. **工具与内置 MCP 优选**：

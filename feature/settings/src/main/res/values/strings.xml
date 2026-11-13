@@ -94,4 +94,20 @@
     <string name="agent_running_send_mode_queue_description">当前轮仍在执行时，新输入排队等它结束后作为下一轮启动。</string>
     <string name="agent_running_send_mode_steer_description">当前轮仍在执行时，新输入在当前这批工具调用完成后、下一轮推理开始前注入。</string>
     <string name="settings_local_network_permission_required">无法访问局域网：请允许「附近的设备 / 本地网络」权限。Android 17 及以上会拦截未授权应用的局域网连接。</string>
+    <string name="settings_oss_entry_title">开源许可</string>
+    <string name="settings_oss_entry_subtitle">本应用 GPL-3.0 与随包第三方许可证全文</string>
+    <string name="settings_oss_title">开源许可</string>
+    <string name="settings_oss_section_app">本应用</string>
+    <string name="settings_oss_section_third_party">第三方组件</string>
+    <string name="settings_oss_footer">更完整的依赖清单与分发说明见项目仓库 docs/THIRD_PARTY_LICENSES.md。</string>
+    <string name="settings_oss_load_failed">无法加载许可证文本。请稍后重试，或前往 GitHub 仓库查看。</string>
+    <string name="settings_oss_taixu_title">太墟 · TaiXu</string>
+    <string name="settings_oss_taixu_subtitle">GNU GPL-3.0</string>
+    <string name="settings_oss_miuix_title">Miuix</string>
+    <string name="settings_oss_material_symbols_title">Material Symbols Rounded</string>
+    <string name="settings_oss_a2ui_title">AndroidX A2UI（适配源码）</string>
+    <string name="settings_oss_rtk_title">RTK</string>
+    <string name="settings_oss_agency_agents_title">Agency Agents</string>
+    <string name="settings_oss_apache_subtitle">Apache License 2.0</string>
+    <string name="settings_oss_mit_subtitle">MIT License</string>
 </resources>

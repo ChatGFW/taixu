@@ -2,7 +2,9 @@ package top.wkbin.taixu.harness
 
 import java.io.File
 import java.util.Base64
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import top.wkbin.taixu.core.datastore.AgentPreferences
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
@@ -10,6 +12,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.runtime.gui.GuiKey
 import top.wkbin.taixu.runtime.gui.GuiPrimitive
 import top.wkbin.taixu.runtime.gui.ScrollDirection
+import top.wkbin.taixu.runtime.virtualdisplay.TwinPhonePresence
 import top.wkbin.taixu.runtime.virtualdisplay.VirtualDisplayCoordinator
 import top.wkbin.taixu.runtime.virtualdisplay.VirtualScreenToolkit
 import kotlinx.coroutines.delay
@@ -31,6 +34,7 @@ internal class VirtualScreenHostActions(
     private val attachImage: (String) -> Unit = {},
     private val services: PhoneAgentServices? = null,
     private val canInject: () -> Boolean = { true },
+    private val fallbackMainModel: (suspend () -> ModelConfig)? = null,
 ) {
     suspend fun execute(action: String, args: JsonObject): Pair<Boolean, String> = when (action) {
         "virtual_screen_ensure" -> {
@@ -40,9 +44,9 @@ internal class VirtualScreenHostActions(
             if (displayId == null) {
                 false to coordinator.creationFailure(session)
             } else {
-                val hidden = coordinator.reveal(session, "等待打开应用")
+                coordinator.reveal(session, "等待打开应用")
                 true to "虚拟屏已就绪：session=$session displayId=$displayId。" +
-                    (hidden ?: "悬浮窗已弹出。刚建好的屏上没有应用，画面是黑的。") +
+                    "已打开聊天「分身」页；刚建好的屏上没有应用时画面可能是黑的。" +
                     "用 virtual_screen_launch 打开应用后才会有画面。" +
                     "多步操作交给 virtual_screen_task；只有要亲自看画面时才截图。" +
                     "点击坐标是 0–1000 相对位置，打字用 virtual_screen_input_text"
@@ -61,10 +65,10 @@ internal class VirtualScreenHostActions(
             if (!canInject()) return false to "应用启动已中止：任务暂停或已被人工介入"
             val res = coordinator.launchApp(session, packageName)
             if (res) {
-                val hidden = coordinator.reveal(session, "启动 $packageName")
+                coordinator.reveal(session, "启动 $packageName")
                 true to "已在虚拟屏启动应用：$packageName（session=$session " +
                     "displayId=${coordinator.getDisplayId(session)}）。" +
-                    (hidden ?: "悬浮窗上能看到这个应用，标题栏是当前步骤。")
+                    "请在聊天「分身」页查看画面；步骤进度在系统通知里。"
             } else {
                 coordinator.reveal(session, "启动失败 $packageName")
                 false to "虚拟屏启动应用失败：$packageName（检查包名是否为已安装应用）"
@@ -181,6 +185,7 @@ internal class VirtualScreenHostActions(
             val coordinator = coordinator ?: return false to "未初始化虚拟屏协调器"
             val session = optionalSession(args)
             coordinator.closeSession(session)
+            TwinPhonePresence.unpinMini()
             true to "已关闭虚拟屏会话：$session"
         }
         "virtual_screen_show" -> {
@@ -191,24 +196,46 @@ internal class VirtualScreenHostActions(
             ) {
                 return false to coordinator.creationFailure(session)
             }
-            if (coordinator.showOverlay(session)) {
-                coordinator.reveal(session, "正在显示画面")
-                true to "已显示虚拟屏实时悬浮窗（session=$session）：用户可观看画面并直接触摸干预，标题栏是当前步骤"
-            } else {
-                false to "悬浮窗权限未授予：请引导用户在系统设置中允许「显示在其他应用上层」后重试"
-            }
+            coordinator.showOverlay(session)
+            coordinator.reveal(session, "正在显示画面")
+            true to "已打开聊天「分身」页（session=$session）：画面在 Tab 内，进度走系统通知；用户可触摸干预。"
         }
         "virtual_screen_task" -> {
             val client = providerClient ?: return false to "手机操作模型还没接上。"
             val prefs = preferences ?: return false to "手机操作模型还没接上。"
             val coordinator = coordinator ?: return false to "未初始化虚拟屏协调器"
             val toolkit = toolkit ?: return false to "未初始化虚拟屏工具"
-            val session = optionalSession(args)
+            // 任务强制走 default：预览 Surface 只挂这一路，避免多 session 建第二块 VD 抢黑。
+            val session = VirtualDisplayCoordinator.DEFAULT_SESSION_ID
             val goal = requireString(args, "goal")
             val packageName = args["package"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
-            val maxSteps = optionalLong(args, "max_steps", 12L, 1L, 20L).toInt()
+            // 外卖/多页表单常超 12 步；默认 20、上限 30，避免中途被硬截断。
+            val maxSteps = optionalLong(args, "max_steps", 20L, 1L, 30L).toInt()
             val workflowName = args["workflow_name"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty().take(100)
-            PhoneAgentPilot(client, prefs, coordinator, toolkit, services).run(session, goal, packageName, maxSteps, workflowName)
+            val ack = args["ack"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty().take(80)
+            val allow = parseTaskAllow(args["allow"])
+            // 入口处先请求打开分身，避免 ensure/launch 期间 UI 还停在聊天页。
+            TwinPhonePresence.requestOpen()
+            coordinator.setPhoneTaskTitle(goal.take(40))
+            coordinator.publishPhoneTaskProgress((ack.ifBlank { "准备执行" }).take(40), stepIndex = 0)
+            val result = PhoneAgentPilot(client, prefs, coordinator, toolkit, services, fallbackMainModel)
+                .run(session, goal, packageName, maxSteps, workflowName, allow)
+            // 失败时先回失败原因，避免导出里只剩「对用户说」像成功。
+            when {
+                ack.isBlank() -> result
+                result.first -> true to "对用户说：$ack\n${result.second}"
+                else -> false to "${result.second}\n（已告知用户：$ack）"
+            }
+        }
+        "virtual_screen_back" -> {
+            val coordinator = coordinator ?: return false to "未初始化虚拟屏协调器"
+            val session = optionalSession(args)
+            if (coordinator.getDisplayId(session) == null) {
+                return false to "虚拟屏未创建（session=$session）：先调用 virtual_screen_ensure"
+            }
+            TwinPhonePresence.pinMini()
+            val ok = coordinator.injectKey(session, android.view.KeyEvent.KEYCODE_BACK)
+            ok to if (ok) "已向虚拟屏注入返回键" else "注入返回键失败"
         }
         "virtual_screen_wait" -> {
             val millis = optionalLong(args, "duration_ms", 1000L, 0L, 600_000L)
@@ -218,7 +245,8 @@ internal class VirtualScreenHostActions(
         "virtual_screen_hide" -> {
             val coordinator = coordinator ?: return false to "未初始化虚拟屏协调器"
             coordinator.hideOverlay()
-            true to "已隐藏虚拟屏悬浮窗（虚拟屏会话不受影响，仍可继续操作）"
+            TwinPhonePresence.unpinMini()
+            true to "已收起分身任务通知条（虚拟屏会话与分身 Tab 不受影响，仍可继续操作）"
         }
         else -> error("virtual_screen action 未登记：$action")
     }
@@ -235,6 +263,21 @@ internal class VirtualScreenHostActions(
 
     private fun relativePointUnavailable(session: String): String =
         "虚拟屏尺寸未知（session=$session），无法把 0–1000 坐标换算成像素。先 virtual_screen_ensure，等画面出现后再操作。"
+
+        private fun parseTaskAllow(raw: kotlinx.serialization.json.JsonElement?): Set<String> {
+        val allowed = setOf("send", "delete")
+        return when (raw) {
+            is JsonArray -> raw.mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.trim()?.lowercase() }
+                .filter { it in allowed }
+                .toSet()
+            is JsonPrimitive -> raw.contentOrNull.orEmpty()
+                .split(',', ' ', ';')
+                .map { it.trim().lowercase() }
+                .filter { it in allowed }
+                .toSet()
+            else -> emptySet()
+        }
+    }
 
     companion object {
         fun handles(action: String): Boolean = action in ACTIONS
@@ -274,6 +317,7 @@ internal class VirtualScreenHostActions(
             "virtual_screen_close",
             "virtual_screen_show",
             "virtual_screen_hide",
+            "virtual_screen_back",
             "virtual_screen_task",
         )
     }

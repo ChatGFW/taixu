@@ -14,7 +14,7 @@
     <string name="components_rail_terminal">Terminal</string>
     <string name="components_rail_tools">Plugins</string>
     <string name="components_collapse_sidebar">Collapse sidebar</string>
-    <string name="components_companion_open">Open terminal and browser pane</string>
+    <string name="components_companion_open">Open terminal, browser and twin pane</string>
     <string name="components_companion_collapse">Collapse side pane</string>
     <string name="components_companion_resize">Drag to resize panes</string>
 </resources>

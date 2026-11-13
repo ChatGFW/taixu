@@ -211,7 +211,7 @@
     <string name="settings_text_0063" formatted="false">Failed to delete model</string>
     <string name="settings_text_0064" formatted="false">Join the QQ group (964382207)</string>
     <string name="settings_text_0065" formatted="false">Assistant Name</string>
-    <string name="settings_text_0066" formatted="false">Protocol: Apache-2.0 License</string>
+    <string name="settings_text_0066" formatted="false">License: GNU GPL-3.0</string>
     <string name="settings_text_0067" formatted="false">Single Key rpm needs to be a non-negative integer</string>
     <string name="settings_text_0068" formatted="false">Upper limit of maximum tool rounds per round</string>
     <string name="settings_text_0069" formatted="false">Maximum number of tool calls per round</string>

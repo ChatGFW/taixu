@@ -33,6 +33,27 @@ class PhoneAgentRequestTest {
     }
 
     @Test
+    fun `main model fallback disables tools and keeps vision`() {
+        val adapted = phoneAgentModelFromMain(
+            ModelConfig(
+                name = "主模型",
+                provider = "openai",
+                model = "gpt-test",
+                baseUrl = "https://example.test/v1",
+                apiKey = "sk-test",
+                maxTokens = 8192,
+                toolCallMode = ToolCallMode.NATIVE,
+                visionEnabled = false,
+            ),
+        )
+        assertEquals("主模型（主模型代跑手机）", adapted.name)
+        assertEquals(ToolCallMode.DISABLED, adapted.toolCallMode)
+        assertEquals(true, adapted.visionEnabled)
+        assertEquals(true, adapted.pureChatMode)
+        assertEquals(4096, adapted.maxTokens)
+    }
+
+    @Test
     fun `logs do not expose input or model commentary`() {
         assertEquals("Type textLength=6", phoneActionLog(PhoneAgentAction.Type("secret")))
         assertEquals("Finish", phoneActionLog(PhoneAgentAction.Finish("secret")))

@@ -147,42 +147,21 @@ val pngBytes: ByteArray? = ShowerController.requestScreenshot()
 
 ---
 
-## 6. 使用内置视频组件（可选）
-
-如果你希望直接复用内置的视频解码和渲染，可以使用：
-
-- `com.ai.assistance.showerclient.ShowerVideoRenderer`
-- `com.ai.assistance.showerclient.ui.ShowerSurfaceView`
-
-示例：在某个浮层中渲染 Shower 虚拟屏：
+## 6. 预览管线（Surface 直挂，无 H.264）
 
 ```kotlin
-// SurfaceView（也可以继承 ui.ShowerSurfaceView 做一层包装）
-class ShowerSurfaceView @JvmOverloads constructor(
-    context: Context,
-    attrs: AttributeSet? = null
-) : com.ai.assistance.showerclient.ui.ShowerSurfaceView(context, attrs)
+controller.ensureDisplay(...)
+controller.setDisplaySurface(surfaceView.holder.surface)
+// 保活但不预览：
+controller.setDisplaySurface(null)
 ```
 
-`ui.ShowerSurfaceView` 内部已经帮你：
-
-- 等待 `ShowerController.getVideoSize()` 就绪；
-- 在 `surfaceCreated` 时调用 `ShowerVideoRenderer.attach(surface, w, h)`；
-- 把 `ShowerController` 的二进制帧回调绑定到 `ShowerVideoRenderer.onFrame`；
-- 在 `surfaceDestroyed` 时清理 handler 并 `detach()`。
-
-如果你需要自定义解码/渲染（录屏、推流等），可以不使用这些组件，而是自己实现：
-
-```kotlin
-ShowerController.setBinaryHandler { frame: ByteArray ->
-    // 自己解码并渲染
-}
-```
+客户端请用 **SurfaceView**（跨进程 `VirtualDisplay.setSurface`）；截图用 `PixelCopy` / `screencap`。
 
 ---
 
 ## 7. 最小心智模型
 
 - 你提供：`ShellRunner`、广播接收器；
-- 本库提供：`ShowerServerManager` + `ShowerController` + 可选的 `ShowerVideoRenderer` / `ui.ShowerSurfaceView`；
-- 常见调用顺序：**注入 ShellRunner → 启动 server → 收 Binder → ensureDisplay → 发送输入 / 渲染视频**。
+- 本库提供：`ShowerServerManager` + `ShowerController`（预览：`setDisplaySurface`）；
+- 常见调用顺序：**注入 ShellRunner → 启动 server → 收 Binder → ensureDisplay → setDisplaySurface → 输入 / screencap**。
