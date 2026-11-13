@@ -268,9 +268,10 @@ internal class PhoneAgentPilot(
     }
 
     private fun screenSize(session: String, png: ByteArray): Pair<Int, Int>? {
+        // 注入坐标必须以 VD 分辨率为准；预览 PNG 可能是 View 尺寸或被缩放。
+        coordinator.getVideoSize(session)?.takeIf { it.first > 1 && it.second > 1 }?.let { return it }
         val (width, height) = VirtualScreenHostActions.pngDimensions(png)
-        if (width > 1 && height > 1) return width to height
-        return coordinator.getVideoSize(session)?.takeIf { it.first > 1 && it.second > 1 }
+        return if (width > 1 && height > 1) width to height else null
     }
 
     private suspend fun perform(

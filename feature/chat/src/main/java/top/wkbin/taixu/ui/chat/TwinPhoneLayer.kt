@@ -124,9 +124,11 @@ internal fun TwinPhoneLayer(
         val availW = (fullW - sidePad * 2f).coerceAtLeast(1f)
         val chromeReserve = if (immersive) 0f else (chromeH + chromeGap) * progress
         val availH = (fullH - topPad - bottomPad - chromeReserve).coerceAtLeast(1f)
-        val expandedBox = availW to availH
-        val expandedLeft = sidePad
-        val expandedTop = topPad
+        // 大窗按 VD 宽高比落入可用区，避免拉满父级导致 TextureView 裁切/变形。
+        val expandedH = minOf(availH, availW / aspect).coerceAtLeast(1f)
+        val expandedW = (expandedH * aspect).coerceAtMost(availW)
+        val expandedLeft = sidePad + (availW - expandedW) / 2f
+        val expandedTop = topPad + (availH - expandedH) / 2f
         val miniW = with(density) { MiniPhoneWidth.toPx() }
         val miniH = miniW / aspect
         val maxDragX = (fullW - miniW - edgeMin).coerceAtLeast(0f)
@@ -137,8 +139,8 @@ internal fun TwinPhoneLayer(
         val miniTop = dragY.coerceIn(0f, maxDragY)
         val left = lerp(miniLeft, expandedLeft, progress)
         val top = lerp(miniTop, expandedTop, progress)
-        val widthPx = lerp(miniW, expandedBox.first, progress)
-        val heightPx = lerp(miniH, expandedBox.second, progress)
+        val widthPx = lerp(miniW, expandedW, progress)
+        val heightPx = lerp(miniH, expandedH, progress)
         val corner = lerp(MiniCornerDp, 0f, progress)
         val glow = rememberInfiniteTransition(label = "guestGlowFlow")
         val rimAngle by glow.animateFloat(
@@ -244,7 +246,8 @@ internal fun TwinPhoneLayer(
                         .padding(bottom = 8.dp, start = 6.dp, end = 6.dp),
                 )
             }
-            if (progress < 0.92f && miniAlpha > 0.05f) {
+            // 仅小窗拦截拖拽/点击；expanded 意图下绝不盖住预览，否则接手操作点不到画面。
+            if (!expanded && progress < 0.5f && miniAlpha > 0.05f) {
                 Box(
                     Modifier
                         .fillMaxSize()

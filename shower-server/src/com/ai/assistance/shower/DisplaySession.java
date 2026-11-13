@@ -28,7 +28,8 @@ final class DisplaySession {
     private static final int FLAGS_SECONDARY_HOME = 16201;
     private static final int FLAGS_API34 = 81920;
     private static final int FLAGS_UNTRUSTED = 8521;
-    private static final String DISPLAY_NAME = "taixu-twin";
+    /** 须匹配宿主 VirtualDisplayIdentity 的 ShowerVirtualDisplay- 前缀，否则 screencap 物理屏解析失败。 */
+    private static final String DISPLAY_NAME = "ShowerVirtualDisplay-twin";
 
     final int displayId;
     final int width;
@@ -261,7 +262,9 @@ final class DisplaySession {
             while (System.currentTimeMillis() < deadline) {
                 synchronized (offscreenLock) {
                     if (latestOffscreen != null) {
+                        // 取出所有权：编码期间 listener 不得再 close 同一张 Image。
                         snapshot = latestOffscreen;
+                        latestOffscreen = null;
                         break;
                     }
                 }
@@ -276,7 +279,14 @@ final class DisplaySession {
                 ServerLog.d("captureJpeg: no ImageReader frame display=" + displayId, null);
                 return null;
             }
-            return imageToJpeg(snapshot, 55);
+            try {
+                return imageToJpeg(snapshot, 55);
+            } finally {
+                try {
+                    snapshot.close();
+                } catch (Throwable ignored) {
+                }
+            }
         } catch (Throwable t) {
             ServerLog.d("captureJpeg failed: " + t.getMessage(), t);
             return null;

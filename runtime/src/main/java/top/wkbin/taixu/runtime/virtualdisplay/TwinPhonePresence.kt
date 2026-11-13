@@ -57,20 +57,26 @@ object TwinPhonePresence {
     /** 小窗/手机画面在窗口坐标中的矩形，供 PiP sourceRectHint。 */
     private val sourceRectLock = Any()
     private val _sourceRectHint = Rect()
-    @Volatile
-    var contentAspect: Float = 0.516f
-        private set
+    private val _contentAspect = MutableStateFlow(0.516f)
+    /** VD 宽高比；建屏后更新，供大窗/小窗框与 PiP 同步。 */
+    val contentAspectFlow: StateFlow<Float> = _contentAspect.asStateFlow()
+    val contentAspect: Float
+        get() = _contentAspect.value
 
     /** 成功结果 sticky 约 1800ms。 */
     private const val STICKY_DONE_MS = 1800L
     /** 失败/取消 sticky 约 1600ms。 */
     private const val STICKY_FAIL_MS = 1600L
 
+    fun updateContentAspect(aspect: Float) {
+        if (aspect > 0.05f) _contentAspect.value = aspect
+    }
+
     fun updateSourceRectHint(left: Int, top: Int, right: Int, bottom: Int, aspect: Float) {
         synchronized(sourceRectLock) {
             _sourceRectHint.set(left, top, right, bottom)
         }
-        if (aspect > 0.05f) contentAspect = aspect
+        updateContentAspect(aspect)
     }
 
     fun copySourceRectHint(out: Rect): Boolean {

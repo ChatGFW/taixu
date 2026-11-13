@@ -2,6 +2,7 @@ package top.wkbin.taixu.runtime.virtualdisplay
 
 import android.content.Context
 import android.util.AttributeSet
+import android.view.MotionEvent
 import android.widget.FrameLayout
 import kotlinx.coroutines.CoroutineScope
 
@@ -21,12 +22,16 @@ class TwinPhoneSurfaceHost @JvmOverloads constructor(
         addView(trails, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
+    /** 轨迹层在最上，但触控必须落到 Embed，否则接手时只能点底栏。 */
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean = embed.dispatchTouchEvent(ev)
+
     fun bind(
         sessionId: String,
         coordinator: VirtualDisplayCoordinator,
         scope: CoroutineScope,
         statusText: String = "",
     ) {
+        // AndroidView update 每帧都会进来；embed.bind 内部幂等，避免重复挂 Surface。
         embed.bind(sessionId, coordinator, scope, statusText)
         trails.attach(scope)
         applyPreviewVisibility()

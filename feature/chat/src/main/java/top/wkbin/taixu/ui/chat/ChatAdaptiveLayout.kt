@@ -253,8 +253,12 @@ internal fun ChatAdaptiveLayout(
 
         val screenWidth = maxWidth
         val coverChrome = browserPage || phonePage || overlayProgress > 0.5f
+        val presenceAspect by TwinPhonePresence.contentAspectFlow.collectAsStateWithLifecycle()
         val twinSize = twinCoordinator.getVideoSize(VirtualDisplayCoordinator.DEFAULT_SESSION_ID)
-        val twinAspect = twinSize?.let { it.first.toFloat() / it.second.toFloat() } ?: (9f / 19.5f)
+        val twinAspect = twinSize?.let { it.first.toFloat() / it.second.toFloat() }
+            ?.takeIf { it > 0.05f }
+            ?: presenceAspect.takeIf { it > 0.05f }
+            ?: (9f / 19.5f)
         // 对话层先画；分身层后叠（聊天小窗 / 手机大窗）。
         if (!phonePage) {
             Box(

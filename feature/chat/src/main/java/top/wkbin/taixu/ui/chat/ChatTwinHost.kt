@@ -97,7 +97,8 @@ internal fun ChatTwinHost(
             {
                 TwinPhoneChromeBar(
                     onInjectKey = { keyCode ->
-                        if (twinRunning != null) {
+                        // 仅自动操控中锁软键；接手/暂停等待时与画面触控一并放开。
+                        if (twinRunning != null && twinWaiting == null) {
                             TwinPhonePresence.nudgeTakeOver()
                         } else {
                             scope.launch { twinCoordinator.injectKey(keyCode = keyCode) }

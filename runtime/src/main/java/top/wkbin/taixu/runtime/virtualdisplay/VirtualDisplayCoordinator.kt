@@ -1,13 +1,10 @@
 package top.wkbin.taixu.runtime.virtualdisplay
 
 import android.content.Context
-import android.hardware.display.DisplayManager
 import android.provider.Settings
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.WindowManager
-import com.ai.assistance.showerclient.ShellIdentity
-import com.ai.assistance.showerclient.ShellRunner
 import com.ai.assistance.showerclient.ShowerBinderRegistry
 import com.ai.assistance.showerclient.ShowerController
 import com.ai.assistance.showerclient.ShowerEnvironment
@@ -16,9 +13,7 @@ import com.ai.assistance.showerclient.ShowerServerManager
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.runtime.apps.installedAppNames
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
-import java.io.File
 import java.util.concurrent.ConcurrentHashMap
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -49,6 +44,7 @@ class VirtualDisplayCoordinator(
     val phoneTasks = PhoneTaskRegistry()
     private val lifecycleMutex = Mutex()
     private val phoneTaskUi = PhoneTaskPublisher(context.applicationContext, phoneTasks)
+    private val screencap = VirtualDisplayScreencap(context.applicationContext, logger) { getDisplayId(it) }
 
     init {
         ShowerEnvironment.shellRunner = TaixuShowerShellRunner(privilegeManager, logger)
@@ -176,85 +172,10 @@ class VirtualDisplayCoordinator(
         controller(sessionId).requestScreenshot(timeoutMs)
     }
 
-    /** shell screencap；失败返回 null。 */
+    /** shell screencap：先逻辑 id，再物理 id（见 [VirtualDisplayScreencap]）。 */
     private suspend fun screencapToBytes(sessionId: String): ByteArray? {
-        val logicalDisplayId = getDisplayId(sessionId) ?: return null
         val runner = ShowerEnvironment.shellRunner ?: return null
-        // 路径必须同时满足「shell 可写」与「App 可读」：App 外部私有目录两者都满足且无需存储权限
-        // （/data/local/tmp 因 SELinux shell_data_file 标签 App 读不了，不能用）。
-        val dir = context.getExternalFilesDir(null) ?: return null
-        val physicalDisplayId = resolvePhysicalDisplayId(runner, logicalDisplayId) ?: return null
-        // 每次截图独立路径，不会因同 session 并发或文件名净化碰撞而读错图。
-        val file = try {
-            File.createTempFile("vs_screenshot_", ".png", dir)
-        } catch (e: Exception) {
-            logger.w("创建虚拟屏截图文件失败：${e.message}")
-            return null
-        }
-        try {
-            val result = runner.run(
-                // chmod 644：文件由 shell 创建（属 shell:ext_data_rw），显式放开「其它」读位，
-                // 保证另一 uid 的 App 进程能读到，不单纯依赖 FUSE 的按包可见性。
-                "screencap -d $physicalDisplayId -p \"${file.absolutePath}\" && " +
-                    "chmod 644 \"${file.absolutePath}\"",
-                ShellIdentity.SHELL,
-            )
-            if (!result.success || !file.exists() || file.length() == 0L) {
-                logger.w(
-                    "screencap 截图失败（session=$sessionId, display=$logicalDisplayId, " +
-                        "physical=$physicalDisplayId, exit=${result.exitCode}, " +
-                        "err=${result.stderr.trim().take(LOG_PREVIEW_LIMIT)}）",
-                )
-                return null
-            }
-            return file.readBytes()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            logger.w("读取虚拟屏截图失败：${e.message}")
-            return null
-        } finally {
-            file.delete()
-        }
-    }
-
-    /**
-     * 把逻辑 displayId 解析为 `screencap -d` 需要的**物理** display id（`dumpsys SurfaceFlinger
-     * --display-id` 中列出的那个）。
-     *
-     * 该 id 是 64 位无符号数（实测虚拟屏为 11529215046613627067，已超出 Long.MAX_VALUE），
-     * **必须按字符串原样传递**，任何 toLong()/toInt() 都会溢出成非法值。
-     *
-     * 先查逻辑屏的名称，再与 SurfaceFlinger 的 displayName 精确匹配。
-     * 名称不可见、未匹配或同名多屏时拒绝猜屏，交给按逻辑 id 截图的 Binder 通道。
-     */
-    private suspend fun resolvePhysicalDisplayId(runner: ShellRunner, logicalDisplayId: Int): String? {
-        val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-        val name = displayManager.getDisplay(logicalDisplayId)?.name ?: run {
-            val logicalDump = runner.run("dumpsys display", ShellIdentity.SHELL)
-            if (!logicalDump.success) return null
-            logicalDisplayName(logicalDump.stdout, logicalDisplayId) ?: return null
-        }
-        val dump = runner.run("dumpsys SurfaceFlinger --display-id", ShellIdentity.SHELL)
-        if (!dump.success) {
-            logger.w(
-                "读取 SurfaceFlinger 显示器列表失败（exit=${dump.exitCode}）：" +
-                    dump.stderr.trim().take(LOG_PREVIEW_LIMIT),
-            )
-            return null
-        }
-        val chosen = physicalDisplayIdForName(dump.stdout, name)
-        if (chosen == null) {
-            logger.w(
-                "未从 SurfaceFlinger 解析出物理屏 id（logical=$logicalDisplayId）：" +
-                    dump.stdout.trim().take(LOG_PREVIEW_LIMIT),
-            )
-            return null
-        }
-        logger.d(
-            "resolvePhysicalDisplayId: logical=$logicalDisplayId name=$name -> $chosen",
-        )
-        return chosen
+        return screencap.capture(sessionId, runner)
     }
 
     /**
@@ -393,7 +314,5 @@ class VirtualDisplayCoordinator(
     companion object {
         const val DEFAULT_SESSION_ID = "default"
         private const val SCREENSHOT_TIMEOUT_MS = 3000L
-        /** 日志中命令 stderr/stdout 的截断长度，避免异常输出刷爆 runtime.log */
-        private const val LOG_PREVIEW_LIMIT = 200
     }
 }

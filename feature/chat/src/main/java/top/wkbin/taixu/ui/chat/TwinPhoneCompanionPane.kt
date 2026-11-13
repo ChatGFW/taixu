@@ -25,10 +25,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
 import top.wkbin.taixu.core.model.ExecutionMode
+import top.wkbin.taixu.runtime.privilege.PrivilegeAvailability
 import top.wkbin.taixu.runtime.privilege.PrivilegeManager
 import top.wkbin.taixu.runtime.virtualdisplay.PhoneTaskWaitMode
 import top.wkbin.taixu.runtime.virtualdisplay.TwinPhonePresence
@@ -70,24 +72,63 @@ internal fun TwinPhoneCompanionPane(modifier: Modifier = Modifier) {
         TwinPhonePresence.previewVisible = previewVisible
     }
 
-    LaunchedEffect(bootToken, privilege.effectiveMode, privilege.shizukuAvailable) {
-        if (!privileged) {
-            status = if (privilege.shizukuAvailable) {
-                "Shizuku 已就绪，点下方启用即可，无需再去设置页。"
-            } else {
-                "分身需要 Shizuku 或 Root。可在本页一键启用 / 刷新。"
-            }
+    LaunchedEffect(
+        bootToken,
+        privilege.availability,
+        privilege.effectiveMode,
+        privilege.shizukuAvailable,
+        privilege.rootAvailable,
+        privilege.preferredMode,
+    ) {
+        // 冷启动 reconcile 未完成前勿误判「无权限」；等 CHECKING 结束再自动建屏。
+        if (privilege.availability == PrivilegeAvailability.CHECKING) {
+            status = "正在检查权限…"
             ready = false
             return@LaunchedEffect
         }
+        // 已有 / 可自动拿到 Shizuku·Root 则切模式并建屏，首次进「手机」无需再点启用。
+        if (!privileged) {
+            val autoMode = when {
+                privilege.shizukuAvailable || privilege.preferredMode == ExecutionMode.SHIZUKU ->
+                    ExecutionMode.SHIZUKU
+                privilege.rootAvailable || privilege.preferredMode == ExecutionMode.ROOT ->
+                    ExecutionMode.ROOT
+                else -> null
+            }
+            if (autoMode == null) {
+                status = "分身需要 Shizuku 或 Root。可在本页一键启用 / 刷新。"
+                ready = false
+                return@LaunchedEffect
+            }
+            status = if (autoMode == ExecutionMode.SHIZUKU) "正在启用 Shizuku…" else "正在启用 Root…"
+            val switched = withContext(Dispatchers.IO) { privilegeManager.switchMode(autoMode) }
+            if (switched.getOrNull() == null) {
+                status = switched.errorOrNull()?.message
+                    ?: if (autoMode == ExecutionMode.SHIZUKU) {
+                        "Shizuku 已安装，点下方启用即可。"
+                    } else {
+                        "Root 启用失败，可点下方重试。"
+                    }
+                ready = false
+                return@LaunchedEffect
+            }
+        }
         status = "正在创建虚拟屏…"
-        val displayId = withContext(Dispatchers.IO) {
-            coordinator.ensureVirtualDisplay(VirtualDisplayCoordinator.DEFAULT_SESSION_ID)
+        var displayId: Int? = null
+        repeat(3) { attempt ->
+            displayId = withContext(Dispatchers.IO) {
+                coordinator.ensureVirtualDisplay(VirtualDisplayCoordinator.DEFAULT_SESSION_ID)
+            }
+            if (displayId != null) return@repeat
+            if (attempt < 2) delay(400L * (attempt + 1))
         }
         if (displayId == null) {
             status = coordinator.creationFailure(VirtualDisplayCoordinator.DEFAULT_SESSION_ID)
             ready = false
         } else {
+            coordinator.getVideoSize(VirtualDisplayCoordinator.DEFAULT_SESSION_ID)?.let { (w, h) ->
+                if (w > 0 && h > 0) TwinPhonePresence.updateContentAspect(w.toFloat() / h.toFloat())
+            }
             // ensureDisplay 已 am start TwinLauncher；勿再 warm 盖 Settings/系统桌面导致黑屏。
             status = "分身已就绪"
             ready = true

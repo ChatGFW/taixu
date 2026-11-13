@@ -12,31 +12,33 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 输入后把宿主误落 VD 的任务挪回主屏，把 guest 任务拉回虚拟屏。
- * opened-by：近期在 VD 上出现过的包（含 Chooser/子包）也视为 guest。
+ * 输入后把宿主误落 VD 的任务挪回主屏，把「曾出现在该 VD 上」的 guest 任务拉回。
+ * 不按包名永久拉回：用户后来在真机打开的同包任务不会被搬走。
  */
 final class TaskReclaimer {
     private static final long PULL_DELAY_MS = 1000L;
-    private static final long OPENED_BY_WINDOW_MS = 5000L;
+    private static final long GUEST_TASK_TTL_MS = 60_000L;
     private static final int ACTIVITY_TYPE_HOME = 1;
 
     private final Context context;
     private final Handler handler;
+    /** 明确 launch 的 guest 包（仅作日志/辅助，不单独作为主屏拉回条件）。 */
     private final Set<String> guestPackages = ConcurrentHashMap.newKeySet();
-    /** 近期在 VD 上见过的包（opened-by）。 */
-    private final Set<String> openedByPackages = ConcurrentHashMap.newKeySet();
+    /** 曾在 VD 上见过的 taskId → 最近见到的 uptime。 */
+    private final ConcurrentHashMap<Integer, Long> guestTaskSeenAt = new ConcurrentHashMap<>();
     private final Set<Integer> spilledTaskIds = ConcurrentHashMap.newKeySet();
     private final Object atmLock = new Object();
     private Object activityTaskManager;
     private Field displayIdField;
     private Method getActivityType;
     private volatile int activeDisplayId = -1;
-    private volatile long lastInputUptimeMs = 0L;
     private final Runnable pullRunnable = new Runnable() {
         @Override
         public void run() {
@@ -71,21 +73,11 @@ final class TaskReclaimer {
     void scheduleAfterInput(int displayId) {
         if (displayId <= 0) return;
         activeDisplayId = displayId;
-        lastInputUptimeMs = SystemClock.uptimeMillis();
         handler.removeCallbacks(pullRunnable);
         handler.postDelayed(pullRunnable, PULL_DELAY_MS);
     }
 
-    private boolean withinOpenedByWindow() {
-        return SystemClock.uptimeMillis() - lastInputUptimeMs <= OPENED_BY_WINDOW_MS;
-    }
-
-    private boolean isGuestPackage(String pkg) {
-        return pkg != null
-                && (guestPackages.contains(pkg) || openedByPackages.contains(pkg));
-    }
-
-        void takeBackSpilled(int displayId) {
+    void takeBackSpilled(int displayId) {
         if (displayId <= 0 || spilledTaskIds.isEmpty()) return;
         Set<Integer> ids = new HashSet<>(spilledTaskIds);
         spilledTaskIds.clear();
@@ -106,15 +98,17 @@ final class TaskReclaimer {
     void reclaim(int displayId) {
         String host = hostPackage();
         if (host == null) return;
+        long now = SystemClock.uptimeMillis();
+        pruneGuestTasks(now);
         try {
             List<TaskSnap> tasks = listTasks();
-            // 0) 记下当前 VD 上的包 → opened-by（Chooser/子 Activity 包名）
+            // 0) 当前 VD 上的非宿主任务 → 记下 taskId（含 Chooser/子 Activity）
             for (TaskSnap t : tasks) {
                 if (t.displayId != displayId || t.isTwinHome) continue;
+                if (t.packages.contains(host) && t.packages.size() == 1) continue;
+                guestTaskSeenAt.put(t.taskId, now);
                 for (String pkg : t.packages) {
-                    if (pkg == null || pkg.equals(host)) continue;
-                    openedByPackages.add(pkg);
-                    guestPackages.add(pkg);
+                    if (pkg != null && !pkg.equals(host)) guestPackages.add(pkg);
                 }
             }
             // 1) 宿主非桌面/backdrop 任务若在 VD 上 → 挪回主屏
@@ -127,27 +121,30 @@ final class TaskReclaimer {
                         "moved host task=" + t.taskId + " off display=" + displayId,
                         null);
             }
-            // 2) guest / opened-by 任务若落到主屏 → 拉回 VD
+            // 2) 仅拉回「曾出现在本 VD」或 spilled 的 taskId，勿按包名扫主屏
             for (TaskSnap t : tasks) {
                 if (t.displayId != 0) continue;
                 if (t.packages.contains(host)) continue;
-                boolean guest = false;
-                for (String pkg : t.packages) {
-                    if (isGuestPackage(pkg)) {
-                        guest = true;
-                        break;
-                    }
-                }
-                if (!guest) continue;
+                boolean known = guestTaskSeenAt.containsKey(t.taskId)
+                        || spilledTaskIds.contains(t.taskId);
+                if (!known) continue;
                 spilledTaskIds.add(t.taskId);
                 moveRootTaskToDisplay(t.taskId, displayId);
+                guestTaskSeenAt.put(t.taskId, now);
                 ServerLog.d(
-                        "moved guest/opened-by task=" + t.taskId + " back to display=" + displayId
-                                + " hot=" + withinOpenedByWindow(),
+                        "moved known guest task=" + t.taskId + " back to display=" + displayId,
                         null);
             }
         } catch (Throwable t) {
             ServerLog.d("reclaim failed: " + t.getMessage(), t);
+        }
+    }
+
+    private void pruneGuestTasks(long now) {
+        Iterator<Map.Entry<Integer, Long>> it = guestTaskSeenAt.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<Integer, Long> e = it.next();
+            if (now - e.getValue() > GUEST_TASK_TTL_MS) it.remove();
         }
     }
 

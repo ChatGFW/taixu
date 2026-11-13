@@ -9,8 +9,6 @@ import android.view.MotionEvent
 import android.view.Surface
 import android.view.TextureView
 import android.view.View
-import kotlin.math.max
-import kotlin.math.min
 import com.ai.assistance.showerclient.ShowerController
 import com.ai.assistance.showerclient.ShowerLog
 import java.io.ByteArrayOutputStream
@@ -22,11 +20,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * TextureView 预览：缓冲用 [SurfaceTexture.setDefaultBufferSize] 锁成 VD 分辨率，
- * 再经 Binder [ShowerController.setDisplaySurface] 直挂。
- *
- * 默认铺满 View（identity transform）；外层 Compose 已按 VD 宽高比定框，
- * 勿再做 FIT_CENTER 矩阵，否则小窗会出现「画面挤在一角 + 大块黑边」。
+ * TextureView 预览：缓冲跟 **View 像素** 对齐（勿锁成 VD 全分辨率）。
+ * 全分辨率 buffer 塞进小窗/大窗会按中心裁切，只露出画面中间一条。
+ * VD 输出缩放到 View 大小后 identity 铺满；截图仍按 VD 尺寸取样以对齐点击坐标。
  */
 class TwinPhoneEmbedView @JvmOverloads constructor(
     context: Context,
@@ -46,6 +42,8 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
     private var touchAllowed: (() -> Boolean)? = null
     private var onTouchBlocked: (() -> Unit)? = null
     private var gestureBlocked = false
+    /** 挂载/拆卸代数：忽略过期 Binder 结果，避免把废弃 Surface 挂回。 */
+    private var attachGeneration = 0
 
     init {
         surfaceTextureListener = this
@@ -58,21 +56,29 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         scope: CoroutineScope,
         @Suppress("UNUSED_PARAMETER") statusText: String = "",
     ) {
+        val controller = coordinator.controller(sessionId)
+        val same =
+            boundSession == sessionId &&
+                boundController === controller &&
+                this.scope === scope
         boundSession = sessionId
-        boundController = coordinator.controller(sessionId)
+        boundController = controller
         this.scope = scope
         TwinPhonePresence.embeddedVisible = true
-        applyPreviewVisibility()
-
+        // 自动操控中锁触控；暂停/接手/确认等待时必须放开，方便登录验证码等人工操作。
         touchAllowed = {
-            coordinator.phoneTasks.runningSession.value == null
+            coordinator.phoneTasks.waiting.value != null ||
+                coordinator.phoneTasks.runningSession.value == null
         }
         onTouchBlocked = { TwinPhonePresence.nudgeTakeOver() }
-        val capture: suspend () -> ByteArray? = { capturePng() }
-        frameCapture?.let { VirtualDisplayFrameCaptures.unregister(sessionId, it) }
-        frameCapture = capture
-        VirtualDisplayFrameCaptures.register(sessionId, capture)
-        if (surfaceReady) prepareAndAttach()
+        if (!same) {
+            val capture: suspend () -> ByteArray? = { capturePng() }
+            frameCapture?.let { VirtualDisplayFrameCaptures.unregister(sessionId, it) }
+            frameCapture = capture
+            VirtualDisplayFrameCaptures.register(sessionId, capture)
+        }
+        applyPreviewVisibility()
+        if (!same && surfaceReady) prepareAndAttach()
     }
 
     fun applyPreviewVisibility() {
@@ -91,9 +97,10 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
     fun unbind() {
         val session = boundSession
         val capture = frameCapture
+        attachGeneration++
         surfaceJob?.cancel()
         surfaceJob = null
-        detachSurfaceAsync(releaseLocal = false)
+        detachSurfaceAsync(releaseLocal = false, releaseTexture = null)
         if (session != null && capture != null) {
             VirtualDisplayFrameCaptures.unregister(session, capture)
         }
@@ -117,10 +124,30 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
 
     override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
         surfaceReady = false
+        val gen = ++attachGeneration
         surfaceJob?.cancel()
         surfaceJob = null
-        detachSurfaceAsync(releaseLocal = true)
-        return true
+        val controller = boundController
+        val attachScope = scope
+        val local = displaySurface
+        displaySurface = null
+        fixedBufferW = 0
+        fixedBufferH = 0
+        if (controller == null || attachScope == null) {
+            local?.release()
+            return true
+        }
+        // 返回 false：先从 VD 摘掉，再自行 release，避免系统抢先释放后异步 setSurface(null)。
+        surfaceJob = attachScope.launch(Dispatchers.IO) {
+            runCatching { controller.setDisplaySurface(null) }
+            withContext(Dispatchers.Main) {
+                local?.release()
+                if (gen == attachGeneration) {
+                    runCatching { surface.release() }
+                }
+            }
+        }
+        return false
     }
 
     override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
@@ -129,17 +156,25 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         val controller = boundController ?: return
         val attachScope = scope ?: return
         val st = surfaceTexture ?: return
-        val size = controller.getVideoSize()
-        val vw = size?.first?.takeIf { it > 0 } ?: width.takeIf { it > 0 } ?: return
-        val vh = size?.second?.takeIf { it > 0 } ?: height.takeIf { it > 0 } ?: return
-
-        if (vw != fixedBufferW || vh != fixedBufferH) {
-            st.setDefaultBufferSize(vw, vh)
-            fixedBufferW = vw
-            fixedBufferH = vh
-            ShowerLog.d(TAG, "setDefaultBufferSize ${vw}x${vh}")
+        // 必须等 layout；缓冲跟 View 像素对齐，让 VD 整帧缩进 Surface。
+        // 勿用 VD 全分辨率 buffer：TextureView 会按中心裁切，小窗/大窗只剩中间一条。
+        val bw = width.takeIf { it > 0 } ?: return
+        val bh = height.takeIf { it > 0 } ?: return
+        // 展开动画每帧改尺寸；≥8px 才重建，避免狂刷 setSurface。
+        val bufferChanged =
+            fixedBufferW == 0 ||
+                fixedBufferH == 0 ||
+                kotlin.math.abs(bw - fixedBufferW) >= 8 ||
+                kotlin.math.abs(bh - fixedBufferH) >= 8
+        if (bufferChanged) {
+            st.setDefaultBufferSize(bw, bh)
+            fixedBufferW = bw
+            fixedBufferH = bh
+            displaySurface?.release()
+            displaySurface = null
+            ShowerLog.d(TAG, "setDefaultBufferSize view=${bw}x${bh} vd=${controller.getVideoSize()}")
         }
-        // identity：铺满 View，与外层宽高比框一致。
+        // identity：缓冲已是 View 大小，整窗铺满；外层 Compose 按 VD 宽高比定框。
         setTransform(android.graphics.Matrix())
 
         val existing = displaySurface
@@ -151,9 +186,22 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         }
         if (!surface.isValid) return
 
+        val gen = ++attachGeneration
         surfaceJob?.cancel()
         surfaceJob = attachScope.launch(Dispatchers.IO) {
+            if (gen != attachGeneration) return@launch
             val ok = controller.setDisplaySurface(surface)
+            if (gen != attachGeneration) {
+                if (displaySurface === surface) {
+                    runCatching { controller.setDisplaySurface(null) }
+                }
+                return@launch
+            }
+            controller.getVideoSize()?.let { (vw, vh) ->
+                if (vw > 0 && vh > 0) {
+                    TwinPhonePresence.updateContentAspect(vw.toFloat() / vh.toFloat())
+                }
+            }
             ShowerLog.d(
                 TAG,
                 "setDisplaySurface ok=$ok vd=${controller.getVideoSize()} " +
@@ -162,10 +210,11 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         }
     }
 
-    private fun detachSurfaceAsync(releaseLocal: Boolean) {
+    private fun detachSurfaceAsync(releaseLocal: Boolean, releaseTexture: SurfaceTexture?) {
         val controller = boundController
         val attachScope = scope
         val local = displaySurface
+        val gen = attachGeneration
         if (releaseLocal) {
             displaySurface = null
             fixedBufferW = 0
@@ -173,20 +222,29 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         }
         if (controller == null || attachScope == null) {
             if (releaseLocal) local?.release()
+            releaseTexture?.let { runCatching { it.release() } }
             return
         }
         attachScope.launch(Dispatchers.IO) {
+            if (gen != attachGeneration && !releaseLocal) return@launch
             runCatching { controller.setDisplaySurface(null) }
-            if (releaseLocal) local?.release()
+            withContext(Dispatchers.Main) {
+                if (releaseLocal) local?.release()
+                releaseTexture?.let { runCatching { it.release() } }
+            }
         }
     }
 
     private suspend fun capturePng(): ByteArray? {
-        if (!surfaceReady || width <= 0 || height <= 0) return null
+        if (!surfaceReady) return null
+        val size = boundController?.getVideoSize() ?: return null
+        val bw = size.first.takeIf { it > 0 } ?: return null
+        val bh = size.second.takeIf { it > 0 } ?: return null
         return withContext(Dispatchers.Main) {
-            val bitmap = runCatching { getBitmap(width, height) }.getOrNull() ?: return@withContext null
+            // 必须按 VD 分辨率取图，否则 PhoneAgent 会把小窗像素当成虚拟屏坐标注入。
+            val bitmap = runCatching { getBitmap(bw, bh) }.getOrNull() ?: return@withContext null
             try {
-                if (isMostlyBlack(bitmap)) return@withContext null
+                if (TwinPhoneEmbedSupport.isMostlyBlack(bitmap)) return@withContext null
                 ByteArrayOutputStream().use { out ->
                     bitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
                     out.toByteArray()
@@ -218,25 +276,20 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         val action = event.actionMasked
         if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) {
             val allowed = touchAllowed?.invoke() != false
-            if (action == MotionEvent.ACTION_DOWN) {
-                gestureBlocked = !allowed
-            }
+            if (action == MotionEvent.ACTION_DOWN) gestureBlocked = !allowed
             if (!allowed) {
                 onTouchBlocked?.invoke()
                 return true
             }
         } else if (gestureBlocked) {
-            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
-                gestureBlocked = false
-            }
+            if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) gestureBlocked = false
             return true
         }
-        // 多指：映射全部指针后原样注入 MotionEvent。
         if (event.pointerCount > 1 ||
             action == MotionEvent.ACTION_POINTER_DOWN ||
             action == MotionEvent.ACTION_POINTER_UP
         ) {
-            val mapped = mapMotionEvent(event, width, height, vw, vh) ?: return true
+            val mapped = TwinPhoneEmbedSupport.mapMotionEvent(event, width, height, vw, vh) ?: return true
             attachScope.launch(Dispatchers.IO) {
                 try {
                     controller.injectMotionEvent(mapped)
@@ -246,17 +299,13 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
             }
             return true
         }
-        val (dx, dy) = mapViewToDisplay(event.x, event.y, width, height, vw, vh)
+        val (dx, dy) = TwinPhoneEmbedSupport.mapViewToDisplay(event.x, event.y, width, height, vw, vh)
         val touch = Touch(controller, action, dx, dy, event.downTime, event.eventTime)
         synchronized(touches) {
-            if (action == MotionEvent.ACTION_MOVE && touches.lastOrNull()?.action == action) {
-                touches.removeLast()
-            }
+            if (action == MotionEvent.ACTION_MOVE && touches.lastOrNull()?.action == action) touches.removeLast()
             touches.addLast(touch)
         }
-        if (touchJob?.isActive != true) {
-            touchJob = attachScope.launch { drainTouches() }
-        }
+        if (touchJob?.isActive != true) touchJob = attachScope.launch { drainTouches() }
         wakeTouch.trySend(Unit)
         return true
     }
@@ -265,25 +314,12 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         for (signal in wakeTouch) {
             while (true) {
                 val touch = synchronized(touches) { touches.removeFirstOrNull() } ?: break
+                val up = touch.action == MotionEvent.ACTION_UP || touch.action == MotionEvent.ACTION_CANCEL
                 touch.controller.injectTouchEvent(
-                    action = touch.action,
-                    x = touch.x,
-                    y = touch.y,
-                    downTime = touch.downTime,
-                    eventTime = touch.eventTime,
-                    pressure = if (touch.action == MotionEvent.ACTION_UP ||
-                        touch.action == MotionEvent.ACTION_CANCEL
-                    ) {
-                        0f
-                    } else {
-                        1f
-                    },
-                    size = 1f,
-                    metaState = 0,
-                    xPrecision = 1f,
-                    yPrecision = 1f,
-                    deviceId = 0,
-                    edgeFlags = 0,
+                    action = touch.action, x = touch.x, y = touch.y,
+                    downTime = touch.downTime, eventTime = touch.eventTime,
+                    pressure = if (up) 0f else 1f, size = 1f, metaState = 0,
+                    xPrecision = 1f, yPrecision = 1f, deviceId = 0, edgeFlags = 0,
                 )
             }
         }
@@ -291,78 +327,5 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
 
     private companion object {
         const val TAG = "TwinPhoneEmbed"
-
-        /** 铺满映射：View 坐标线性落到 VD。 */
-        fun mapViewToDisplay(
-            viewX: Float,
-            viewY: Float,
-            viewW: Int,
-            viewH: Int,
-            vdW: Int,
-            vdH: Int,
-        ): Pair<Float, Float> {
-            if (viewW <= 0 || viewH <= 0 || vdW <= 1 || vdH <= 1) return 0f to 0f
-            val nx = (viewX / viewW).coerceIn(0f, 1f)
-            val ny = (viewY / viewH).coerceIn(0f, 1f)
-            return nx * (vdW - 1) to ny * (vdH - 1)
-        }
-
-        fun mapMotionEvent(
-            event: MotionEvent,
-            viewW: Int,
-            viewH: Int,
-            vdW: Int,
-            vdH: Int,
-        ): MotionEvent? {
-            val count = event.pointerCount
-            if (count <= 0) return null
-            val props = Array(count) { MotionEvent.PointerProperties() }
-            val coords = Array(count) { MotionEvent.PointerCoords() }
-            for (i in 0 until count) {
-                event.getPointerProperties(i, props[i])
-                event.getPointerCoords(i, coords[i])
-                val (dx, dy) = mapViewToDisplay(coords[i].x, coords[i].y, viewW, viewH, vdW, vdH)
-                coords[i].x = dx
-                coords[i].y = dy
-            }
-            return MotionEvent.obtain(
-                event.downTime,
-                event.eventTime,
-                event.action,
-                count,
-                props,
-                coords,
-                event.metaState,
-                event.buttonState,
-                event.xPrecision,
-                event.yPrecision,
-                event.deviceId,
-                event.edgeFlags,
-                event.source,
-                event.flags,
-            )
-        }
-
-        fun isMostlyBlack(bitmap: Bitmap): Boolean {
-            val w = bitmap.width
-            val h = bitmap.height
-            if (w <= 0 || h <= 0) return true
-            val step = max(1, min(w, h) / 32)
-            var dark = 0
-            var total = 0
-            var y = 0
-            while (y < h) {
-                var x = 0
-                while (x < w) {
-                    val c = bitmap.getPixel(x, y)
-                    val lum = ((c shr 16) and 0xff) + ((c shr 8) and 0xff) + (c and 0xff)
-                    if (lum < 30) dark++
-                    total++
-                    x += step
-                }
-                y += step
-            }
-            return total > 0 && dark * 100 / total >= 96
-        }
     }
 }
