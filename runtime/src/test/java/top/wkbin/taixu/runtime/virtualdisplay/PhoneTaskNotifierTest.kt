@@ -5,7 +5,7 @@ import org.junit.Test
 
 class PhoneTaskNotifierTest {
     @Test
-    fun `channel ids and notification ids match 
+    fun channelIdsAndNotificationIdsMatch() {
         assertEquals("twin_task_need", PhoneTaskNotifier.CHANNEL_NEED)
         assertEquals("twin_task_progress", PhoneTaskNotifier.CHANNEL_PROGRESS)
         assertEquals("twin_task_result", PhoneTaskNotifier.CHANNEL_RESULT)
@@ -15,7 +15,7 @@ class PhoneTaskNotifierTest {
     }
 
     @Test
-    fun `answer action mirrors 
+    fun answerActionMirrorsConstants() {
         assertEquals("top.wkbin.taixu.action.ANSWER_AGENT_NEED", PhoneTaskActionReceiver.ACTION_ANSWER_AGENT_NEED)
         assertEquals("accepted", PhoneTaskActionReceiver.EXTRA_ACCEPTED)
         assertEquals("pause", PhoneTaskActionReceiver.KIND_PAUSE)
