@@ -136,6 +136,8 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         val surface = holder.surface ?: return
         if (!surface.isValid) return
 
+        // 缓冲锁 VD 分辨率；setFixedSize 会销毁并重建 Surface，必须等 surfaceChanged
+        // 再挂 VD，否则旧/无效 Surface → 用户看黑屏，screencap 仍正常。
         val size = controller.getVideoSize()
         if (size != null) {
             val (vw, vh) = size
@@ -143,6 +145,8 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
                 runCatching { holder.setFixedSize(vw, vh) }
                 fixedBufferW = vw
                 fixedBufferH = vh
+                ShowerLog.d(TAG, "setFixedSize ${vw}x${vh}, wait surfaceChanged")
+                return
             }
         }
         surfaceJob?.cancel()

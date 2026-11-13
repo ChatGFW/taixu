@@ -61,14 +61,14 @@ private enum class CompanionMode { None, Pager, Overlay, Docked }
 /** 分身 SurfaceView 是否应显示（聊天页 false=INVISIBLE 保活）。 */
 internal val LocalTwinPreviewVisible = compositionLocalOf { true }
 
-/** 手机大窗是否展开；小窗内不画「我来」/等待底栏（
+/** 手机大窗是否展开；小窗内不画「我来」/等待底栏。 */
 internal val LocalTwinPhoneExpanded = compositionLocalOf { false }
 
 /** Top-bar entry that shows or hides the terminal/browser companion pane. */
 internal data class ChatCompanionToggle(val open: Boolean, val onToggle: () -> Unit)
 
 /**
- * 紧凑态顶栏主切换（
+ * 紧凑态顶栏主切换。
  * [phoneOpen]=true 时展示虚拟屏伴随页，对话与输入栏常驻不销毁。
  */
 internal data class ChatSurfaceSwitch(
@@ -116,6 +116,7 @@ internal fun ChatAdaptiveLayout(
     val twinRunning by twinCoordinator.phoneTasks.runningSession.collectAsStateWithLifecycle()
     val twinWaiting by twinCoordinator.phoneTasks.waiting.collectAsStateWithLifecycle()
     val twinSticky by TwinPhonePresence.stickyResult.collectAsStateWithLifecycle()
+    val twinInPip by TwinPhonePresence.inPip.collectAsStateWithLifecycle()
     LaunchedEffect(twinSticky?.untilEpochMs) {
         val sticky = twinSticky ?: return@LaunchedEffect
         val remain = sticky.untilEpochMs - System.currentTimeMillis()
@@ -126,7 +127,7 @@ internal fun ChatAdaptiveLayout(
     LaunchedEffect(twinRunning, twinWaiting) {
         if (twinRunning != null || twinWaiting != null) TwinPhonePresence.clearStickyResult()
     }
-    val phoneTaskActive = twinRunning != null || twinWaiting != null || twinSticky != null
+    val phoneTaskActive = twinRunning != null || twinWaiting != null || twinSticky != null || twinInPip
     val scope = rememberCoroutineScope()
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -151,13 +152,23 @@ internal fun ChatAdaptiveLayout(
             if (mode == CompanionMode.Overlay && companionShown) 1f else 0f, RuntimeAdaptiveMotion.float)
         val browserSelected = selectedTab == ChatCompanionTab.Browser
         val browserPage = mode == CompanionMode.Pager && companionShown && browserSelected && browserPane != null
-        val phonePage = mode == CompanionMode.Pager && twinPane != null && companionShown && !browserSelected
+        val phonePage = mode == CompanionMode.Pager && twinPane != null &&
+            (twinInPip || (companionShown && !browserSelected))
         var phoneFullscreen by rememberSaveable { mutableStateOf(false) }
+        // 画中画：只留分身画面，强制展开全屏。
+        LaunchedEffect(twinInPip) {
+            if (twinInPip && twinPane != null) {
+                selectedTab = ChatCompanionTab.Twin
+                companionShown = true
+                phoneFullscreen = true
+                TwinPhonePresence.previewVisible = true
+            }
+        }
         LaunchedEffect(phonePage, phoneTaskActive) {
-            TwinPhonePresence.setPhoneSurfaceOpen(phonePage)
-            if (!phonePage) {
+            TwinPhonePresence.setPhoneSurfaceOpen(phonePage || twinInPip)
+            if (!phonePage && !twinInPip) {
                 phoneFullscreen = false
-                // 大窗收起时若任务仍在：
+                // 大窗收起时若任务仍在：钉住应用内小窗。
                 if (phoneTaskActive) TwinPhonePresence.pinMini()
             }
         }

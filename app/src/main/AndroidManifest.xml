@@ -70,6 +70,8 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
+            android:supportsPictureInPicture="true"
+            android:resizeableActivity="true"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|uiMode|fontScale|density|keyboardHidden|navigation"
             android:theme="@style/taixu_theme"
             android:windowSoftInputMode="adjustResize|stateHidden">

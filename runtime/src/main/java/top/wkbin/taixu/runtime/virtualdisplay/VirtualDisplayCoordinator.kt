@@ -145,6 +145,10 @@ class VirtualDisplayCoordinator(
     suspend fun launchApp(sessionId: String = DEFAULT_SESSION_ID, packageName: String): Boolean =
         controller(sessionId).launchApp(packageName)
 
+    /** 向虚拟屏注入按键（如系统返回 KEYCODE_BACK）。 */
+    suspend fun injectKey(sessionId: String = DEFAULT_SESSION_ID, keyCode: Int): Boolean =
+        controller(sessionId).key(keyCode)
+
     /**
      * 空 VirtualDisplay 合成结果是纯黑；打开「手机」预览时先往该屏丢一个桌面/设置，
      * 避免 setDisplaySurface 成功仍看起来像黑屏。
@@ -161,33 +165,18 @@ class VirtualDisplayCoordinator(
         return false
     }
 
-    /**
-     * 指定会话虚拟屏整屏截图（PNG 字节）。
-     *
-     * **为什么不直接用 server 的 Binder 截图**：`IShowerService.requestScreenshot` 把整张位图
-     * 塞进**一次 Binder 事务**回传，而 Binder 事务缓冲区按进程共享、上限 1MB；高分辨率复杂
-     * 页面即使压成 PNG 也可能超限。调用侧可能只拿到一个 DEAD_OBJECT 兜底文案
-     * （「remote process probably died … out of binder buffer space」），把「数据太大」误报成
-     * 「进程死了」——服务端其实采集成功（见 runtime.log 的 [Shower] 行）。
-     *
-     * 故改走 shell `screencap -d <物理屏 id> -p <文件>` 落盘，再由 App 本地读文件，全程不经过
-     * Binder 大包。screencap 不可用（拿不到物理屏 id 等）时回退旧的 Binder 通道。
-     */
+    /** 整屏截图：优先 PixelCopy，再 screencap，最后 Binder（避免大图撑爆 1MB 事务）。 */
     suspend fun requestScreenshot(
         sessionId: String = DEFAULT_SESSION_ID,
         timeoutMs: Long = SCREENSHOT_TIMEOUT_MS,
     ): ByteArray? = withContext(Dispatchers.IO) {
-        // 优先从分身 Tab / 展开悬浮窗的解码表面 PixelCopy，比 screencap 跟手得多。
         VirtualDisplayFrameCaptures.capture(sessionId)?.let { return@withContext it }
         screencapToBytes(sessionId)?.let { return@withContext it }
-        logger.w("虚拟屏截图回退 Binder 通道（session=$sessionId）：实时帧与 screencap 均不可用")
+        logger.w("虚拟屏截图回退 Binder 通道（session=$sessionId）")
         controller(sessionId).requestScreenshot(timeoutMs)
     }
 
-    /**
-     * 用 shell `screencap -d <物理屏 id>` 截图并本地读取，绕开 Binder 1MB 事务上限。
-     * 失败（拿不到物理屏 id / 设备不允许 / 读取失败）返回 null，由调用方决定回退策略。
-     */
+    /** shell screencap；失败返回 null。 */
     private suspend fun screencapToBytes(sessionId: String): ByteArray? {
         val logicalDisplayId = getDisplayId(sessionId) ?: return null
         val runner = ShowerEnvironment.shellRunner ?: return null

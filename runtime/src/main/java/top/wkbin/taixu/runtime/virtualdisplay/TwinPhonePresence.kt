@@ -49,6 +49,10 @@ object TwinPhonePresence {
     private val _phoneSurfaceOpen = MutableStateFlow(false)
     val phoneSurfaceOpen: StateFlow<Boolean> = _phoneSurfaceOpen.asStateFlow()
 
+    private val _inPip = MutableStateFlow(false)
+    /** 系统画中画中；UI 应只保留分身画面。 */
+    val inPip: StateFlow<Boolean> = _inPip.asStateFlow()
+
     /** 成功结果 sticky 约 1800ms。 */
     private const val STICKY_DONE_MS = 1800L
     /** 失败/取消 sticky 约 1600ms。 */
@@ -84,6 +88,14 @@ object TwinPhonePresence {
 
     fun setPhoneSurfaceOpen(open: Boolean) {
         _phoneSurfaceOpen.value = open
+    }
+
+    fun setInPip(inPip: Boolean) {
+        _inPip.value = inPip
+        if (inPip) {
+            pinMini()
+            previewVisible = true
+        }
     }
 
     fun showResultSticky(label: String, success: Boolean, cancelled: Boolean = false) {
