@@ -159,12 +159,7 @@ internal fun UserBubble(
                         formatMentionText(displayText, knownMentionNames, mentionColor, mentionBg)
                     }
                     SelectionContainer {
-                        Text(
-                            text = annotatedText,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            style = chatReadingTypography().body,
-                            color = RuntimeTheme.colorScheme.onPrimaryContainer,
-                        )
+                        Text(text = annotatedText, modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), style = chatReadingTypography().body, color = RuntimeTheme.colorScheme.onPrimaryContainer)
                     }
                 }
             } else if (message.imageUrls.isNotEmpty()) {

@@ -110,8 +110,7 @@ fun TaiXuNavHost(
         if (lastOrNull() != destination) add(destination)
     }
     val phoneSurfaceOpen by TwinPhonePresence.phoneSurfaceOpen.collectAsStateWithLifecycle()
-    val sidebarGesturesEnabled = activeStack.canSwipeOpenNavigation() && !phoneSurfaceOpen
-    LaunchedEffect(sidebarGesturesEnabled) { if (!sidebarGesturesEnabled) showNavigation = false }
+    val sidebarGesturesEnabled = activeStack.canSwipeOpenNavigation() && !phoneSurfaceOpen; LaunchedEffect(sidebarGesturesEnabled) { if (!sidebarGesturesEnabled) showNavigation = false }
     val selectedMain = activeStack.lastOrNull { it == HomeDestination || it == WorkspaceDestination || it == BotsDestination || it == SettingsDestination }.toMainDestination()
     fun navigateMain(destination: MainDestination) {
         if (activeStack.openMainOverlay(destination)) return
@@ -453,12 +452,7 @@ fun TaiXuNavHost(
             }
             entry<AboutCommunityDestination> {
                 GuardedEntry(AboutCommunityDestination) {
-                    AboutCommunityScreen(
-                        onBack = ::popBack,
-                        onOpenSponsor = { activeStack.push(AboutCommunityDestination, SponsorDestination) },
-                        onOpenLicenses = { activeStack.push(AboutCommunityDestination, OpenSourceLicensesDestination) },
-                        viewModel = settingsViewModel,
-                    )
+                    AboutCommunityScreen(onBack = ::popBack, onOpenSponsor = { activeStack.push(AboutCommunityDestination, SponsorDestination) }, onOpenLicenses = { activeStack.push(AboutCommunityDestination, OpenSourceLicensesDestination) }, viewModel = settingsViewModel)
                 }
             }
             entry<OpenSourceLicensesDestination> { GuardedEntry(OpenSourceLicensesDestination) { OpenSourceLicensesScreen(onBack = ::popBack) } }

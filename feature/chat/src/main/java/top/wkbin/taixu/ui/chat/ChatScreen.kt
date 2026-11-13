@@ -327,20 +327,13 @@ fun ChatScreen(
         if (opened != null && opened.sessionId != currentSessionId) viewModel?.closeSubagentResult()
     }
 
-    // 模型·权限·主线·轮次 工具条：紧凑态浏览器整页打开时被覆盖，其余形态固定在顶部。
-    // onOpenBrowser 非空时工作台追加"浏览器"入口（agent 有新动态时高亮）；companion 非空时显示伴随面板开关。
     val openModels = {
         if (models.isEmpty()) onCreateModelProfile() else showModels = true
     }
     val noProjectHint = stringResource(R.string.chat_repository_no_project)
     var toolchainGap by remember { mutableStateOf(false) }; var showToolchainPanel by remember { mutableStateOf(false) }
 
-    val chatTopBar: @Composable (
-        onOpenBrowser: (() -> Unit)?,
-        browserHighlight: Boolean,
-        companion: ChatCompanionToggle?,
-        surface: ChatSurfaceSwitch?,
-    ) -> Unit =
+    val chatTopBar: @Composable (onOpenBrowser: (() -> Unit)?, browserHighlight: Boolean, companion: ChatCompanionToggle?, surface: ChatSurfaceSwitch?) -> Unit =
         { onOpenBrowser, browserHighlight, companion, surface ->
             ChatTopBar(
                 runMode = currentRunMode,

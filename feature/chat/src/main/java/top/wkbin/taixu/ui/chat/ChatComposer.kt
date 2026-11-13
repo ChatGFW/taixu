@@ -128,7 +128,6 @@ internal fun ChatComposer(
 
     // 父级是测量用 Box：多根子节点会叠画，斜杠面板会盖满、附件会被输入胶囊挡住。
     Column(modifier = Modifier.fillMaxWidth()) {
-    // 斜杠指令快捷提示弹窗
     if (matchingCommands.isNotEmpty()) {
         SlashCommandPopup(
             commands = matchingCommands,
@@ -284,11 +283,7 @@ internal fun ChatComposer(
 
             RuntimeComposerTextField(
                     placeholder = {
-                        Text(
-                            stringResource(if (running) R.string.chat_input_running else R.string.chat_message_placeholder),
-                            style = chatReadingTypography().composer,
-                            color = RuntimeTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Text(stringResource(if (running) R.string.chat_input_running else R.string.chat_message_placeholder), style = chatReadingTypography().composer, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                     },
                     value = textFieldValue,
                     onValueChange = { newValue ->
