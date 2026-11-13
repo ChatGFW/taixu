@@ -100,7 +100,7 @@ class ToolStatusDescriberTest {
     }
 
     @Test
-    fun `virtual screen task prefers ack like 
+    fun `virtual screen task prefers ack like goal`() {
         assertEquals(
             "分身任务：这就去 QQ 发 hello…",
             ToolStatusDescriber.describe(
