@@ -81,23 +81,24 @@ internal class VirtualScreenHostActions(
                 return false to "虚拟屏未创建（session=$session）：先调用 virtual_screen_ensure"
             }
             val hiddenShot = coordinator.reveal(session, "正在截图")
-            val png = coordinator.requestScreenshot(session)
+            val shot = coordinator.requestScreenshot(session)
                 ?: return false to "虚拟屏截图失败（session=$session）：screencap/Binder 通道均不可用，详见 runtime.log 的 [Shower] 日志"
-            val (width, height) = pngDimensions(png)
-            val dataUrl = "data:image/png;base64," + Base64.getEncoder().encodeToString(png)
+            val (width, height) = imageDimensions(shot)
+            val mime = imageMimeType(shot)
+            val dataUrl = "data:$mime;base64," + Base64.getEncoder().encodeToString(shot)
             attachImage(ImagePayloadCompressor.downscaleDataUrl(dataUrl))
             val saved = args["path"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty().takeIf { it.isNotEmpty() }?.let { targetPath ->
                 runCatching {
                     val file = File(targetPath)
                     file.parentFile?.mkdirs()
-                    file.writeBytes(png)
+                    file.writeBytes(shot)
                     targetPath
                 }.getOrNull()
             }
             true to buildString {
                 append("虚拟屏截图已随本条结果附上")
                 if (width > 0 && height > 0) append("，物理分辨率 ${width}×${height}")
-                append("，${png.size} 字节。")
+                append("，${shot.size} 字节（$mime）。")
                 append("点击、双击、长按、滑动用 0–1000 相对坐标，左上角是 0,0，不要用像素，也不要按截图缩放换算。")
                 append("输入文字用 virtual_screen_input_text。paste_text 和 screen_input_text 打到主屏焦点，会把虚拟屏里的应用切走。")
                 if (saved != null) append(" 文件副本：$saved。")
@@ -282,13 +283,61 @@ internal class VirtualScreenHostActions(
     companion object {
         fun handles(action: String): Boolean = action in ACTIONS
 
+        /** 按魔数识别截图 MIME；Binder 通道为 JPEG，screencap/PixelCopy 多为 PNG。 */
+        internal fun imageMimeType(bytes: ByteArray): String = when {
+            bytes.size >= 3 &&
+                bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte() && bytes[2] == 0xFF.toByte() ->
+                "image/jpeg"
+            bytes.size >= 4 &&
+                bytes[0] == PNG_SIGNATURE_0 &&
+                bytes[1] == 'P'.code.toByte() &&
+                bytes[2] == 'N'.code.toByte() &&
+                bytes[3] == 'G'.code.toByte() ->
+                "image/png"
+            else -> "application/octet-stream"
+        }
+
+        internal fun imageDimensions(bytes: ByteArray): Pair<Int, Int> =
+            when (imageMimeType(bytes)) {
+                "image/jpeg" -> jpegDimensions(bytes)
+                "image/png" -> pngDimensions(bytes)
+                else -> 0 to 0
+            }
+
         /** PNG IHDR 里的宽高。不是 PNG 或头部不完整时返回 0×0。 */
         internal fun pngDimensions(png: ByteArray): Pair<Int, Int> {
             if (png.size < PNG_IHDR_END) return 0 to 0
-            if (png[0] != PNG_SIGNATURE_0 || png[1] != 'P'.code.toByte() || png[2] != 'N'.code.toByte() || png[3] != 'G'.code.toByte()) {
-                return 0 to 0
-            }
+            if (imageMimeType(png) != "image/png") return 0 to 0
             return readBe32(png, PNG_WIDTH_OFFSET) to readBe32(png, PNG_HEIGHT_OFFSET)
+        }
+
+        /** 扫描 JPEG SOF 标记取宽高。 */
+        internal fun jpegDimensions(jpeg: ByteArray): Pair<Int, Int> {
+            if (imageMimeType(jpeg) != "image/jpeg") return 0 to 0
+            var i = 2
+            while (i + 8 < jpeg.size) {
+                if (jpeg[i] != 0xFF.toByte()) {
+                    i++
+                    continue
+                }
+                val marker = jpeg[i + 1].toInt() and 0xff
+                if (marker == 0xD8 || marker == 0xD9) {
+                    i += 2
+                    continue
+                }
+                if (i + 3 >= jpeg.size) break
+                val segLen = ((jpeg[i + 2].toInt() and 0xff) shl 8) or (jpeg[i + 3].toInt() and 0xff)
+                val isSof = marker in 0xC0..0xCF && marker != 0xC4 && marker != 0xC8 && marker != 0xCC
+                if (isSof) {
+                    if (i + 8 >= jpeg.size) return 0 to 0
+                    val height = ((jpeg[i + 5].toInt() and 0xff) shl 8) or (jpeg[i + 6].toInt() and 0xff)
+                    val width = ((jpeg[i + 7].toInt() and 0xff) shl 8) or (jpeg[i + 8].toInt() and 0xff)
+                    return width to height
+                }
+                if (segLen < 2) break
+                i += 2 + segLen
+            }
+            return 0 to 0
         }
 
         private fun readBe32(bytes: ByteArray, offset: Int): Int =

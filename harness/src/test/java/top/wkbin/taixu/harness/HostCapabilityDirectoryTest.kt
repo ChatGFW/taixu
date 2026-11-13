@@ -39,7 +39,7 @@ class HostCapabilityDirectoryTest {
         "screen_input_text", "paste_text", "screen_key", "app_launch", "screen_capture",
         "virtual_screen_ensure", "virtual_screen_launch", "virtual_screen_screenshot",
         "virtual_screen_click", "virtual_screen_double_click", "virtual_screen_long_press",
-        "virtual_screen_swipe", "virtual_screen_scroll", "virtual_screen_key",
+        "virtual_screen_swipe", "virtual_screen_scroll", "virtual_screen_key", "virtual_screen_back",
         "virtual_screen_input_text", "virtual_screen_set_text", "virtual_screen_wait",
         "virtual_screen_close", "virtual_screen_show", "virtual_screen_hide", "virtual_screen_task",
     )

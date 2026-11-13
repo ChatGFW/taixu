@@ -180,8 +180,10 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         val bh = TwinPhoneEmbedSupport.alignBlock(rawH)
 
         val bufferChanged = bw != fixedBufferW || bh != fixedBufferH
+        // TextureView.onSizeChanged 会先把默认缓冲重设为 View 尺寸，再通知 listener。
+        // VD 尺寸缓存不代表 SurfaceTexture 当前尺寸；每次挂载/尺寸回调都必须恢复。
+        st.setDefaultBufferSize(bw, bh)
         if (bufferChanged) {
-            st.setDefaultBufferSize(bw, bh)
             fixedBufferW = bw
             fixedBufferH = bh
             displaySurface?.release()

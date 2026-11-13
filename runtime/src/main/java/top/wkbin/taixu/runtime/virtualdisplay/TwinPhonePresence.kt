@@ -147,10 +147,10 @@ object TwinPhonePresence {
         unpinMini()
     }
 
-    /** 消费分身任务通知点入的 Intent extra，打开分身 Tab。 */
+    /** 消费分身任务通知点入的 Intent extra，展开手机大窗（非仅钉小窗）。 */
     fun consumeOpenTwinIntent(intent: Intent?): Boolean {
         if (intent?.getBooleanExtra(PhoneTaskNotifier.EXTRA_OPEN_TWIN, false) != true) return false
-        requestOpen()
+        requestExpand()
         intent.removeExtra(PhoneTaskNotifier.EXTRA_OPEN_TWIN)
         return true
     }

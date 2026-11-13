@@ -180,9 +180,19 @@ internal fun ChatAdaptiveLayout(
         BackHandler(enabled = browserPage || phonePage || overlayOpen) {
             when {
                 phoneFullscreen -> phoneFullscreen = false
-                phonePage -> scope.launch {
-                    runCatching {
-                        twinCoordinator.injectKey(keyCode = KeyEvent.KEYCODE_BACK)
+                phonePage -> {
+                    // 与软键一致：自动操控中禁止系统返回，避免旧截图点到新页面。
+                    val session = twinWaiting?.sessionId
+                        ?: twinRunning
+                        ?: VirtualDisplayCoordinator.DEFAULT_SESSION_ID
+                    if (twinRunning != null && twinWaiting == null) {
+                        TwinPhonePresence.nudgeTakeOver()
+                    } else {
+                        scope.launch {
+                            runCatching {
+                                twinCoordinator.injectKey(sessionId = session, keyCode = KeyEvent.KEYCODE_BACK)
+                            }
+                        }
                     }
                 }
                 browserSelected && browserBackPressed?.invoke() == true -> Unit
@@ -254,7 +264,10 @@ internal fun ChatAdaptiveLayout(
         val screenWidth = maxWidth
         val coverChrome = browserPage || phonePage || overlayProgress > 0.5f
         val presenceAspect by TwinPhonePresence.contentAspectFlow.collectAsStateWithLifecycle()
-        val twinSize = twinCoordinator.getVideoSize(VirtualDisplayCoordinator.DEFAULT_SESSION_ID)
+        val previewSession = twinWaiting?.sessionId
+            ?: twinRunning
+            ?: VirtualDisplayCoordinator.DEFAULT_SESSION_ID
+        val twinSize = twinCoordinator.getVideoSize(previewSession)
         val twinAspect = twinSize?.let { it.first.toFloat() / it.second.toFloat() }
             ?.takeIf { it > 0.05f }
             ?: presenceAspect.takeIf { it > 0.05f }

@@ -201,10 +201,11 @@ public final class Main {
         }
         new Main();
         ServerLog.d("server started (direct Surface pipeline)", null);
+        // 必须进入消息循环：TaskReclaimer 等 Handler 投递依赖主 Looper。
         try {
-            Thread.sleep(Long.MAX_VALUE);
-        } catch (InterruptedException e) {
-            ServerLog.d("Main thread interrupted: " + e.getMessage(), e);
+            Looper.loop();
+        } catch (Throwable t) {
+            ServerLog.d("Main Looper.loop exited: " + t.getMessage(), t);
         }
     }
 }

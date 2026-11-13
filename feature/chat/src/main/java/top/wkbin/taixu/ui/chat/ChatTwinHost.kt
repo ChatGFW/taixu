@@ -98,10 +98,15 @@ internal fun ChatTwinHost(
                 TwinPhoneChromeBar(
                     onInjectKey = { keyCode ->
                         // 仅自动操控中锁软键；接手/暂停等待时与画面触控一并放开。
+                        val session = twinWaiting?.sessionId
+                            ?: twinRunning
+                            ?: VirtualDisplayCoordinator.DEFAULT_SESSION_ID
                         if (twinRunning != null && twinWaiting == null) {
                             TwinPhonePresence.nudgeTakeOver()
                         } else {
-                            scope.launch { twinCoordinator.injectKey(keyCode = keyCode) }
+                            scope.launch {
+                                twinCoordinator.injectKey(sessionId = session, keyCode = keyCode)
+                            }
                         }
                     },
                 ) {

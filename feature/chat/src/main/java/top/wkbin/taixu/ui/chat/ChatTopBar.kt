@@ -125,9 +125,8 @@ internal fun ChatTopBar(
                         }
                     }
                     else -> {
-                        if (surface == null) {
-                            toolbarEntries.forEach { entry -> ChatTopToolbarButton(entry) }
-                        }
+                        // 有分身/手机切换 pill 时仍展示用户固定入口；仅手机页全屏态收进右侧全屏键。
+                        toolbarEntries.forEach { entry -> ChatTopToolbarButton(entry) }
                         RuntimeIconButton(onClick = { expanded = true }, modifier = Modifier.size(40.dp),
                             contentDescription = stringResource(R.string.chat_workbench_controls)) {
                             RuntimeIcon(RuntimeIconName.More, Modifier.size(22.dp), RuntimeTheme.colorScheme.onSurface)

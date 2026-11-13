@@ -99,14 +99,32 @@ final class InputController {
     void swipe(float x1, float y1, float x2, float y2, long durationMs) {
         long start = SystemClock.uptimeMillis();
         long dur = Math.max(1L, durationMs);
+        // 必须按真实墙钟推进：只改 eventTime 而不 sleep 时，长按/滑动会在几毫秒内抬起。
         touch(MotionEvent.ACTION_DOWN, x1, y1, start, start, 1f, 1f, 0, 1f, 1f, 0, 0);
-        int steps = 12;
+        int steps = Math.max(2, (int) Math.min(60L, Math.max(8L, dur / 16L)));
         for (int i = 1; i < steps; i++) {
             float t = i / (float) steps;
+            long target = start + (long) (dur * t);
+            sleepUntil(target);
+            long now = SystemClock.uptimeMillis();
             touch(MotionEvent.ACTION_MOVE,
                     x1 + (x2 - x1) * t, y1 + (y2 - y1) * t,
-                    start, start + (long) (dur * t), 1f, 1f, 0, 1f, 1f, 0, 0);
+                    start, now, 1f, 1f, 0, 1f, 1f, 0, 0);
         }
-        touch(MotionEvent.ACTION_UP, x2, y2, start, start + dur, 1f, 1f, 0, 1f, 1f, 0, 0);
+        sleepUntil(start + dur);
+        touch(MotionEvent.ACTION_UP, x2, y2, start, SystemClock.uptimeMillis(), 1f, 1f, 0, 1f, 1f, 0, 0);
+    }
+
+    private static void sleepUntil(long uptimeDeadlineMs) {
+        while (true) {
+            long remain = uptimeDeadlineMs - SystemClock.uptimeMillis();
+            if (remain <= 0L) return;
+            try {
+                Thread.sleep(Math.min(remain, 50L));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
     }
 }

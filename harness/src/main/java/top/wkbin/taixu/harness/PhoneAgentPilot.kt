@@ -149,17 +149,20 @@ internal class PhoneAgentPilot(
             val version = task.awaitReady()
             if (version != lastVersion) recordingClean = false
             lastVersion = version
-            val png = coordinator.requestScreenshot(session)
+            val shot = coordinator.requestScreenshot(session)
                 ?: return false to finish(notes, "第 ${step + 1} 步截图失败，虚拟屏没有画面。", executorLabel)
-            val size = screenSize(session, png)
+            val size = screenSize(session, shot)
                 ?: return false to finish(notes, "第 ${step + 1} 步不知道虚拟屏尺寸，无法把相对坐标换成像素。", executorLabel)
             val history = if (notes.isEmpty()) "这是第一步。" else "已经做过：\n" + notes.joinToString("\n")
             val recordingHint = if (workflowName.isNotBlank() && recording.isEmpty() && packageName.isBlank())
                 "\n需要录制可复用工作流，请先用 Launch 打开目标应用，再操作。" else ""
             if (!task.isCurrent(version)) { recordingClean = false; continue }
-            val image = ImagePayloadCompressor.downscaleDataUrl("data:image/png;base64," + Base64.getEncoder().encodeToString(png))
+            val mime = VirtualScreenHostActions.imageMimeType(shot)
+            val image = ImagePayloadCompressor.downscaleDataUrl(
+                "data:$mime;base64," + Base64.getEncoder().encodeToString(shot),
+            )
             val started = System.nanoTime()
-            services?.log(session, "ModelRequest request=${++request} step=${step + 1} display=${coordinator.getDisplayId(session)} frame=${size.first}x${size.second} pngBytes=${png.size} imageChars=${image.length}")
+            services?.log(session, "ModelRequest request=${++request} step=${step + 1} display=${coordinator.getDisplayId(session)} frame=${size.first}x${size.second} shotBytes=${shot.size} mime=$mime imageChars=${image.length}")
             val reply = try {
                 providerClient.chat(
                     model,
@@ -194,7 +197,7 @@ internal class PhoneAgentPilot(
                 continue
             }
             invalidReplies = 0
-            val frame = MessageDigest.getInstance("SHA-256").digest(png).joinToString("") { "%02x".format(it) }
+            val frame = MessageDigest.getInstance("SHA-256").digest(shot).joinToString("") { "%02x".format(it) }
             progress.beforeAction(action, frame)?.let { return false to finish(notes, it, executorLabel) }
             step++
             val stepTitle = phoneAgentStepTitle(text, action)
@@ -267,10 +270,10 @@ internal class PhoneAgentPilot(
         )
     }
 
-    private fun screenSize(session: String, png: ByteArray): Pair<Int, Int>? {
-        // 注入坐标必须以 VD 分辨率为准；预览 PNG 可能是 View 尺寸或被缩放。
+    private fun screenSize(session: String, shot: ByteArray): Pair<Int, Int>? {
+        // 注入坐标必须以 VD 分辨率为准；预览图可能是 View 尺寸或被缩放。
         coordinator.getVideoSize(session)?.takeIf { it.first > 1 && it.second > 1 }?.let { return it }
-        val (width, height) = VirtualScreenHostActions.pngDimensions(png)
+        val (width, height) = VirtualScreenHostActions.imageDimensions(shot)
         return if (width > 1 && height > 1) width to height else null
     }
 

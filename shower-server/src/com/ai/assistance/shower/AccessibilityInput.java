@@ -19,6 +19,10 @@ import java.util.concurrent.TimeUnit;
 final class AccessibilityInput {
     private static final int ACTION_SET_TEXT = 0x200000;
     private static final String ARG_SET_TEXT = "ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE";
+    /** 与 UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES 一致。 */
+    private static final int FLAG_DONT_SUPPRESS_A11Y = 0x00000001;
+    /** 与 UiAutomation.FLAG_RETRIEVE_INTERACTIVE_WINDOWS 一致；否则 getWindows 为空。 */
+    private static final int FLAG_RETRIEVE_INTERACTIVE_WINDOWS = 0x00000002;
 
     private final Object lock = new Object();
     private UiAutomation uiAutomation;
@@ -84,7 +88,7 @@ final class AccessibilityInput {
         ctor.setAccessible(true);
         UiAutomation ua = ctor.newInstance(looper != null ? looper : Looper.getMainLooper(), conn);
         Method connect = UiAutomation.class.getMethod("connect", int.class);
-        connect.invoke(ua, 1);
+        connect.invoke(ua, FLAG_DONT_SUPPRESS_A11Y | FLAG_RETRIEVE_INTERACTIVE_WINDOWS);
         return ua;
     }
 
@@ -93,8 +97,8 @@ final class AccessibilityInput {
         if (windows == null || windows.isEmpty()) return null;
         AccessibilityNodeInfo focused = null;
         try {
-            Method getFocus = UiAutomation.class.getMethod("getFocus", int.class);
-            focused = (AccessibilityNodeInfo) getFocus.invoke(
+            Method findFocus = UiAutomation.class.getMethod("findFocus", int.class);
+            focused = (AccessibilityNodeInfo) findFocus.invoke(
                     ua, AccessibilityNodeInfo.FOCUS_INPUT);
         } catch (Throwable ignored) {
         }

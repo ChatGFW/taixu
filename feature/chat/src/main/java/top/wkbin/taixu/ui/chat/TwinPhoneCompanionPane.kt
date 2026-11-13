@@ -57,6 +57,12 @@ internal fun TwinPhoneCompanionPane(modifier: Modifier = Modifier) {
     var busy by remember { mutableStateOf(false) }
     var bootToken by remember { mutableIntStateOf(0) }
     val previewVisible = LocalTwinPreviewVisible.current
+    val runningSession by coordinator.phoneTasks.runningSession.collectAsStateWithLifecycle()
+    val waiting by coordinator.phoneTasks.waiting.collectAsStateWithLifecycle()
+    // 工作流可能用 workflow-${id}；预览/触控必须跟当前任务 session，勿写死 default。
+    val previewSession = waiting?.sessionId
+        ?: runningSession
+        ?: VirtualDisplayCoordinator.DEFAULT_SESSION_ID
     val privileged =
         privilege.effectiveMode == ExecutionMode.SHIZUKU ||
             privilege.effectiveMode == ExecutionMode.ROOT
@@ -79,6 +85,7 @@ internal fun TwinPhoneCompanionPane(modifier: Modifier = Modifier) {
         privilege.shizukuAvailable,
         privilege.rootAvailable,
         privilege.preferredMode,
+        previewSession,
     ) {
         // 冷启动 reconcile 未完成前勿误判「无权限」；等 CHECKING 结束再自动建屏。
         if (privilege.availability == PrivilegeAvailability.CHECKING) {
@@ -117,16 +124,16 @@ internal fun TwinPhoneCompanionPane(modifier: Modifier = Modifier) {
         var displayId: Int? = null
         repeat(3) { attempt ->
             displayId = withContext(Dispatchers.IO) {
-                coordinator.ensureVirtualDisplay(VirtualDisplayCoordinator.DEFAULT_SESSION_ID)
+                coordinator.ensureVirtualDisplay(previewSession)
             }
             if (displayId != null) return@repeat
             if (attempt < 2) delay(400L * (attempt + 1))
         }
         if (displayId == null) {
-            status = coordinator.creationFailure(VirtualDisplayCoordinator.DEFAULT_SESSION_ID)
+            status = coordinator.creationFailure(previewSession)
             ready = false
         } else {
-            coordinator.getVideoSize(VirtualDisplayCoordinator.DEFAULT_SESSION_ID)?.let { (w, h) ->
+            coordinator.getVideoSize(previewSession)?.let { (w, h) ->
                 if (w > 0 && h > 0) TwinPhonePresence.updateContentAspect(w.toFloat() / h.toFloat())
             }
             // ensureDisplay 已 am start TwinLauncher；勿再 warm 盖 Settings/系统桌面导致黑屏。
@@ -210,7 +217,7 @@ internal fun TwinPhoneCompanionPane(modifier: Modifier = Modifier) {
                 update = { view ->
                     TwinPhonePresence.previewVisible = previewVisible
                     view.bind(
-                        sessionId = VirtualDisplayCoordinator.DEFAULT_SESSION_ID,
+                        sessionId = previewSession,
                         coordinator = coordinator,
                         scope = scope,
                         statusText = status,
