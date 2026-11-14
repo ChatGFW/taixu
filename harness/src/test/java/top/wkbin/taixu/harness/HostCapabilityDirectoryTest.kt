@@ -39,7 +39,7 @@ class HostCapabilityDirectoryTest {
         "screen_input_text", "paste_text", "screen_key", "app_launch", "screen_capture",
         "virtual_screen_ensure", "virtual_screen_launch", "virtual_screen_screenshot",
         "virtual_screen_click", "virtual_screen_double_click", "virtual_screen_long_press",
-        "virtual_screen_swipe", "virtual_screen_scroll", "virtual_screen_key",
+        "virtual_screen_swipe", "virtual_screen_scroll", "virtual_screen_key", "virtual_screen_back",
         "virtual_screen_input_text", "virtual_screen_set_text", "virtual_screen_wait",
         "virtual_screen_close", "virtual_screen_show", "virtual_screen_hide", "virtual_screen_task",
     )
@@ -159,10 +159,19 @@ class HostCapabilityDirectoryTest {
     fun `plan mode blocks deferred host actions via delegation`() {
         val blocked = policy.planBlock(
             HarnessTool.MCP,
-            capabilityArgs("virtual_screen_task", "goal" to "打开设置"),
+            capabilityArgs("virtual_screen_ensure"),
             rawToolName = "use_capability",
         )
         assertNotNull("只读规划下 deferred 宿主动作必须被拦截", blocked)
+    }
+
+    @Test
+    fun `plan mode blocks direct virtual_screen_task on host tool`() {
+        val blocked = policy.planBlock(
+            HarnessTool.HOST,
+            buildJsonObject { put("action", "virtual_screen_task"); put("goal", "打开设置") },
+        )
+        assertNotNull("只读规划下 virtual_screen_task 必须被拦截", blocked)
     }
 
     @Test
@@ -185,7 +194,8 @@ class HostCapabilityDirectoryTest {
             workspace, "call-1", null, "s1", metadata,
         )
         assertTrue(inspected.first)
-        assertTrue("清单必须包含 deferred 动作", "virtual_screen_task" in inspected.second)
+        assertTrue("清单必须包含 deferred 动作", "virtual_screen_ensure" in inspected.second)
+        assertFalse("direct 的 virtual_screen_task 不得再出现在 deferred 清单", "virtual_screen_task" in inspected.second)
         assertFalse("清单不得包含 direct 高频动作", "device_status" in inspected.second)
 
         // call：展平后进入宿主执行通道，并在 metadata 留下有界嵌套记录

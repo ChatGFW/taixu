@@ -24,7 +24,10 @@ class VirtualScreenWorkflowRuns(private val registry: PhoneTaskRegistry) {
         val run = runs[executionId] ?: error("虚拟屏工作流尚未开始")
         return run.screens.computeIfAbsent(session) {
             Screen(registry.start(session, run.job)
-                ?: error("虚拟屏会话 $session 正在执行其他手机任务"))
+                ?: error(
+                    "已有手机任务在执行（session=${registry.activeSession()}）；" +
+                        "全局同时只能跑一个，不能再占用 $session",
+                ))
         }
     }
 

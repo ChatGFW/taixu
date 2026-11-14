@@ -312,7 +312,7 @@ fun AttachmentPreviewRow(
     if (attachments.isEmpty()) return
 
     LazyRow(
-        modifier = modifier.fillMaxWidth().padding(bottom = 6.dp),
+        modifier = modifier.fillMaxWidth().padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(attachments, key = { it.id }) { item ->

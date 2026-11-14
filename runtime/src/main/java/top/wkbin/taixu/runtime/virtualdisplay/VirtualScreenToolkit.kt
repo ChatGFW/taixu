@@ -22,8 +22,7 @@ import top.wkbin.taixu.runtime.gui.toSwipe
  * 与主屏 [top.wkbin.taixu.runtime.gui.HostGuiToolkit] 的差异：
  * - 虚拟屏输入走 shower-server 的 Binder 注入（InputManager.injectInputEvent +
  *   setDisplayId），无多后端降级链——server 端自带拟人化抖动，成功率即可用性；
- * - PasteText 通过主屏剪贴板（系统全局共享）+ KEYCODE_PASTE 注入，依赖目标
- *   应用响应 PASTE 键；虚拟屏无无障碍节点树，不支持 ACTION_SET_TEXT 直设。
+ * - PasteText 优先 UiAutomation ACTION_SET_TEXT；失败再回退剪贴板 + KEYCODE_PASTE。
  */
 class VirtualScreenToolkit(
     private val context: Context,
@@ -45,6 +44,7 @@ class VirtualScreenToolkit(
             when (action) {
                 is GuiPrimitive.Tap -> {
                     if (controller.tap(action.x, action.y)) {
+                        publishTrailTap(sessionId, action.x, action.y)
                         GuiExecResult(true, "已在虚拟屏点击 (${action.x},${action.y})", backend)
                     } else {
                         GuiExecResult(false, "虚拟屏点击失败 (${action.x},${action.y})", backend)
@@ -53,9 +53,11 @@ class VirtualScreenToolkit(
 
                 is GuiPrimitive.DoubleTap -> {
                     val first = controller.tap(action.x, action.y)
+                    if (first) publishTrailTap(sessionId, action.x, action.y)
                     delay(action.gapMs.coerceIn(40L, 400L))
                     if (!canInject()) return@withContext GuiExecResult(false, "双击已中止：任务暂停或画面失效", backend)
                     val second = controller.tap(action.x, action.y)
+                    if (second) publishTrailTap(sessionId, action.x, action.y)
                     if (first && second) {
                         GuiExecResult(true, "已在虚拟屏双击 (${action.x},${action.y})", backend)
                     } else {
@@ -69,6 +71,7 @@ class VirtualScreenToolkit(
                     // 若走 touchDown→delay→touchUp，协程在 delay 间被取消会让 touchUp
                     // 不再执行，虚拟屏上残留一个永不抬起的触点。
                     if (controller.swipe(action.x, action.y, action.x, action.y, hold)) {
+                        publishTrailTap(sessionId, action.x, action.y)
                         GuiExecResult(true, "已在虚拟屏长按 (${action.x},${action.y}) ${hold}ms", backend)
                     } else {
                         GuiExecResult(false, "虚拟屏长按失败 (${action.x},${action.y})", backend)
@@ -78,6 +81,7 @@ class VirtualScreenToolkit(
                 is GuiPrimitive.Swipe -> {
                     val dur = action.durationMs.coerceIn(50L, 5_000L)
                     if (controller.swipe(action.x1, action.y1, action.x2, action.y2, dur)) {
+                        publishTrailSwipe(sessionId, action.x1, action.y1, action.x2, action.y2)
                         GuiExecResult(
                             true,
                             "已在虚拟屏滑动 (${action.x1},${action.y1})→(${action.x2},${action.y2})",
@@ -103,6 +107,7 @@ class VirtualScreenToolkit(
                         anchorY = action.anchorY,
                     )
                     if (controller.swipe(mapped.x1, mapped.y1, mapped.x2, mapped.y2, mapped.durationMs)) {
+                        publishTrailSwipe(sessionId, mapped.x1, mapped.y1, mapped.x2, mapped.y2)
                         GuiExecResult(
                             true,
                             "已在虚拟屏滚动 ${action.direction.name.lowercase()}",
@@ -159,7 +164,15 @@ class VirtualScreenToolkit(
         if (text.isEmpty() && !replace) {
             return GuiExecResult(false, "粘贴文本为空", backend)
         }
-        // 先准备剪贴板，避免写剪贴板失败时已清空用户文本。
+        // 优先 UiAutomation ACTION_SET_TEXT（与 HostDisplay 一致）。
+        if (canInject() && controller.setText(text, replace = replace)) {
+            return GuiExecResult(
+                true,
+                "已通过无障碍直接${if (replace) "写入" else "追加"}文本（${text.length} 字）",
+                backend,
+            )
+        }
+        // 回退：系统剪贴板 + KEYCODE_PASTE。
         if (text.isNotEmpty() && !writeClipboard(text)) {
             return GuiExecResult(false, "写入剪贴板失败，虚拟屏粘贴中止", backend)
         }
@@ -178,6 +191,16 @@ class VirtualScreenToolkit(
         } else {
             GuiExecResult(false, "KEYCODE_PASTE 注入失败：目标应用可能不响应粘贴键", backend)
         }
+    }
+
+    private fun publishTrailTap(sessionId: String, x: Int, y: Int) {
+        val size = coordinator.getVideoSize(sessionId) ?: return
+        TwinTouchTrailBus.publishTap(x, y, size.first, size.second)
+    }
+
+    private fun publishTrailSwipe(sessionId: String, x1: Int, y1: Int, x2: Int, y2: Int) {
+        val size = coordinator.getVideoSize(sessionId) ?: return
+        TwinTouchTrailBus.publishSwipe(x1, y1, x2, y2, size.first, size.second)
     }
 
     private suspend fun writeClipboard(text: String): Boolean = withContext(Dispatchers.Main) {

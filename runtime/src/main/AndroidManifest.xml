@@ -13,5 +13,43 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-enabled LAN desktop collaboration HTTP and terminal server" />
         </service>
+        <!-- 分身虚拟屏存活期保活后台显示 -->
+        <service
+            android:name=".virtualdisplay.TwinDisplayForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the Twin background virtual display alive while phone-agent tasks run" />
+        </service>
+        <!-- 分身任务通知：继续/停止/打开分身 -->
+        <receiver
+            android:name=".virtualdisplay.PhoneTaskActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="top.wkbin.taixu.action.ANSWER_AGENT_NEED" />
+            </intent-filter>
+        </receiver>
+        <!-- 虚拟屏占位；shell am 指定 display 需 exported -->
+        <activity
+            android:name=".virtualdisplay.TwinBackdropActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
+        <!-- 分身副屏桌面；exported 供 am；SECONDARY_HOME 作 Soft Home 落点 -->
+        <activity
+            android:name=".virtualdisplay.TwinLauncherActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:launchMode="singleInstance">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.SECONDARY_HOME" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

@@ -81,7 +81,8 @@ private fun buildInline(
                 text.startsWith("**", i) -> {
                     val end = text.indexOf("**", i + 2)
                     if (end != -1) {
-                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                        // SemiBold：强调仍可读，避免中文正文里 Bold 显得过重。
+                        pushStyle(SpanStyle(fontWeight = FontWeight.SemiBold))
                         append(text, i + 2, end)
                         pop()
                         i = end + 2
@@ -93,8 +94,8 @@ private fun buildInline(
                         pushStyle(
                             SpanStyle(
                                 fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 12.5.sp,
                                 background = inlineCodeBg,
                                 color = inlineCodeColor,
                             ),

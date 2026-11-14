@@ -33,6 +33,7 @@ import top.wkbin.taixu.ui.components.RuntimeFilterChip
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
+import top.wkbin.taixu.ui.theme.chatReadingTypography
 @Composable
 internal fun GroupChatComposer(
     members: List<Bot>,
@@ -104,14 +105,18 @@ internal fun GroupChatComposer(
             RuntimeCard(containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
                 shape = RuntimeTheme.shapes.large,
                 contentPadding = PaddingValues(12.dp)) {
+                val composerStyle = chatReadingTypography().composer
                 BasicTextField(value = value, onValueChange = onValueChange, maxLines = 5,
-                    textStyle = RuntimeTheme.typography.bodyLarge.copy(color = RuntimeTheme.colorScheme.onSurface),
+                    textStyle = composerStyle.copy(color = RuntimeTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(RuntimeTheme.colorScheme.primary),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp, max = 160.dp).padding(horizontal = 8.dp, vertical = 6.dp),
                     decorationBox = { field ->
                         Box {
-                            if (value.text.isEmpty()) Text(stringResource(R.string.fbot_input_hint),
-                                style = RuntimeTheme.typography.bodyLarge, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+                            if (value.text.isEmpty()) Text(
+                                stringResource(R.string.fbot_input_hint),
+                                style = composerStyle,
+                                color = RuntimeTheme.colorScheme.onSurfaceVariant,
+                            )
                             field()
                         }
                     })

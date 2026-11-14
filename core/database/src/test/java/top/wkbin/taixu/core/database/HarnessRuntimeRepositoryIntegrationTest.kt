@@ -47,6 +47,11 @@ class HarnessRuntimeRepositoryIntegrationTest {
         assertEquals(1, references.size)
         assertEquals("blob-session", references.single().sessionId)
         assertEquals(payload, blobs.read(references.single().payloadJson))
+        assertEquals(payload, blobs.existingBlob(references.single().payloadJson)!!.readText())
+        assertNull(blobs.existingBlob("""{"text":"/attachments/photo.png"}"""))
+        assertNull(blobs.existingBlob(HarnessBlobStore.BLOB_PREFIX + "../secret"))
+        assertNull(blobs.existingBlob(HarnessBlobStore.BLOB_PREFIX + "harness_blobs/../../secret"))
+        assertNull(blobs.existingBlob(references.single().payloadJson + ".missing"))
     }
 
     @Test fun `task admission commits recovery state with input and operation`() = runBlocking {

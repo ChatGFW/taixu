@@ -1,4 +1,16 @@
 <resources>
     <string name="chat_pane_terminal">Terminal</string>
     <string name="chat_pane_browser">Browser</string>
+    <string name="chat_pane_twin">Twin</string>
+    <string name="chat_surface_avatar">Avatar</string>
+    <string name="chat_surface_phone">Phone</string>
+    <string name="chat_surface_fullscreen">Fullscreen</string>
+    <string name="chat_surface_exit_fullscreen">Exit fullscreen</string>
+    <string name="chat_twin_mini_need">Needs you</string>
+    <string name="chat_twin_mini_paused">Taken over</string>
+    <string name="chat_twin_mini_confirm">Confirm</string>
+    <string name="chat_twin_mini_done">Done</string>
+    <string name="chat_twin_mini_failed">Failed</string>
+    <string name="chat_twin_mini_cancelled">Cancelled</string>
+    <string name="chat_twin_takeover_nudge">Agent is controlling the twin. Tap “Take over” before touching the screen.</string>
 </resources>

@@ -3,21 +3,15 @@ package com.ai.assistance.showerclient
 import android.content.Context
 import android.os.DeadObjectException
 import android.os.RemoteException
+import android.view.Surface
 import com.ai.assistance.shower.IShowerService
-import com.ai.assistance.shower.IShowerVideoSink
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-/**
- * Lightweight controller to talk to the Shower server running locally on the device.
- *
- * Responsibilities:
- * - Maintain a Binder connection to the Shower service
- * - Send commands for a specific virtual display: ensureDisplay, launchApp, tap, swipe, touch, key, screenshot
- * - Track the virtual display id and video size for this session
- */
+
+/** Binder 客户端：建屏 / 输入 / 截图，以及 [setDisplaySurface] 直挂预览。 */
 class ShowerController {
 
     companion object {
@@ -93,53 +87,13 @@ class ShowerController {
     fun getVideoSize(): Pair<Int, Int>? =
         if (videoWidth > 0 && videoHeight > 0) Pair(videoWidth, videoHeight) else null
 
-    private val binaryLock = Any()
-    private val earlyBinaryFrames = ArrayDeque<ByteArray>()
-
-    @Volatile
-    private var binaryHandler: ((ByteArray) -> Unit)? = null
+    private val frames = ShowerFrameBuffer()
 
     fun setBinaryHandler(handler: ((ByteArray) -> Unit)?) {
-        val framesToReplay: List<ByteArray>
-        synchronized(binaryLock) {
-            binaryHandler = handler
-            ShowerLog.d(TAG, "setBinaryHandler: id=${virtualDisplayId} handlerSet=${handler != null}, bufferedFrames=${earlyBinaryFrames.size}")
-            framesToReplay = if (handler != null && earlyBinaryFrames.isNotEmpty()) {
-                val list = earlyBinaryFrames.toList()
-                earlyBinaryFrames.clear()
-                list
-            } else {
-                emptyList()
-            }
-        }
-        if (handler != null && framesToReplay.isNotEmpty()) {
-            ShowerLog.d(TAG, "setBinaryHandler: replaying ${framesToReplay.size} buffered frames")
-            framesToReplay.forEach { frame ->
-                try {
-                    handler(frame)
-                } catch (_: Exception) {
-                }
-            }
-        }
+        frames.setHandler(handler, TAG, virtualDisplayId)
     }
 
-    private val videoSink = object : IShowerVideoSink.Stub() {
-        override fun onVideoFrame(data: ByteArray) {
-            val handler: ((ByteArray) -> Unit)?
-            synchronized(binaryLock) {
-                handler = binaryHandler
-                if (handler == null) {
-                    if (earlyBinaryFrames.size >= 120) {
-                        earlyBinaryFrames.removeFirst()
-                    }
-                    earlyBinaryFrames.addLast(data)
-                }
-            }
-            handler?.invoke(data)
-        }
-    }
-
-    suspend fun requestScreenshot(timeoutMs: Long = 3000L): ByteArray? =
+    suspend fun requestScreenshot(timeoutMs: Long = 5000L): ByteArray? =
         withContext(Dispatchers.IO) {
             val service = getBinder() ?: return@withContext null
             val id = virtualDisplayId ?: return@withContext null
@@ -175,14 +129,8 @@ class ShowerController {
             // If this controller was previously bound to a virtual display, release it first.
             val oldId = virtualDisplayId
             if (oldId != null && oldId > 0) {
-                try {
-                    service.setVideoSink(oldId, null)
-                } catch (_: Exception) {
-                }
-                try {
-                    service.destroyDisplay(oldId)
-                } catch (_: Exception) {
-                }
+                runCatching { service.setVideoSink(oldId, null) }
+                runCatching { service.destroyDisplay(oldId) }
             }
             virtualDisplayId = 0
             videoWidth = 0
@@ -248,7 +196,6 @@ class ShowerController {
         suspend fun doEnsure(service: IShowerService): Boolean {
             val existingId = virtualDisplayId
             if (existingId != null && videoWidth == targetWidth && videoHeight == targetHeight) {
-                service.setVideoSink(existingId, videoSink.asBinder())
                 ShowerLog.d(TAG, "ensureDisplay reuse existing displayId=$existingId, size=${videoWidth}x${videoHeight}")
                 return true
             }
@@ -263,8 +210,7 @@ class ShowerController {
                 }
             }
             resetLocalDisplayState()
-            // server 的 ensureDisplay 只建新屏并返回 ID，不会销毁已有虚拟屏。
-            val id = service.ensureDisplay(targetWidth, targetHeight, dpi, bitrate)
+            val id = service.createDisplayWithHome(targetWidth, targetHeight, dpi, bitrate)
             if (id < 0) {
                 resetLocalDisplayState()
                 ShowerLog.e(TAG, "ensureDisplay: server reported invalid displayId=$id")
@@ -273,10 +219,7 @@ class ShowerController {
             virtualDisplayId = id
             videoWidth = targetWidth
             videoHeight = targetHeight
-
-            // Link local sink to this display on the server
-            service.setVideoSink(id, videoSink.asBinder())
-
+            
             ShowerLog.d(TAG, "ensureDisplay complete, new displayId=$virtualDisplayId, size=${videoWidth}x${videoHeight}")
             return true
         }
@@ -398,6 +341,48 @@ class ShowerController {
         }
     }
 
+    /** 直挂客户端 Surface（null=回到保活占位面）。 */
+    suspend fun setDisplaySurface(surface: Surface?): Boolean = withContext(Dispatchers.IO) {
+        val service = getBinder() ?: return@withContext false
+        val id = virtualDisplayId ?: return@withContext false
+        try {
+            service.setDisplaySurface(id, surface)
+            ShowerLog.d(TAG, "setDisplaySurface display=$id attached=${surface != null}")
+            true
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ShowerLog.e(TAG, "setDisplaySurface failed on $id", e)
+            false
+        }
+    }
+
+    /** UiAutomation ACTION_SET_TEXT；失败时由上层回退剪贴板粘贴。 */
+    suspend fun setText(text: String, replace: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+        val service = getBinder() ?: return@withContext false
+        val id = virtualDisplayId ?: return@withContext false
+        try {
+            service.setText(id, text, replace)
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ShowerLog.e(TAG, "setText failed on $id", e)
+            false
+        }
+    }
+
+    /** 原样注入 MotionEvent（多指）；坐标须已映射到 VD。 */
+    suspend fun injectMotionEvent(event: android.view.MotionEvent): Boolean = withContext(Dispatchers.IO) {
+        val service = getBinder() ?: return@withContext false
+        val id = virtualDisplayId ?: return@withContext false
+        try {
+            service.injectMotionEvent(id, event)
+            true
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            ShowerLog.e(TAG, "injectMotionEvent failed on $id", e)
+            false
+        }
+    }
+
     suspend fun injectTouchEvent(
         action: Int,
         x: Float,
@@ -445,13 +430,10 @@ class ShowerController {
         virtualDisplayId = null
         videoWidth = 0
         videoHeight = 0
-        synchronized(binaryLock) {
-            binaryHandler = null
-            earlyBinaryFrames.clear()
-        }
+        frames.clear()
         if (id != null && id > 0 && service?.asBinder()?.isBinderAlive == true) {
             try {
-                service.setVideoSink(id, null)
+                runCatching { service.setVideoSink(id, null) }
                 service.destroyDisplay(id)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e

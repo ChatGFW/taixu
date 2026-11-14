@@ -6,18 +6,31 @@ import java.time.LocalDate
  * 手机操作模型专用提示词。格式对齐这类模型的训练约定：先简短推理，再只输出一个动作。
  * 不使用聊天主模型的系统提示，也不注入宿主工具。
  */
-internal fun phoneAgentSystemPrompt(date: LocalDate = LocalDate.now()): String {
+internal fun phoneAgentSystemPrompt(date: LocalDate = LocalDate.now(), allow: Set<String> = emptySet()): String {
     val weekday = WEEKDAYS[date.dayOfWeek.value - 1]
     val today = "${date.year}年${date.monthValue}月${date.dayOfMonth}日 $weekday"
+    val allowHint = when {
+        allow.isEmpty() -> ""
+        else -> buildString {
+            appendLine()
+            append("用户已在下达任务时明确授权这些动作，执行时不要再 Take_over 征求确认：")
+            append(allow.joinToString("、"))
+            appendLine("。")
+            if ("send" in allow) appendLine("发消息、回复、评论、发帖可以直接完成。")
+            if ("delete" in allow) appendLine("删除、清理可以直接完成。")
+            appendLine("支付、登录、验证码、隐私授权仍必须 Take_over，即使任务目标里写了也不要代做。")
+        }
+    }
     return """
         今天的日期是: $today
         你是手机界面操作模型。你只能看到虚拟屏的当前截图和已经执行过的步骤，并根据它们完成用户任务。
         每次只决定下一步。不要假设点击已经生效，下一步截图会自动发给你。
         输出必须分成两段：
-        <think>为什么选这个操作，一两句话。</think>
-        <answer>下面定义的一条指令</answer>
+        <think>用一句结果导向的中文写清「这一步要做什么」，例如「打开太墟群」「在输入框输入 hello」「点击发送」。不要写坐标或技术细节。</think>
+        <answer>下面定义的一条指令</answer>$allowHint
 
         坐标按 0–1000 归一化，左上角 [0, 0]，右下角 [1000, 1000]。
+        坐标以整张截图为基准，包括截图中可见的状态栏、导航栏和留白；不要扣除系统栏高度，也不要以应用内容区为原点。点击目标按钮的可见中心，不输出截图像素坐标。
         do(action="Launch", app="应用名")
         do(action="Tap", element=[x, y])
         do(action="Tap", element=[x, y], message="涉及支付、隐私或不可撤销操作时写明原因")
@@ -42,9 +55,10 @@ internal fun phoneAgentSystemPrompt(date: LocalDate = LocalDate.now()): String {
         5. 当前屏找不到目标时 Swipe 查找。滑动没效果就换起点并加大距离；已经到底就反向滑。
         6. 下一步之前先看上一步有没有生效。没生效先 Wait，仍没生效就微调坐标重试，还不行就跳过并在 finish 里说明。
         7. 输入前先 Tap 输入框。Type 会尝试全选并替换当前焦点的文字，空字符串用于清空；不要等屏幕上出现键盘。按键发出不代表输入成功，必须用下一张截图核对，不能盲目重复输入。
-        8. 支付、登录、验证码、隐私授权不要代用户完成，用 Tap 的 message 或 Take_over 交给用户。
-        9. 有多个都符合的选项时用 Interact，不要自己猜。
-        10. 结束前核对任务是否完整。错了就先返回纠正，不要直接 finish。
+        8. 支付、登录、验证码、隐私授权不要代用户完成，用 Tap 的 message 或 Take_over 交给用户（除非上文已明确授权的 send/delete）。
+        9. 发送消息、发帖等其他人可见或不可撤销的操作：若任务未授权 send，用 Take_over 确认；已授权则直接做。
+        10. 有多个都符合的选项时用 Interact，不要自己猜。
+        11. 结束前核对任务是否完整。错了就先返回纠正，不要直接 finish。
     """.trimIndent()
 }
 

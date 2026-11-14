@@ -52,7 +52,6 @@ class SessionComposerDraftRenderTest : ModelFlowRenderSupport() {
                         sendMode = ComposerSendMode.NEXT_RUN, matchingCommands = emptyList(), onApplyCommand = {},
                         matchingMentions = emptyList(), onApplyMention = {}, attachments = files,
                         attachmentsProcessing = processing, onAttachmentsPicked = { _, _ -> }, onRemoveAttachment = { drafts.removeAttachment(it, session) },
-                        queuedPrompts = emptyList(), onEditQueuedPrompt = {}, onRemoveQueuedPrompt = {}, onConvertToSteer = {},
                         knownMentionNames = emptyList(), attachedMentions = emptyList(), onRemoveMention = {},
                         pinnedCapabilities = emptyList(), onUnpinMention = {}, onOpenSkillsMcp = {}, onCompactContext = { it() }, onOpenModels = {},
                         activeModel = profile, approvalMode = ApprovalMode.REQUEST, onOpenApprovalModes = {}, contextUsage = ContextUsage())

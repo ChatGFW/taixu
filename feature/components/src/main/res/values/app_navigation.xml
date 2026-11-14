@@ -14,7 +14,7 @@
     <string name="components_rail_terminal">终端</string>
     <string name="components_rail_tools">插件</string>
     <string name="components_collapse_sidebar">收起侧栏</string>
-    <string name="components_companion_open">打开终端与浏览器面板</string>
+    <string name="components_companion_open">打开终端、浏览器与分身面板</string>
     <string name="components_companion_collapse">收起伴随面板</string>
     <string name="components_companion_resize">拖动调整分栏宽度</string>
 </resources>

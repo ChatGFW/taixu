@@ -46,13 +46,12 @@ import top.wkbin.taixu.ui.components.RuntimeIconName
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.LazyListState
-import top.wkbin.taixu.harness.QueuedPrompt
 import top.wkbin.taixu.ui.components.RuntimeComposerTextField
 import top.wkbin.taixu.ui.theme.chatBackdropSurface
+import top.wkbin.taixu.ui.theme.chatReadingTypography
 import top.wkbin.taixu.ui.theme.chatSoftDropShadow
-/**
- * 输入区：斜杠/@ 弹窗、排队指令、附件预览、推理强度滑块、工具状态胶囊与一体化输入胶囊。
- */
+
+/** 输入区：建议、附件与输入胶囊；排队指令由 ChatPaneContent 在输入框上方独立展示。 */
 @Composable
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 internal fun ChatComposer(
@@ -76,10 +75,6 @@ internal fun ChatComposer(
     attachmentsProcessing: Boolean,
     onAttachmentsPicked: (List<Uri>, Boolean) -> Unit,
     onRemoveAttachment: (ChatAttachment) -> Unit,
-    queuedPrompts: List<QueuedPrompt>,
-    onEditQueuedPrompt: (QueuedPrompt) -> Unit,
-    onRemoveQueuedPrompt: (QueuedPrompt) -> Unit,
-    onConvertToSteer: (QueuedPrompt) -> Unit,
     knownMentionNames: List<String>,
     attachedMentions: List<MentionItem>,
     onRemoveMention: (MentionItem) -> Unit,
@@ -126,7 +121,8 @@ internal fun ChatComposer(
         }
     }
 
-    // 斜杠指令快捷提示弹窗
+    // 父级是测量用 Box：多根子节点会叠画，斜杠面板会盖满、附件会被输入胶囊挡住。
+    Column(modifier = Modifier.fillMaxWidth()) {
     if (matchingCommands.isNotEmpty()) {
         SlashCommandPopup(
             commands = matchingCommands,
@@ -140,19 +136,6 @@ internal fun ChatComposer(
             onSelect = onApplyMention,
         )
     }
-
-    QueuedPromptStack(
-        prompts = queuedPrompts,
-        onEdit = onEditQueuedPrompt,
-        onRemove = onRemoveQueuedPrompt,
-        onConvertToSteer = onConvertToSteer,
-    )
-
-    // 待发送附件预览栏
-    AttachmentPreviewRow(
-        attachments = attachments,
-        onRemove = onRemoveAttachment,
-    )
 
     // 附件处理中（复制/压缩/编码）加载指示
     if (attachmentsProcessing) {
@@ -185,6 +168,11 @@ internal fun ChatComposer(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            // 待发送附件：放在输入框上方，避免被胶囊底栏或键盘区域遮挡。
+            AttachmentPreviewRow(
+                attachments = attachments,
+                onRemove = onRemoveAttachment,
+            )
             // 显式挂载的能力才展示标签；常驻能力从 + 菜单管理。
             val allDisplayItems = remember(pinnedCapabilities, attachedMentions) {
                 attachedMentions.distinctBy { it.id }
@@ -283,7 +271,7 @@ internal fun ChatComposer(
 
             RuntimeComposerTextField(
                     placeholder = {
-                        Text(stringResource(if (running) R.string.chat_input_running else R.string.chat_message_placeholder))
+                        Text(stringResource(if (running) R.string.chat_input_running else R.string.chat_message_placeholder), style = chatReadingTypography().composer, color = RuntimeTheme.colorScheme.onSurfaceVariant)
                     },
                     value = textFieldValue,
                     onValueChange = { newValue ->
@@ -380,6 +368,7 @@ internal fun ChatComposer(
                 }
             }
         }
+    }
     }
 
     ComposerSheets(

@@ -17,6 +17,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.graphics.Color
+import top.wkbin.taixu.ui.theme.chatReadingTypography
 /**
  * 表单文本输入框：miuix 填充样式（无常驻描边，聚焦时主色描边），委托 Miuix TextField。
  * 保留焦点/错误指示、浮动标签与 IME 行为；名称保留历史叫法，避免全站调用点改名。
@@ -89,7 +90,7 @@ fun RuntimeComposerTextField(
 ) {
     TextField(value = value, onValueChange = onValueChange, modifier = modifier,
         placeholder = placeholder, visualTransformation = visualTransformation,
-        textStyle = RuntimeTheme.typography.bodyLarge, minLines = 1, maxLines = 5,
+        textStyle = chatReadingTypography().composer, minLines = 1, maxLines = 5,
         keyboardOptions = keyboardOptions,
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,

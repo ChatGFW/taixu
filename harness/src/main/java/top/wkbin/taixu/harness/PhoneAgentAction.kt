@@ -11,7 +11,10 @@ internal sealed class PhoneAgentAction {
     data class Type(val text: String) : PhoneAgentAction()
     data class Launch(val app: String) : PhoneAgentAction()
     data class Finish(val message: String) : PhoneAgentAction()
-    data class TakeOver(val message: String) : PhoneAgentAction()
+    /**
+     * @param confirm true=
+     */
+    data class TakeOver(val message: String, val confirm: Boolean = false) : PhoneAgentAction()
     data class Note(val message: String) : PhoneAgentAction()
     data object Back : PhoneAgentAction()
     data object Home : PhoneAgentAction()
@@ -50,7 +53,9 @@ internal fun parsePhoneAgentAction(raw: String): PhoneAgentAction? {
     if (fields["message"] != null && text("message") == null) return null
     return when (action) {
         "tap", "double tap", "double_tap", "long press", "long_press" -> point("element")?.let { (x, y) ->
-            text("message")?.takeIf { it.isNotBlank() }?.let { return PhoneAgentAction.TakeOver(it) }
+            text("message")?.takeIf { it.isNotBlank() }?.let {
+                return PhoneAgentAction.TakeOver(it, confirm = true)
+            }
             when (action) {
                 "tap" -> PhoneAgentAction.Tap(x, y)
                 "double tap", "double_tap" -> PhoneAgentAction.DoubleTap(x, y)
