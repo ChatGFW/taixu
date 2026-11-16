@@ -10,6 +10,12 @@ package top.wkbin.taixu.harness.text
  * 整体删除+插入），再按 3 行上下文合并成标准 hunk。
  */
 object UnifiedDiffGenerator {
+    /** Counts the same line operations as the displayed diff, excluding headers/context. */
+    fun lineCounts(original: String, updated: String): Pair<Int, Int> {
+        val ops = diffOps(splitLines(original), splitLines(updated))
+        return ops.count { it.type == '+' } to ops.count { it.type == '-' }
+    }
+
     private const val CONTEXT_LINES = 3
 
     /** 中间差异块超过该规模时退化为整体替换，避免 O(n*m) 内存峰值。 */

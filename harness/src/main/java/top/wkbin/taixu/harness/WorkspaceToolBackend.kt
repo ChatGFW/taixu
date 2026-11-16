@@ -46,12 +46,14 @@ class WorkspaceToolBackend(
         currentCoroutineContext().ensureActive()
         val operations = environments?.environment(request.sessionId, request.workspace)?.files ?: operationsFor(request.workspace)
         val path = JsonArgs.requireString(request.args, "path")
+        var beforeText: String? = null
         val outcome = when (request.tool) {
             HarnessTool.READ -> if ("expected_sha256" in request.args) ArtifactReadVerifier.read(operations, path, request.args) {
                 read(operations, path, request.args, request.workspace, request.redactSearchLine)
             } else read(operations, path, request.args, request.workspace, request.redactSearchLine)
             HarnessTool.WRITE -> {
-                val content = JsonArgs.requireString(request.args, "content")
+                val content = JsonArgs.requireString(request.args, "content", allowBlank = true)
+                beforeText = ArtifactTextSnapshot.before(operations, path)
                 snapshots.before(request.sessionId, operations, path)
                 currentCoroutineContext().ensureActive()
                 val written = operations.write(path, content)
@@ -59,11 +61,27 @@ class WorkspaceToolBackend(
                 if (written is AppResult.Success) snapshots.after(request.sessionId, operations, path, content)
                 written.output("已写入 $path\nDIFF_STAT: +${content.lines().size} -0", "write")
             }
-            HarnessTool.EDIT -> edit(operations, path, request)
+            HarnessTool.EDIT -> edit(operations, path, request) {
+                beforeText = ArtifactTextSnapshot.before(operations, path)
+            }
             else -> throw IllegalArgumentException("Unsupported workspace tool: ${request.tool}")
         }
         currentCoroutineContext().ensureActive()
-        return outcome
+        return if (outcome.success && request.tool in setOf(HarnessTool.WRITE, HarnessTool.EDIT)) {
+            val relative = ToolFileArtifacts.relativePath(path, request.workspace)
+            val fingerprint = try { operations.fingerprint(path).getOrNull() }
+                catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                catch (_: Exception) { null }
+            val artifacts = if (relative != null && fingerprint != null) listOf(
+                ToolFileArtifacts.observation(relative, fingerprint,
+                    if (request.tool == HarnessTool.WRITE) FileArtifactOrigin.AFTER_WRITE else FileArtifactOrigin.AFTER_EDIT,
+                    System.currentTimeMillis()).copy(lineChanges = ArtifactTextSnapshot.changes(operations, path, beforeText,
+                        if (request.tool == HarnessTool.WRITE) JsonArgs.requireString(request.args, "content", allowBlank = true) else null)),
+            ) else emptyList()
+            if (artifacts.isEmpty()) outcome else outcome.copy(
+                metadata = outcome.metadata + (ToolFileArtifacts.METADATA_KEY to ToolFileArtifacts.encode(artifacts)),
+            )
+        } else outcome
     }
 
     private suspend fun read(operations: WorkspaceToolOperations, path: String, args: JsonObject, workspace: String, redactSearchLine: (String) -> String): WorkspaceToolOutcome {
@@ -107,6 +125,7 @@ class WorkspaceToolBackend(
         operations: WorkspaceToolOperations,
         path: String,
         request: WorkspaceToolRequest,
+        captureBefore: suspend () -> Unit,
     ): WorkspaceToolOutcome {
         val args = request.args
         val hashline = HashlineEditArgs.hasOps(args)
@@ -149,6 +168,7 @@ class WorkspaceToolBackend(
                 mapOf("hashline_error" to "HASHLINE_LEGACY_DISABLED"),
             )
         }
+        captureBefore()
         snapshots.before(request.sessionId, operations, path)
         currentCoroutineContext().ensureActive()
         val edited = if (hashline) {

@@ -270,15 +270,10 @@ class WorkspaceFileAccess(
         }
     }
 
+    override suspend fun existsOrNull(path: String): Boolean? = top.wkbin.taixu.harness.environment.localFileExists { requireNotNull(resolve(path)) }
+
     /** 文件字节数（路径越界/非文件/不存在返回 null）；供 checkpoint 预判是否跳过超大文件快照。 */
-    override suspend fun fileSizeOrNull(path: String): Long? = withContext(Dispatchers.IO) {
-        try {
-            val file = resolveRequired(path)
-            if (file.isFile) file.length() else null
-        } catch (_: Throwable) {
-            null
-        }
-    }
+    override suspend fun fileSizeOrNull(path: String): Long? = top.wkbin.taixu.harness.environment.localFileSize { resolveRequired(path) }
 
     /** 在工作区边界内删除文件（路径逃逸或删除失败返回 false）；文件不存在视为成功。 */
     override suspend fun delete(path: String): Boolean = withContext(Dispatchers.IO) {

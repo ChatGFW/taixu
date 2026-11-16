@@ -178,7 +178,7 @@ class HarnessLoop(
     override val error: StateFlow<String?> get() = stateMirrors.error
 
     /** 当前执行状态（供 UI / 后台通知显示进度）。运行结束或出错时置空。 */
-    override val status: StateFlow<String?> get() = stateMirrors.status
+    override val status: StateFlow<String?> get() = stateMirrors.status; override val toolProgress: StateFlow<ToolCallStreamProgress?> get() = stateMirrors.toolProgress
 
     /** 推理模型思考中（reasoning 正在流式上屏）。开始思考置 true，本回合结束时置 false。 */
     override val thinkingLive: StateFlow<Boolean> get() = stateMirrors.thinkingLive
@@ -344,7 +344,7 @@ class HarnessLoop(
         messageProjector.resetForegroundProjection(liveFlow.value)
         stateMirrors.setForegroundRunning(sessionJobs[id]?.isActive == true)
         stateMirrors.restoreForegroundError(id, stateMirrors.errorOf(id))
-        stateMirrors.setStatus(id, stateMirrors.lastStatus(id))
+        stateMirrors.setStatus(id, stateMirrors.lastStatus(id), clearToolProgress = false); stateMirrors.setToolProgress(id, stateMirrors.sessionToolProgresses.value[id])
         stateMirrors.setThinkingLive(id, stateMirrors.thinkingLiveOf(id))
         refreshPendingProjection(id)
 

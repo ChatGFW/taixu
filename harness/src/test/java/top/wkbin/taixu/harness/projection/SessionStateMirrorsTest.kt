@@ -9,6 +9,7 @@ import org.junit.Test
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.ToolCall
+import top.wkbin.taixu.harness.ToolCallStreamProgress
 
 class CurrentSessionTrackerTest {
 
@@ -49,6 +50,31 @@ class SessionStateMirrorsTest {
         m.setStatus("other", "后台状态")
         assertEquals(null, m.status.value)
         assertTrue(m.lastStatus("other") == "后台状态")
+    }
+
+    @Test
+    fun `tool progress mirrors foreground and any non-null status clears it`() = runBlocking {
+        val (_, m) = mirrors("cur")
+        val progress = ToolCallStreamProgress("write", 5, 0, path = "a.kt")
+        m.setToolProgress("cur", progress)
+        assertEquals(progress, m.toolProgress.value)
+        assertEquals(progress, m.sessionToolProgresses.value["cur"])
+
+        m.setStatus("cur", "回复中")
+        assertEquals(null, m.toolProgress.value)
+        assertTrue(m.sessionToolProgresses.value.isEmpty())
+    }
+
+    @Test
+    fun `background tool progress stays session scoped and removeSession clears it`() = runBlocking {
+        val (_, m) = mirrors("cur")
+        val progress = ToolCallStreamProgress("edit", 2, 1)
+        m.setToolProgress("bg", progress)
+        assertEquals(null, m.toolProgress.value)
+        assertEquals(progress, m.sessionToolProgresses.value["bg"])
+
+        m.removeSession("bg")
+        assertEquals(null, m.sessionToolProgresses.value["bg"])
     }
 
     @Test

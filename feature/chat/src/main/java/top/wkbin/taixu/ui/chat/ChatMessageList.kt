@@ -46,6 +46,7 @@ import top.wkbin.taixu.harness.TurnChangesEvent
 import top.wkbin.taixu.harness.SkillSuggestion
 import top.wkbin.taixu.harness.TaskDelivery
 import top.wkbin.taixu.harness.ToolCall
+import top.wkbin.taixu.harness.ToolCallStreamProgress
 import top.wkbin.taixu.harness.checkpoint.RewindScope
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
@@ -77,6 +78,8 @@ internal fun ChatMessageList(
     initializing: Boolean,
     running: Boolean,
     status: String?,
+    /** 前台会话正在流式生成的工具参数预览；仅 write/edit 用于任务行实时跳动。 */
+    toolProgress: ToolCallStreamProgress? = null,
     workspace: String,
     workspaceProject: WorkspaceProject?,
     onboardingPrivilege: OnboardingPrivilege?,
@@ -136,6 +139,7 @@ internal fun ChatMessageList(
     ) {
         isWaitingForFirstToken(messages, running)
     }
+    val showToolPreview = running && toolProgress?.let { it.name == "write" || it.name == "edit" } == true
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
@@ -191,7 +195,7 @@ internal fun ChatMessageList(
                     is ChatRenderItem.MessageItem -> {
                         when (val message = item.message) {
                             is CapabilityEvent -> CapabilityEventCard(message)
-                            is TaskDelivery -> TaskDeliveryCard(message, workspace, onOpenFile)
+                            is TaskDelivery -> TaskDeliveryCard(message, workspace)
                             is SkillSuggestion -> if (message.id !in hiddenSkillSuggestions) {
                                 SkillSuggestionCard(
                                     suggestion = message,
@@ -250,7 +254,10 @@ internal fun ChatMessageList(
                     }
                 }
             }
-            if (waitingForFirstOutput) {
+            if (showToolPreview) {
+                item(key = "tool_arguments_preview") { ToolArgumentsPreviewRow(toolProgress) }
+            }
+            if (waitingForFirstOutput && !showToolPreview) {
                 item(key = "assistant_generation_placeholder") {
                     Spacer(Modifier.height(12.dp))
                     AssistantTurnLabel()

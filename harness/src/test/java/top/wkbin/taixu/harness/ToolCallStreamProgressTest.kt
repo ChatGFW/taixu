@@ -2,6 +2,7 @@ package top.wkbin.taixu.harness
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ToolCallStreamProgressTest {
@@ -45,5 +46,38 @@ class ToolCallStreamProgressTest {
             assertEquals(accumulator.arguments.length, updates.last().argumentChars)
             assertEquals(tool, updates.last().name)
         }
+    }
+
+    @Test fun `write publishes first frame before arguments start`() {
+        val updates = mutableListOf<ToolCallStreamProgress>()
+        ToolCallAccumulator(name = "write").publishProgress(updates::add, force = true)
+        assertEquals(listOf("write"), updates.map { it.name })
+        assertEquals(null, updates.single().path)
+        assertEquals(0, updates.single().addedLines)
+    }
+
+    @Test fun `partial path is extracted while streaming and target keeps basename`() {
+        val partial = """{"path":"/workspace/DeliveryArtifactActions.kt","content":"first\nse"""
+        val progress = ToolCallStreamProgress(
+            name = "write", addedLines = 2, deletedLines = 0, path = partialJsonStringValue(partial, "path"),
+        )
+        assertEquals("/workspace/DeliveryArtifactActions.kt", progress.path)
+        assertEquals("DeliveryArtifactActions.kt", progress.displayTarget())
+    }
+
+    @Test fun `escaped path separators are unescaped for display`() {
+        val partial = """{"path":"C:\\work\\space\\Main.kt","content":"x"""
+        assertEquals("C:\\work\\space\\Main.kt", partialJsonStringValue(partial, "path"))
+    }
+
+    @Test fun `file progress keeps one stable start timestamp`() {
+        val accumulator = ToolCallAccumulator(name = "write")
+        val updates = mutableListOf<ToolCallStreamProgress>()
+        accumulator.publishProgress(updates::add, force = true)
+        accumulator.arguments.append("""{"content":"a\nb""")
+        accumulator.publishProgress(updates::add, force = true)
+        assertEquals(2, updates.size)
+        assertTrue(updates[0].startedAtMs > 0L)
+        assertEquals(updates[0].startedAtMs, updates[1].startedAtMs)
     }
 }

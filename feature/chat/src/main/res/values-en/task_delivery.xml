@@ -1,15 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="delivery_title">Task delivery record</string>
-    <string name="delivery_expand">Expand</string>
+    <string name="delivery_line_changes">Last change</string>
     <string name="delivery_collapse">Collapse</string>
-    <string name="delivery_counts">%1$d tool records · %2$d artifact records</string>
+    <string name="delivery_view_changes">View changes</string>
+    <string name="delivery_counts">%1$d files · %2$d APKs</string>
     <string name="delivery_unverified">Successful tool execution does not verify the goal. No independent behavior verification was recorded.</string>
-    <string name="delivery_show_all">Show all tool records</string>
-    <string name="delivery_hash_at_creation">Recorded SHA-256</string>
-    <string name="delivery_artifact_version">Fingerprints describe the recorded byte version, not proof of creation in this run or current existence. Recheck after changes.</string>
-    <string name="delivery_observed_at">Observed: %1$s</string>
-    <string name="delivery_kind_log">Tool log</string>
     <string name="delivery_kind_apk">APK file</string>
     <string name="delivery_kind_image">Image file</string>
     <string name="delivery_kind_file">Workspace file</string>
@@ -19,11 +14,6 @@
     <string name="delivery_origin_observed">Observed after command; earlier version unavailable</string>
     <string name="delivery_origin_download">Version observed after download</string>
     <string name="delivery_origin_image_read">Image version read in this run</string>
-    <string name="delivery_tool_succeeded">Succeeded</string>
-    <string name="delivery_tool_failed">Failed</string>
-    <string name="delivery_tool_unknown">Unknown</string>
-    <string name="delivery_tool_waiting">Awaiting approval</string>
-    <string name="delivery_tool_unsettled">No result</string>
     <string name="delivery_no_evidence">No tool evidence was recorded in this run.</string>
     <string name="delivery_history_incomplete">The evidence window is incomplete; only retained records are included.</string>
     <string name="delivery_unknown_outcome">Some calls have unknown outcomes; verify their actual effects.</string>
@@ -37,7 +27,16 @@
     <string name="delivery_artifact_missing">The file is no longer in the workspace; it may have been deleted or moved</string>
     <string name="delivery_artifact_changed">The file changed and no longer matches the recorded SHA-256</string>
     <string name="delivery_artifact_open_failed">No app available to open this file</string>
+    <string name="delivery_artifact_actions">Artifact actions</string>
     <string name="delivery_artifact_save">Save as</string>
     <string name="delivery_artifact_saved">Saved to the chosen location</string>
     <string name="delivery_artifact_save_failed">Save failed</string>
+    <string name="delivery_artifact_install">Install</string>
+    <string name="delivery_origin_write">File written</string>
+    <string name="delivery_origin_edit">File modified</string>
+    <string name="delivery_files">%1$d files</string>
+    <string name="delivery_apks">%1$d APKs</string>
+    <string name="delivery_preview_too_large">Preview supports files up to 1 MiB. Opening with a system app.</string>
+    <string name="delivery_preview_binary">Binary files open with a system app.</string>
+    <string name="delivery_preview_unreadable">Unable to read the preview. Trying a system app.</string>
 </resources>

@@ -6,10 +6,11 @@ import top.wkbin.taixu.core.model.workflow.NodeRunStatus
 import top.wkbin.taixu.core.model.workflow.WorkflowRunStatus
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.theme.semanticColors
 
 @Composable
 internal fun statusColor(status: NodeRunStatus): Color = when (status) {
-    NodeRunStatus.SUCCESS -> Color(0xFF2E7D32)
+    NodeRunStatus.SUCCESS -> semanticColors().success
     NodeRunStatus.FAILED, NodeRunStatus.CANCELLED -> RuntimeTheme.colorScheme.error
     NodeRunStatus.RUNNING, NodeRunStatus.STREAMING, NodeRunStatus.WAITING_APPROVAL -> RuntimeTheme.colorScheme.primary
     NodeRunStatus.SKIPPED -> RuntimeTheme.colorScheme.tertiary

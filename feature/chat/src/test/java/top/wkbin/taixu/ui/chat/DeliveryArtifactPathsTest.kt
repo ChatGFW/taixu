@@ -10,18 +10,12 @@ class DeliveryArtifactPathsTest {
     private val root = File("/data/app/files/linux-runtime/workspace")
 
     @Test
-    fun `project name is extracted from sandbox workspace paths`() {
-        assertEquals("proj-1", DeliveryArtifactPaths.projectName("/workspace/proj-1"))
-        assertEquals("proj-1", DeliveryArtifactPaths.projectName("/workspace/proj-1/"))
-        assertEquals("proj-1", DeliveryArtifactPaths.projectName("\\workspace\\proj-1"))
-        assertEquals("proj-1", DeliveryArtifactPaths.projectName("proj-1"))
-        // 项目本身叫 workspace 是允许的；裸 "workspace" 则按根目录处理，不猜成项目名。
-        assertEquals("workspace", DeliveryArtifactPaths.projectName("/workspace/workspace"))
-        assertNull(DeliveryArtifactPaths.projectName("workspace"))
-        assertNull(DeliveryArtifactPaths.projectName(""))
-        assertNull(DeliveryArtifactPaths.projectName("/workspace/"))
-        assertNull(DeliveryArtifactPaths.projectName("/workspace/.."))
-        assertNull(DeliveryArtifactPaths.projectName("/workspace/."))
+    fun `workspace aliases resolve consistently`() {
+        listOf("/workspace/proj-1", "workspace/proj-1", "\\workspace\\proj-1", "proj-1").forEach {
+            assertEquals(File(root, "proj-1/Main.kt"), DeliveryArtifactPaths.hostFile(it, "Main.kt", root))
+        }
+        assertEquals(File(root, "workspace/Main.kt"), DeliveryArtifactPaths.hostFile("/workspace/workspace", "Main.kt", root))
+        assertEquals(File(root, "Main.kt"), DeliveryArtifactPaths.hostFile("workspace", "Main.kt", root))
     }
 
     @Test
@@ -41,6 +35,14 @@ class DeliveryArtifactPathsTest {
         assertNull(DeliveryArtifactPaths.hostFile("/workspace/proj-1", "", root))
         assertNull(DeliveryArtifactPaths.hostFile("", "a.txt", root))
         assertNull(DeliveryArtifactPaths.hostFile("/workspace/proj-1", "a.txt", workspaceRoot = null))
+    }
+
+    @Test
+    fun `root and nested workspaces preserve the full location`() {
+        assertEquals(File(root, "Main.kt"), DeliveryArtifactPaths.hostFile("/workspace", "Main.kt", root))
+        assertEquals(File(root, "proj/sub/Main.kt"), DeliveryArtifactPaths.hostFile("/workspace/proj/sub", "Main.kt", root))
+        assertNull(DeliveryArtifactPaths.hostFile("/sdcard/project", "Main.kt", root))
+        assertNull(DeliveryArtifactPaths.hostFile("/workspace/proj/../other", "Main.kt", root))
     }
 
     @Test

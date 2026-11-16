@@ -1,116 +1,160 @@
 package top.wkbin.taixu.ui.chat
 
-import androidx.compose.foundation.layout.*
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.yukonga.miuix.kmp.basic.Text
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.chat.R
-import top.wkbin.taixu.harness.TaskDelivery
 import top.wkbin.taixu.harness.FileArtifactOrigin
+import top.wkbin.taixu.harness.TaskDelivery
 import top.wkbin.taixu.harness.task.DeliveryArtifactKind
-import java.text.DateFormat
-import java.util.Date
 import top.wkbin.taixu.harness.task.DeliveryGap
-import top.wkbin.taixu.harness.task.ObservationState
 import top.wkbin.taixu.ui.components.RuntimeCard
+import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.miuix.HorizontalDivider
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.wkbin.taixu.ui.theme.semanticColors
+import top.yukonga.miuix.kmp.squircle.squircleBackground
+import top.yukonga.miuix.kmp.basic.Text
 
-/** A transcript-bound delivery record, with observed execution separated from goal verification. */
+/** A transcript-bound delivery record, rendered as one compact change summary. */
 @Composable
 internal fun TaskDeliveryCard(
     message: TaskDelivery,
     workspace: String,
-    onOpenFile: ((String, String) -> Unit)? = null,
 ) {
-    var expanded by rememberSaveable(message.id) { mutableStateOf(false) }
-    var showAll by rememberSaveable(message.id) { mutableStateOf(false) }
-    val report = message.report
-    RuntimeCard(containerColor = RuntimeTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 12.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
-                    Text(stringResource(R.string.delivery_title), style = RuntimeTheme.typography.labelMedium,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(stringResource(R.string.delivery_counts, report.observations.size, report.artifacts.size),
-                        style = RuntimeTheme.typography.labelSmall, color = RuntimeTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                RuntimeTextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Text(
-                        stringResource(if (expanded) R.string.delivery_collapse else R.string.delivery_expand),
-                        style = RuntimeTheme.typography.labelMedium,
-                        color = RuntimeTheme.colorScheme.primary,
-                        maxLines = 1,
-                    )
-                }
+    var expanded by rememberSaveable(message.id) { mutableStateOf(true) }
+    val artifacts = remember(message.report.artifacts) { message.report.artifacts.filter {
+        it.kind != DeliveryArtifactKind.OUTPUT_LOG && it.origin != FileArtifactOrigin.IMAGE_READ
+    }.asReversed().distinctBy { it.path }.asReversed() }
+    if (artifacts.isEmpty()) return
+
+    val edits = remember(artifacts) { artifacts.mapNotNull { artifact ->
+        artifact.lineChanges?.takeIf { artifact.kind == DeliveryArtifactKind.FILE }
+    } }
+    val added = remember(edits) { edits.sumOf { it.added } }
+    val removed = remember(edits) { edits.sumOf { it.removed } }
+    val apkCount = remember(artifacts) { artifacts.count { it.kind == DeliveryArtifactKind.APK } }
+    val fileCount = artifacts.size - apkCount
+
+    RuntimeCard(
+        containerColor = RuntimeTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .squircleBackground(RuntimeTheme.colorScheme.primaryContainer, 10.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                RuntimeIcon(
+                    RuntimeIconName.Edit,
+                    modifier = Modifier.size(18.dp),
+                    tint = RuntimeTheme.colorScheme.onPrimaryContainer,
+                )
             }
-            if (expanded) {
-                Text(stringResource(R.string.delivery_unverified), style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
-                report.gaps.filter { it != DeliveryGap.GOAL_NOT_VERIFIED }.forEach { gap ->
-                    Text(stringResource(gapLabel(gap)), style = RuntimeTheme.typography.bodySmall)
-                }
-                val observations = if (showAll) report.observations else report.observations.take(8)
-                observations.forEach { observation ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(observation.toolName, modifier = Modifier.weight(1f), style = RuntimeTheme.typography.labelMedium,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(stringResource(stateLabel(observation.state)), style = RuntimeTheme.typography.labelSmall, maxLines = 1)
-                    }
-                }
-                if (report.observations.size > 8 && !showAll) {
-                    RuntimeTextButton(onClick = { showAll = true }) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = when {
+                        fileCount > 0 && apkCount > 0 -> stringResource(R.string.delivery_counts, fileCount, apkCount)
+                        fileCount > 0 -> stringResource(R.string.delivery_files, fileCount)
+                        else -> stringResource(R.string.delivery_apks, apkCount)
+                    },
+                    style = RuntimeTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (edits.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.delivery_line_changes), style = RuntimeTheme.typography.labelSmall)
                         Text(
-                            stringResource(R.string.delivery_show_all),
-                            style = RuntimeTheme.typography.labelMedium,
-                            color = RuntimeTheme.colorScheme.primary,
+                            text = "+$added",
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = semanticColors().success,
+                            maxLines = 1,
+                        )
+                        Text(
+                            text = "−$removed",
+                            style = RuntimeTheme.typography.labelSmall,
+                            color = RuntimeTheme.colorScheme.error,
                             maxLines = 1,
                         )
                     }
                 }
-                report.artifacts.forEach { artifact ->
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(stringResource(kindLabel(artifact.kind)), style = RuntimeTheme.typography.labelMedium)
-                        artifact.origin?.let { Text(stringResource(originLabel(it)), style = RuntimeTheme.typography.bodySmall) }
-                        artifact.observedAt?.let { Text(stringResource(R.string.delivery_observed_at,
-                            DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(it))), style = RuntimeTheme.typography.labelSmall) }
-                        // 路径、哈希与打开/分享/另存入口都在这里：图片给缩略图，日志可回编辑器查看。
-                        DeliveryArtifactRow(artifact, workspace, onOpenFile)
-                    }
-                }
-                if (report.artifacts.isNotEmpty()) Text(stringResource(R.string.delivery_artifact_version), style = RuntimeTheme.typography.bodySmall)
+            }
+            RuntimeTextButton(
+                onClick = { expanded = !expanded },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            ) {
+                Text(
+                    text = stringResource(if (expanded) R.string.delivery_collapse else R.string.delivery_view_changes),
+                    style = RuntimeTheme.typography.labelMedium,
+                    color = RuntimeTheme.colorScheme.primary,
+                    maxLines = 1,
+                )
+            }
+        }
+        message.report.gaps.forEach { gap ->
+            Text(
+                text = stringResource(gapLabel(gap)),
+                style = RuntimeTheme.typography.labelSmall,
+                color = if (gap == DeliveryGap.GOAL_NOT_VERIFIED) RuntimeTheme.colorScheme.onSurfaceVariant
+                    else semanticColors().warning,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        if (expanded) {
+            HorizontalDivider(
+                color = RuntimeTheme.colorScheme.outlineVariant,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+            artifacts.forEach { artifact ->
+                DeliveryArtifactRow(artifact, workspace)
             }
         }
     }
 }
 
-private fun kindLabel(kind: DeliveryArtifactKind): Int = when (kind) {
-    DeliveryArtifactKind.OUTPUT_LOG -> R.string.delivery_kind_log
+internal fun kindLabel(kind: DeliveryArtifactKind): Int = when (kind) {
     DeliveryArtifactKind.APK -> R.string.delivery_kind_apk
     DeliveryArtifactKind.IMAGE -> R.string.delivery_kind_image
-    DeliveryArtifactKind.FILE -> R.string.delivery_kind_file
+    else -> R.string.delivery_kind_file
 }
-private fun originLabel(origin: FileArtifactOrigin): Int = when (origin) {
+
+internal fun originLabel(origin: FileArtifactOrigin): Int = when (origin) {
     FileArtifactOrigin.NEW_AFTER_COMMAND -> R.string.delivery_origin_new
     FileArtifactOrigin.CHANGED_AFTER_COMMAND -> R.string.delivery_origin_changed
     FileArtifactOrigin.UNCHANGED_AFTER_COMMAND -> R.string.delivery_origin_unchanged
     FileArtifactOrigin.OBSERVED_AFTER_COMMAND -> R.string.delivery_origin_observed
     FileArtifactOrigin.AFTER_DOWNLOAD -> R.string.delivery_origin_download
     FileArtifactOrigin.IMAGE_READ -> R.string.delivery_origin_image_read
+    FileArtifactOrigin.AFTER_WRITE -> R.string.delivery_origin_write
+    FileArtifactOrigin.AFTER_EDIT -> R.string.delivery_origin_edit
 }
 
-private fun stateLabel(state: ObservationState): Int = when (state) {
-    ObservationState.SUCCEEDED -> R.string.delivery_tool_succeeded
-    ObservationState.FAILED -> R.string.delivery_tool_failed
-    ObservationState.OUTCOME_UNKNOWN -> R.string.delivery_tool_unknown
-    ObservationState.WAITING_APPROVAL -> R.string.delivery_tool_waiting
-    ObservationState.UNSETTLED -> R.string.delivery_tool_unsettled
-}
 private fun gapLabel(gap: DeliveryGap): Int = when (gap) {
     DeliveryGap.GOAL_NOT_VERIFIED -> R.string.delivery_unverified
     DeliveryGap.NO_TOOL_EVIDENCE -> R.string.delivery_no_evidence

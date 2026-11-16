@@ -2,6 +2,7 @@ package top.wkbin.taixu.harness.task
 
 import kotlinx.serialization.Serializable
 import top.wkbin.taixu.harness.FileArtifactOrigin
+import top.wkbin.taixu.harness.ArtifactLineChanges
 
 /** Immutable references to committed observations. Tool success does not verify the user's goal. */
 @Serializable
@@ -30,7 +31,8 @@ data class ToolObservation(val callEntryId: String, val resultEntryId: String?, 
 
 @Serializable
 data class DeliveryArtifact(val resultEntryId: String, val path: String, val sha256: String, val bytes: Long, val complete: Boolean,
-    val kind: DeliveryArtifactKind = DeliveryArtifactKind.OUTPUT_LOG, val origin: FileArtifactOrigin? = null, val observedAt: Long? = null)
+    val kind: DeliveryArtifactKind = DeliveryArtifactKind.OUTPUT_LOG, val origin: FileArtifactOrigin? = null, val observedAt: Long? = null,
+    val lineChanges: ArtifactLineChanges? = null)
 
 @Serializable
 enum class DeliveryArtifactKind { OUTPUT_LOG, APK, IMAGE, FILE }

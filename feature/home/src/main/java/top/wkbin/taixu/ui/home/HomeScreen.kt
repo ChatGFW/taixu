@@ -117,9 +117,9 @@ private fun warningStatusColor(): Color =
  */
 @Composable
 internal fun LocalHomeScreen(
-    onNavigate: (MainDestination) -> Unit,
-    onOpenTerminal: () -> Unit,
+    onNavigate: (MainDestination) -> Unit, onOpenTerminal: () -> Unit,
     onOpenToolCenter: () -> Unit = {}, onOpenRemoteHome: (serverId: String) -> Unit = {},
+    onOpenStorageUsage: () -> Unit = { onNavigate(MainDestination.Settings) },
     viewModel: HomeViewModel? = previewOrNull { koinViewModel() }, onBack: () -> Unit = { onNavigate(MainDestination.Agent) },
 ) {
     val context = LocalContext.current
@@ -304,9 +304,7 @@ internal fun LocalHomeScreen(
 
                 // 存储指标
                 ResourceMetricCard(
-                    modifier = Modifier
-                        .weight(1f)
-                        .widthIn(min = 144.dp * androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)),
+                    modifier = Modifier.weight(1f).widthIn(min = 144.dp * androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)),
                     title = stringResource(R.string.home_storage),
                     primaryValue = "${metrics.storageUsedGb} GB",
                     secondaryValue = stringResource(R.string.home_storage_total, metrics.storageTotalGb),
@@ -315,6 +313,7 @@ internal fun LocalHomeScreen(
                     extraInfo = stringResource(R.string.home_device_storage_note),
                     accentColor = RuntimeTheme.colorScheme.secondary,
                     icon = RuntimeIconName.Storage,
+                    onClick = onOpenStorageUsage,
                 )
             }
 

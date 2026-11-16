@@ -20,7 +20,8 @@ object HostFileActions {
 
     /** 扩展名优先；未知扩展名回落到 [fallback]（调用方按产物类型给默认值）。 */
     fun mimeType(file: File, fallback: String = "application/octet-stream"): String =
-        MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase(Locale.US)) ?: fallback
+        if (file.extension.equals("apk", ignoreCase = true)) "application/vnd.android.package-archive"
+        else MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase(Locale.US)) ?: fallback
 
     fun contentUri(context: Context, file: File): Uri? = runCatching {
         FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)

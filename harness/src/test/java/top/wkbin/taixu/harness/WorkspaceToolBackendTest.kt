@@ -29,6 +29,11 @@ class WorkspaceToolBackendTest {
         var large = false
         var beforeWrite: suspend () -> Unit = {}
         val calls = mutableListOf<String>()
+        override suspend fun fingerprint(path: String, maxBytes: Long) = AppResult.Success(
+            top.wkbin.taixu.runtime.environment.FileFingerprint(
+                java.security.MessageDigest.getInstance("SHA-256").digest(content.orEmpty().toByteArray())
+                    .joinToString("") { "%02x".format(it) }, content.orEmpty().toByteArray().size.toLong()),
+        )
         override suspend fun delete(path: String): Boolean { content = null; return true }
         override suspend fun read(path: String, offset: Int?, limit: Int?, anchors: Boolean): AppResult<String> {
             calls += "read:$path:$offset:$limit:$anchors"
@@ -65,6 +70,39 @@ class WorkspaceToolBackendTest {
         tool, Json.parseToJsonElement(args) as JsonObject, "session", "project",
     )
 
+    @Test fun `written and edited files become trusted deliverables`() = runBlocking {
+        val memory = MemoryOperations()
+        val backend = WorkspaceToolBackend({ memory }, hashlinePolicy = { HashlinePolicy(legacyEditEnabled = true) })
+        val written = backend.execute(request(HarnessTool.WRITE, """{"path":"src/Main.kt","content":"old"}"""))
+        val first = ToolFileArtifacts.decode(written.metadata[ToolFileArtifacts.METADATA_KEY])!!.files.single()
+        assertEquals("src/Main.kt", first.path)
+        assertEquals(FileArtifactOrigin.AFTER_WRITE, first.origin)
+        assertEquals(ArtifactLineChanges(0, 0), first.lineChanges)
+        val edited = backend.execute(request(HarnessTool.EDIT, """{"path":"src/Main.kt","oldText":"old","newText":"new"}"""))
+        val last = ToolFileArtifacts.decode(edited.metadata[ToolFileArtifacts.METADATA_KEY])!!.files.single()
+        assertEquals(FileArtifactOrigin.AFTER_EDIT, last.origin)
+        assertEquals(ArtifactLineChanges(1, 1), last.lineChanges)
+        assertNotEquals(first.sha256, last.sha256)
+        val metadata = edited.metadata.toMutableMap()
+        ToolFileArtifacts.sanitize(metadata, HarnessTool.EDIT) { it }
+        assertEquals(last, ToolFileArtifacts.decode(metadata[ToolFileArtifacts.METADATA_KEY])!!.files.single())
+        memory.failEdit = true
+        val failed = backend.execute(request(HarnessTool.EDIT, """{"path":"src/Main.kt","oldText":"old","newText":"new"}"""))
+        assertFalse(failed.metadata.containsKey(ToolFileArtifacts.METADATA_KEY))
+    }
+
+    @Test fun `unobservable writes keep success without inventing incomplete inventory`() = runBlocking {
+        val operations = object : WorkspaceToolOperations by MemoryOperations() {
+            override suspend fun fingerprint(path: String, maxBytes: Long) =
+                AppResult.Failure(AppError(ErrorCode.IO, "unavailable"))
+        }
+        val outcome = WorkspaceToolBackend({ operations }).execute(
+            request(HarnessTool.WRITE, """{"path":"a.txt","content":"new"}"""),
+        )
+        assertTrue(outcome.success)
+        assertFalse(outcome.metadata.containsKey(ToolFileArtifacts.METADATA_KEY))
+    }
+
     @Test fun `custom operations receive workspace and read pagination`() = runBlocking {
         val memory = MemoryOperations()
         var workspace = ""
@@ -84,7 +122,7 @@ class WorkspaceToolBackendTest {
         assertEquals("latest", store.latestAfterImage("session", "a.txt"))
         store.endTurn("session")
         assertEquals("old", store.planCodeRewind("session", 0).single().content)
-        assertEquals(listOf("size:a.txt", "preview:a.txt", "write:a.txt", "size:a.txt"), memory.calls.take(4))
+        assertEquals(listOf("size:a.txt", "readTextForEdit:a.txt", "size:a.txt", "preview:a.txt", "write:a.txt"), memory.calls.take(5))
     }
 
     @Test fun `edit returns strategy and diff metadata and captures actual final content`() = runBlocking {
@@ -304,7 +342,7 @@ class WorkspaceToolBackendTest {
         job.join()
         assertFalse(returned)
         assertNull(store.latestAfterImage("session", "a.txt"))
-        assertEquals(1, memory.calls.count { it.startsWith("size:") })
+        assertEquals(2, memory.calls.count { it.startsWith("size:") })
     }
 
     @Test fun `local operations preserve traversal protection through the new backend`() = runBlocking {

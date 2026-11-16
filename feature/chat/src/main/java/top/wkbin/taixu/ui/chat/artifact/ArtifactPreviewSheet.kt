@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -49,7 +50,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -94,7 +94,7 @@ fun ArtifactPreviewSheet(
         target.substringAfterLast('.', "").lowercase()
     }
 
-    val isDark = isSystemInDarkTheme()
+    val isDark = RuntimeTheme.colorScheme.surface.luminance() < 0.5f
     var zoomScale by remember { mutableFloatStateOf(1f) }
 
     val defaultFileName = remember(relativePath, title, extension) {

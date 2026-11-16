@@ -105,9 +105,8 @@ fun ChatScreen(
     val error by viewModel?.error?.collectAsStateWithLifecycle() ?: previewStateOf(null)
     val input by viewModel?.input?.collectAsStateWithLifecycle() ?: previewStateOf("")
     val pendingAttachments by viewModel?.pendingAttachments?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
-    val status by viewModel?.status?.collectAsStateWithLifecycle() ?: previewStateOf(null)
-    val thinkingLive by viewModel?.thinkingLive?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-    val thinkingExpanded by viewModel?.thinkingExpanded?.collectAsStateWithLifecycle() ?: previewStateOf(false)
+    val status by viewModel?.status?.collectAsStateWithLifecycle() ?: previewStateOf(null); val toolProgress by viewModel?.toolProgress?.collectAsStateWithLifecycle() ?: previewStateOf(null)
+    val thinkingLive by viewModel?.thinkingLive?.collectAsStateWithLifecycle() ?: previewStateOf(false); val thinkingExpanded by viewModel?.thinkingExpanded?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val thinkingAutoTranslate by viewModel?.thinkingAutoTranslate?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val chatRoundCollapse by viewModel?.chatRoundCollapse?.collectAsStateWithLifecycle() ?: previewStateOf(false)
     val sessions by viewModel?.sessions?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
@@ -391,6 +390,7 @@ fun ChatScreen(
                     listState = listState,
                     running = running,
                     status = status,
+                    toolProgress = toolProgress,
                     thinkingExpanded = thinkingExpanded,
                     thinkingAutoTranslate = thinkingAutoTranslate,
                     chatRoundCollapse = chatRoundCollapse,

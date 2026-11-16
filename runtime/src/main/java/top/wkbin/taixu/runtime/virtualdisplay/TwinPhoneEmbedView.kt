@@ -41,6 +41,8 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
     private var displaySurface: Surface? = null
     private var fixedBufferW = 0
     private var fixedBufferH = 0
+    private var bufferNeedsRelock = true
+    private var lastBufferRelockMs = 0L
 
     private var touchAllowed: (() -> Boolean)? = null
     private var onTouchBlocked: (() -> Unit)? = null
@@ -159,7 +161,18 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         return false
     }
 
-    override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
+    override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {
+        // TextureView 重建硬件图层时会把缓冲改回 View 尺寸；复用纹理时不会触发
+        // available/sizeChanged（例如主题切换后的资源重建）。尺寸变化后恢复一次，
+        // 无生命周期通知的图层重建最多每秒兜底一次，避免逐帧调用 JNI。
+        val now = android.os.SystemClock.uptimeMillis()
+        if ((bufferNeedsRelock || now - lastBufferRelockMs >= 1_000) &&
+            surfaceReady && boundController != null && fixedBufferW > 0 && fixedBufferH > 0) {
+            surface.setDefaultBufferSize(fixedBufferW, fixedBufferH)
+            bufferNeedsRelock = false
+            lastBufferRelockMs = now
+        }
+    }
 
     private fun prepareAndAttach(surfaceTexture: SurfaceTexture? = this.surfaceTexture) {
         val controller = boundController ?: return
@@ -190,6 +203,7 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
         // TextureView.onSizeChanged 会先把默认缓冲重设为 View 尺寸，再通知 listener。
         // VD 尺寸缓存不代表 SurfaceTexture 当前尺寸；每次挂载/尺寸回调都必须恢复。
         st.setDefaultBufferSize(bw, bh)
+        bufferNeedsRelock = true
         if (bufferChanged) {
             fixedBufferW = bw
             fixedBufferH = bh

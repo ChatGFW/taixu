@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.StateFlow
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.PendingMessage
 import top.wkbin.taixu.harness.QueuedPrompt
+import top.wkbin.taixu.harness.ToolCallStreamProgress
 import top.wkbin.taixu.harness.checkpoint.CheckpointMeta
 import top.wkbin.taixu.harness.checkpoint.RewindPlan
 import top.wkbin.taixu.harness.checkpoint.RewindResult
@@ -20,6 +21,8 @@ interface InteractiveSessionControl : SessionControl, QueuedPromptEditingControl
     val mcpRecommendations: StateFlow<List<McpWorkspaceRecommender.Recommendation>>
     val error: StateFlow<String?>
     val status: StateFlow<String?>
+    /** 前台会话正在流式生成的工具参数预览；正式 ToolCall 发布后清空。 */
+    val toolProgress: StateFlow<ToolCallStreamProgress?>
     val thinkingLive: StateFlow<Boolean>
     val pendingMessages: StateFlow<List<PendingMessage>>
     val queuedPrompts: StateFlow<List<QueuedPrompt>>

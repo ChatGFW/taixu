@@ -190,8 +190,8 @@ fun TaiXuNavHost(
                     HomeScreen(
                         onNavigate = ::navigateMain, onBack = { if (activeStack.size > 1) popBack() else navigateMain(MainDestination.Agent) },
                         onOpenTerminal = { activeStack.push(HomeDestination, TerminalDestination()) },
-                        onOpenToolCenter = { activeStack.push(HomeDestination, ToolCenterDestination) },
-                        onOpenRemoteHome = { activeStack.openRemoteHome(it) },
+                        onOpenToolCenter = { activeStack.push(HomeDestination, ToolCenterDestination) }, onOpenRemoteHome = { activeStack.openRemoteHome(it) },
+                        onOpenStorageUsage = { activeStack.push(HomeDestination, StorageUsageDestination) },
                     )
                 }
             }

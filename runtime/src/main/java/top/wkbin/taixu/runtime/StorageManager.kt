@@ -216,7 +216,7 @@ class StorageManager(
         val logHint = "仅清理超过 7 天且未修改的 .log.gz / .log.数字 归档日志；保留当前日志"
         addRule(pathManager.logsDir, "app_data", "运行日志", logHint, Cleanup.OLD_LOG, StorageRiskLevel.SAFE)
         addRule(pathManager.attachmentsDir, "conversations", "会话附件与生成文件", "可能是唯一副本；请在会话或文件管理中核对后删除", risk = StorageRiskLevel.DANGEROUS)
-        addRule(File(pathManager.attachmentsDir, "skills"), "app_data", "自定义 Skills", preserve)
+        addRule(File(pathManager.attachmentsDir, "skills"), "plugins", "自定义 Skills", preserve)
         addRule(pathManager.workspaceDir, "projects", "工作区其他文件", "包含导出文件和未识别项目；请在工作区管理")
         children(pathManager.workspaceDir).filter { it.isDirectory }.forEach { project ->
             addRule(project, "projects", "项目 ${project.name} · 文件", "源码、依赖和产物；不凭 build/dist/out/target 名称自动删除")
@@ -364,12 +364,8 @@ class StorageManager(
             plan.rule.root.parent == storagePath(pathManager.workspaceDir).resolve(projectName))
     }
 
-    suspend fun clearCategory(categoryId: String): AppResult<Unit> =
-        clean(requireMatch = true) { it.rule.category == categoryId }.map { }
-
-    suspend fun clearEntry(categoryId: String, entryId: String): AppResult<Unit> =
-        clean(requireMatch = true) { it.rule.category == categoryId && it.rule.id == entryId }.map { }
-
+    suspend fun clearCategory(categoryId: String): AppResult<Unit> = clean(requireMatch = true) { it.rule.category == categoryId }.map { }
+    suspend fun clearEntry(categoryId: String, entryId: String): AppResult<Long> = clean(requireMatch = true) { it.rule.category == categoryId && it.rule.id == entryId }
     suspend fun clearCache(): AppResult<Unit> = clearCategory("cache")
 
     private suspend fun clean(requireMatch: Boolean = false, select: (Plan) -> Boolean): AppResult<Long> =

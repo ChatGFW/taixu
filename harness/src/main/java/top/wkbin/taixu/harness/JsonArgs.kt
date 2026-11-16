@@ -14,10 +14,10 @@ internal object JsonArgs {
     /** 单个字符串参数的长度上限（1 MiB），防止畸形入参撑爆上下文。 */
     const val MAX_ARG_LENGTH = 1024 * 1024
 
-    /** 读取必填字符串参数：缺失/空白/超长均抛出带参数名的 [IllegalArgumentException]。 */
-    fun requireString(args: JsonObject, key: String): String {
+    /** 读取必填字符串参数，文件正文可显式允许空白。缺失/超长始终拒绝。 */
+    fun requireString(args: JsonObject, key: String, allowBlank: Boolean = false): String {
         val value = args[key]?.jsonPrimitive?.content
-        require(!value.isNullOrBlank()) { "缺少参数：$key" }
+        require(value != null && (allowBlank || value.isNotBlank())) { "缺少参数：$key" }
         require(value.length <= MAX_ARG_LENGTH) { "参数 $key 过长（${value.length} 字符，上限 $MAX_ARG_LENGTH）" }
         return value
     }

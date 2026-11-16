@@ -18,9 +18,9 @@ import android.util.Log
 
 enum class StorageFilter(val label: String) {
     ALL("全部"),
-    SAFE("归档日志"),
-    CAUTION("谨慎清理"),
-    SYSTEM_AND_SOURCE("保留与管理"),
+    SAFE("历史日志"),
+    CAUTION("开发缓存"),
+    SYSTEM_AND_SOURCE("系统与源码"),
 }
 
 sealed interface CleanupDialogTarget {
@@ -199,7 +199,8 @@ class StorageUsageViewModel(
             val result = storageManager.clearEntry(categoryId, entryId)
             val isError = result.isFailure
             val msg = if (result.isSuccess) {
-                "已清理 $entryName"
+                val released = result.getOrNull() ?: 0L
+                if (released > 0) "已清理 $entryName，释放 ${released.formatSize()}" else "已清理 $entryName"
             } else {
                 Log.e("StorageUsage", "Clear entry failed: ${result.errorOrNull()?.message}")
                 result.errorOrNull()?.message ?: "清理 $entryName 失败，请刷新后重试"

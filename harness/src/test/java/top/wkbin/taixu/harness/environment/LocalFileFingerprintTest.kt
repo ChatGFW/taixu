@@ -28,13 +28,15 @@ class LocalFileFingerprintTest {
         assertEquals(digest.digest().joinToString("") { "%02x".format(it) }, fingerprint.sha256)
     }
 
-    @Test fun rejectsEscapesEmptyDirectoriesAndByteLimitExcess() = runBlocking {
+    @Test fun fingerprintsEmptyFilesAndRejectsEscapesDirectoriesAndByteLimitExcess() = runBlocking {
         val root = temporary.newFolder()
         File(root, "data.apk").writeBytes(ByteArray(9))
         File(root, "empty.apk").createNewFile()
         val files = WorkspaceFileAccess(root)
         assertTrue(files.fingerprint("data.apk", 8).isFailure)
-        assertTrue(files.fingerprint("empty.apk").isFailure)
+        val empty = files.fingerprint("empty.apk").getOrNull()!!
+        assertEquals(0L, empty.bytes)
+        assertEquals("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", empty.sha256)
         assertTrue(files.fingerprint(".").isFailure)
         assertTrue(files.fingerprint("../outside.apk").isFailure)
     }
@@ -48,6 +50,9 @@ class LocalFileFingerprintTest {
 
     @Test fun optionalInventoryTreatsMissingDirectoryAsEmpty() = runBlocking {
         val files = WorkspaceFileAccess(temporary.newFolder())
+        assertEquals(false, files.existsOrNull("new.txt"))
+        assertEquals(true, files.existsOrNull("."))
+        assertNull(files.existsOrNull("../outside"))
         assertTrue(files.listArtifactEntries("app/build/outputs/apk").getOrNull()!!.isEmpty())
         assertTrue(files.listArtifactEntries("../outside").isFailure)
     }

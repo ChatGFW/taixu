@@ -148,18 +148,8 @@ fun StorageUsageScreen(
                             Text("历史诊断信息将被删除。请先关闭终端并停止运行中的任务。", style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.primary)
                         }
                     },
-                    confirmButton = {
-                        RuntimeTextButton(
-                            onClick = { viewModel?.quickSafeClean() },
-                        ) {
-                            Text("立即清理")
-                        }
-                    },
-                    dismissButton = {
-                        RuntimeTextButton(onClick = { viewModel?.dismissDialog() }) {
-                            Text("取消")
-                        }
-                    },
+                    confirmButton = { RuntimeTextButton(onClick = { viewModel?.quickSafeClean() }) { Text("立即清理") } },
+                    dismissButton = { RuntimeTextButton(onClick = { viewModel?.dismissDialog() }) { Text("取消") } },
                 )
             }
 
@@ -179,18 +169,8 @@ fun StorageUsageScreen(
                             Text("• 下次构建需重新生成缓存，可能需要执行 pub get；请先停止任务。", color = RuntimeTheme.colorScheme.onSurfaceVariant)
                         }
                     },
-                    confirmButton = {
-                        RuntimeTextButton(
-                            onClick = { viewModel?.cleanProjectBuilds() },
-                        ) {
-                            Text("确认清理")
-                        }
-                    },
-                    dismissButton = {
-                        RuntimeTextButton(onClick = { viewModel?.dismissDialog() }) {
-                            Text("取消")
-                        }
-                    },
+                    confirmButton = { RuntimeTextButton(onClick = { viewModel?.cleanProjectBuilds() }) { Text("确认清理") } },
+                    dismissButton = { RuntimeTextButton(onClick = { viewModel?.dismissDialog() }) { Text("取消") } },
                 )
             }
 
@@ -216,18 +196,8 @@ fun StorageUsageScreen(
                             }
                         }
                     },
-                    confirmButton = {
-                        RuntimeTextButton(
-                            onClick = { viewModel?.clearCategory(category.id) },
-                        ) {
-                            Text("确认清理")
-                        }
-                    },
-                    dismissButton = {
-                        RuntimeTextButton(onClick = { viewModel?.dismissDialog() }) {
-                            Text("取消")
-                        }
-                    },
+                    confirmButton = { RuntimeTextButton(onClick = { viewModel?.clearCategory(category.id) }) { Text("确认清理") } },
+                    dismissButton = { RuntimeTextButton(onClick = { viewModel?.dismissDialog() }) { Text("取消") } },
                 )
             }
 
@@ -251,18 +221,8 @@ fun StorageUsageScreen(
                             }
                         }
                     },
-                    confirmButton = {
-                        RuntimeTextButton(
-                            onClick = { viewModel?.clearEntry(target.categoryId, entry.id, entry.name) },
-                        ) {
-                            Text("确认清理")
-                        }
-                    },
-                    dismissButton = {
-                        RuntimeTextButton(onClick = { viewModel?.dismissDialog() }) {
-                            Text("取消")
-                        }
-                    },
+                    confirmButton = { RuntimeTextButton(onClick = { viewModel?.clearEntry(target.categoryId, entry.id, entry.name) }) { Text("确认清理") } },
+                    dismissButton = { RuntimeTextButton(onClick = { viewModel?.dismissDialog() }) { Text("取消") } },
                 )
             }
         }
@@ -445,6 +405,15 @@ private fun StorageDashboardCard(
     Spacer(Modifier.height(8.dp))
     Text("按文件大小统计，不包含 APK；与系统磁盘占用可能不同。可清理量只计超过 7 天的已识别文件。",
         style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+    if (usage.availableBytes > 0) {
+        val totalDevice = usage.totalManagedBytes + usage.availableBytes
+        if (totalDevice > 0) {
+            val pct = (usage.totalManagedBytes * 100 / totalDevice).coerceIn(0, 100)
+            Spacer(Modifier.height(2.dp))
+            Text("首页显示设备总磁盘；上方管理空间约占设备总存储的 $pct%。",
+                style = RuntimeTheme.typography.bodySmall, color = RuntimeTheme.colorScheme.onSurfaceVariant)
+        }
+    }
     Spacer(Modifier.height(14.dp))
 
     // 多段存储色彩条
@@ -873,6 +842,13 @@ private fun StorageCategoryDetailCard(
                         )
                     }
                 }
+            } else if (category.riskLevel == StorageRiskLevel.DANGEROUS && category.reclaimableBytes == 0L && category.bytes > 0) {
+                // DANGEROUS 分类无可自动清理项时，提示用户在所属功能中手动管理
+                Text(
+                    "请在所属功能中管理",
+                    style = RuntimeTheme.typography.labelSmall,
+                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 

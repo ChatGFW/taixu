@@ -8,10 +8,10 @@ import top.wkbin.taixu.runtime.environment.MAX_FILE_FINGERPRINT_BYTES
 @Serializable
 enum class FileArtifactKind { APK, IMAGE, FILE }
 @Serializable
-enum class FileArtifactOrigin { NEW_AFTER_COMMAND, CHANGED_AFTER_COMMAND, UNCHANGED_AFTER_COMMAND, OBSERVED_AFTER_COMMAND, AFTER_DOWNLOAD, IMAGE_READ }
+enum class FileArtifactOrigin { NEW_AFTER_COMMAND, CHANGED_AFTER_COMMAND, UNCHANGED_AFTER_COMMAND, OBSERVED_AFTER_COMMAND, AFTER_DOWNLOAD, IMAGE_READ, AFTER_WRITE, AFTER_EDIT }
 @Serializable
 data class ToolFileArtifact(val path: String, val sha256: String, val bytes: Long, val kind: FileArtifactKind,
-    val origin: FileArtifactOrigin, val observedAt: Long)
+    val origin: FileArtifactOrigin, val observedAt: Long, val lineChanges: ArtifactLineChanges? = null)
 
 /** Trusted producer observations, not paths parsed from stdout or model-authored artifact claims. */
 @Serializable
@@ -24,11 +24,12 @@ data class ToolFileArtifacts(val files: List<ToolFileArtifact>, val complete: Bo
         fun decode(value: String?): ToolFileArtifacts? = value?.let {
             runCatching { Json.decodeFromString(serializer(), it) }.getOrNull()?.takeIf { batch ->
                 batch.files.size <= MAX_FILES && batch.files.all { file -> validPath(file.path) &&
-                    file.sha256.matches(Regex("[a-f0-9]{64}")) && file.bytes in 1..MAX_FILE_FINGERPRINT_BYTES && file.observedAt > 0 }
+                    file.sha256.matches(Regex("[a-f0-9]{64}")) && file.bytes in (if (file.kind == FileArtifactKind.FILE) 0 else 1)..MAX_FILE_FINGERPRINT_BYTES && file.observedAt > 0 &&
+                    (file.lineChanges == null || (file.lineChanges.added >= 0 && file.lineChanges.removed >= 0)) }
             }
         }
         fun observation(path: String, fingerprint: FileFingerprint, origin: FileArtifactOrigin, now: Long) = ToolFileArtifact(
-            path, fingerprint.sha256, fingerprint.bytes, when (path.substringAfterLast('.', "").lowercase()) {
+            path, fingerprint.sha256, fingerprint.bytes, if (fingerprint.bytes == 0L) FileArtifactKind.FILE else when (path.substringAfterLast('.', "").lowercase()) {
                 "apk" -> FileArtifactKind.APK
                 "png", "jpg", "jpeg", "gif", "webp", "bmp", "ico" -> FileArtifactKind.IMAGE
                 else -> FileArtifactKind.FILE
@@ -43,7 +44,7 @@ data class ToolFileArtifacts(val files: List<ToolFileArtifact>, val complete: Bo
 
         suspend fun sanitize(metadata: MutableMap<String, String>, tool: HarnessTool, redact: suspend (String) -> String) {
             val value = metadata[METADATA_KEY] ?: return
-            if (tool !in setOf(HarnessTool.BASE, HarnessTool.DOWNLOAD, HarnessTool.READ)) { metadata.remove(METADATA_KEY); return }
+            if (tool !in setOf(HarnessTool.BASE, HarnessTool.DOWNLOAD, HarnessTool.READ, HarnessTool.WRITE, HarnessTool.EDIT)) { metadata.remove(METADATA_KEY); return }
             val batch = decode(value) ?: run { metadata[METADATA_KEY] = encode(emptyList(), false); return }
             val retained = batch.files.filter { redact(it.path) == it.path }
             metadata[METADATA_KEY] = encode(retained, batch.complete && retained.size == batch.files.size)

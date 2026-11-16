@@ -35,9 +35,9 @@ internal class TaskDeliveryBuilder(private val json: Json) {
         val allArtifacts = selectedResults.flatMap { result -> buildList {
             ToolOutputArtifact.decode(result.metadata[ToolOutputArtifact.METADATA_KEY])?.let { add(DeliveryArtifact(result.id, it.path, it.sha256, it.bytes, it.complete)) }
             ToolFileArtifacts.decode(result.metadata[ToolFileArtifacts.METADATA_KEY])?.files?.forEach {
-                add(DeliveryArtifact(result.id, it.path, it.sha256, it.bytes, true, DeliveryArtifactKind.valueOf(it.kind.name), it.origin, it.observedAt))
+                add(DeliveryArtifact(result.id, it.path, it.sha256, it.bytes, true, DeliveryArtifactKind.valueOf(it.kind.name), it.origin, it.observedAt, it.lineChanges))
             }
-        } }.distinctBy { Triple(it.kind, it.path, it.sha256) }
+        } }.asReversed().distinctBy { it.path }.asReversed()
         val artifacts = allArtifacts.takeLast(MAX_ARTIFACTS)
         val historyComplete = completeWindow && observedIds.size <= MAX_OBSERVATIONS &&
             results.keys.all { it in callsById } && allArtifacts.size <= MAX_ARTIFACTS

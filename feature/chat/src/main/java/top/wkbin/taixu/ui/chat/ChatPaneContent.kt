@@ -55,6 +55,7 @@ import top.wkbin.taixu.harness.HarnessTool
 import top.wkbin.taixu.harness.QueuedPrompt
 import top.wkbin.taixu.harness.SkillSuggestion
 import top.wkbin.taixu.harness.ToolCall
+import top.wkbin.taixu.harness.ToolCallStreamProgress
 import top.wkbin.taixu.harness.ToolResult
 import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.checkpoint.RewindScope
@@ -83,6 +84,8 @@ internal fun ChatPaneContent(
     listState: LazyListState,
     running: Boolean,
     status: String?,
+    /** 前台会话正在流式生成的工具参数预览（未形成正式 ToolCall 前）。 */
+    toolProgress: ToolCallStreamProgress? = null,
     thinkingExpanded: Boolean,
     thinkingAutoTranslate: Boolean = false,
     chatRoundCollapse: Boolean = false,
@@ -178,6 +181,7 @@ internal fun ChatPaneContent(
                     initializing = initializing,
                     running = running,
                     status = status,
+                    toolProgress = toolProgress,
                     workspace = workspace,
                     workspaceProject = workspaceProject,
                     onboardingPrivilege = onboardingPrivilege,

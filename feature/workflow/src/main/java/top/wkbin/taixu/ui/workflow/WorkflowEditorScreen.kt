@@ -807,7 +807,7 @@ private fun statusIconText(status: NodeRunStatus) = when (status) {
 
 @Composable
 private fun runStatusColor(status: WorkflowRunStatus): Color = when (status) {
-    WorkflowRunStatus.SUCCESS -> Color(0xFF2E7D32)
+    WorkflowRunStatus.SUCCESS -> semanticColors().success
     WorkflowRunStatus.FAILED, WorkflowRunStatus.CANCELLED -> RuntimeTheme.colorScheme.error
     WorkflowRunStatus.RUNNING, WorkflowRunStatus.WAITING_APPROVAL -> RuntimeTheme.colorScheme.primary
     WorkflowRunStatus.IDLE -> RuntimeTheme.colorScheme.outline

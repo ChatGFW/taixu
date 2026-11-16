@@ -9,6 +9,7 @@ import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ToolCall
+import top.wkbin.taixu.harness.ToolCallStreamProgress
 import top.wkbin.taixu.harness.session.ProviderActivityTracker
 
 /**
@@ -65,6 +66,14 @@ class SessionStateMirrors(
     private val _status = MutableStateFlow<String?>(null)
     val status: StateFlow<String?> = _status.asStateFlow()
 
+    private val _sessionToolProgresses = MutableStateFlow<Map<String, ToolCallStreamProgress>>(emptyMap())
+    /** 各会话正在流式生成的工具参数预览（尚未形成正式 ToolCall）。 */
+    val sessionToolProgresses: StateFlow<Map<String, ToolCallStreamProgress>> =
+        _sessionToolProgresses.asStateFlow()
+    private val _toolProgress = MutableStateFlow<ToolCallStreamProgress?>(null)
+    /** 前台会话的流式工具参数预览，供聊天任务行实时显示。 */
+    val toolProgress: StateFlow<ToolCallStreamProgress?> = _toolProgress.asStateFlow()
+
     private val _thinkingLive = MutableStateFlow(false)
     /** 推理模型思考中（reasoning 正在流式上屏）。 */
     val thinkingLive: StateFlow<Boolean> = _thinkingLive.asStateFlow()
@@ -81,7 +90,9 @@ class SessionStateMirrors(
         thinkingModes.remove(sessionId)
         _sessionRunStates.update { it - sessionId }
         _sessionStatuses.update { it - sessionId }
+        _sessionToolProgresses.update { it - sessionId }
         _modelOutputRevisions.update { it - sessionId }
+        if (tracker.isForeground(sessionId)) _toolProgress.value = null
         // 删掉的正是点亮前台运行镜像的会话：清掉 owner 并复位，避免 _running 永久停在 true。
         // 终态写入（setRunState / onRunFinished）走另一条路径，这里只处理会话已不存在的情况。
         if (runningOwner == sessionId) {
@@ -90,8 +101,9 @@ class SessionStateMirrors(
         }
     }
 
-    fun setStatus(sessionId: String, statusText: String?) {
+    fun setStatus(sessionId: String, statusText: String?, clearToolProgress: Boolean = true) {
         val normalized = statusText?.takeIf { it.isNotBlank() }
+        if (normalized != null && clearToolProgress) setToolProgress(sessionId, null)
         if (_sessionStatuses.value[sessionId] == normalized) {
             if (tracker.isForeground(sessionId) && _status.value != normalized) _status.value = normalized
             return
@@ -105,6 +117,14 @@ class SessionStateMirrors(
     }
 
     fun lastStatus(sessionId: String): String? = _sessionStatuses.value[sessionId]
+
+    /** 流式工具参数预览：null 清除（正式 ToolCall 发布、重试、取消、运行结束均须清）。 */
+    fun setToolProgress(sessionId: String, progress: ToolCallStreamProgress?) {
+        _sessionToolProgresses.update { map ->
+            if (progress == null) map - sessionId else map + (sessionId to progress)
+        }
+        if (tracker.isForeground(sessionId)) _toolProgress.value = progress
+    }
 
     fun setError(sessionId: String, errorText: String?) {
         errorFlowOf(sessionId).value = errorText
@@ -158,6 +178,7 @@ class SessionStateMirrors(
     fun onRunFinished(sessionId: String): Boolean {
         val waitingApproval = isWaitingApproval(sessionId)
         if (!waitingApproval) setStatus(sessionId, null)
+        setToolProgress(sessionId, null)
         // 同上：复位按"谁点亮的"判定，不在前台也要复位，避免运行镜像永久卡在 true。
         if (runningOwner == null || runningOwner == sessionId) {
             runningOwner = null
@@ -186,6 +207,7 @@ class SessionStateMirrors(
         _running.value = false
         _error.value = null
         _status.value = null
+        _toolProgress.value = null
         _thinkingLive.value = false
     }
 

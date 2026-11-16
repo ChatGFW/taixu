@@ -69,12 +69,10 @@ class HarnessProviderRunner(
         // 干净快照基线：每次网络重发前彻底清空本轮缓冲区并删除流式气泡，
         // 避免半截字符/残缺 JSON 拼接到下一次重试的增量之后污染上下文。
         fun resetStreamBaseline() {
-            streamText.clear()
-            streamReasoning.clear()
-            messageProjector.remove(sessId, assistantId)
+            streamText.clear(); streamReasoning.clear(); messageProjector.remove(sessId, assistantId)
         }
         suspend fun settleFailedStream() {
-            stateMirrors.setThinkingLive(sessId, false)
+            stateMirrors.setThinkingLive(sessId, false); stateMirrors.setToolProgress(sessId, null)
             if (streamText.length > 0) {
                 persistAssistant(
                     sessId, assistantId, assistantAt, streamText.toString(),
@@ -152,6 +150,7 @@ class HarnessProviderRunner(
                                 stateMirrors.recordModelOutput(sessId, "tool_arguments")
                                 stateMirrors.setThinkingLive(sessId, false)
                                 stateMirrors.setStatus(sessId, progress.statusText())
+                                stateMirrors.setToolProgress(sessId, progress)
                             }
                         },
                         sessionKey = sessId,
@@ -536,7 +535,7 @@ class HarnessProviderRunner(
         round: Int,
     ) {
         val keptChars = streamText.length
-        stateMirrors.setThinkingLive(sessId, false)
+        stateMirrors.setThinkingLive(sessId, false); stateMirrors.setToolProgress(sessId, null)
         withContext(NonCancellable) {
             if (keptChars > 0) {
                 runCatching {

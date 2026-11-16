@@ -130,7 +130,7 @@ internal class SshExecutionFiles(private val transport: suspend () -> Session, p
         access { channel, root ->
             val target = resolve(channel, root, path)
             val before = channel.stat(target)
-            require(before.isReg && before.size in 1..maxBytes) { "不是普通文件、为空或超过指纹限制" }
+            require(before.isReg && before.size in 0..maxBytes) { "不是普通文件或超过指纹限制" }
             val digest = MessageDigest.getInstance("SHA-256")
             var size = 0L
             channel.get(target).use { input ->
@@ -176,6 +176,13 @@ internal class SshExecutionFiles(private val transport: suspend () -> Session, p
     override suspend fun previewOrNull(path: String) = read(path, 1, 80).getOrNull()
     override suspend fun fileSizeOrNull(path: String): Long? = result {
         access { channel, root -> channel.stat(resolve(channel, root, path)).size }
+    }.getOrNull()
+    override suspend fun existsOrNull(path: String): Boolean? = result {
+        access { channel, root ->
+            val target = resolve(channel, root, path)
+            try { channel.stat(target); true }
+            catch (e: SftpException) { if (e.id == ChannelSftp.SSH_FX_NO_SUCH_FILE) false else throw e }
+        }
     }.getOrNull()
     override suspend fun delete(path: String): Boolean = result {
         access { channel, root ->

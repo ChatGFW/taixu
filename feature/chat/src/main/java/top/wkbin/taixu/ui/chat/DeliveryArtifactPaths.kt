@@ -10,22 +10,19 @@ import java.io.File
  */
 internal object DeliveryArtifactPaths {
 
-    /** 会话 `workspace`（形如 `/workspace/<project>`）→ 项目名；根目录与越界段一律返回 null。 */
-    fun projectName(workspace: String): String? {
-        val normalized = workspace.trim().replace('\\', '/').trimEnd('/').trimStart('/')
-        if (normalized.isEmpty() || normalized == "workspace") return null
-        val tail = normalized.removePrefix("workspace/")
-        val project = tail.substringBefore('/')
-        if (project.isBlank() || project == "." || project == "..") return null
-        return project
-    }
-
     fun hostFile(workspace: String, relativePath: String, workspaceRoot: File?): File? {
         if (workspaceRoot == null) return null
-        val project = projectName(workspace) ?: return null
+        val base = workspace.trim().replace('\\', '/').trimEnd('/')
+        if (base.startsWith('/') && base != "/workspace" && !base.startsWith("/workspace/")) return null
+        val directory = if (base == "/workspace" || base == "workspace") workspaceRoot else {
+            val relative = base.removePrefix("/").removePrefix("workspace/")
+            if (relative.isBlank() || relative.split('/').any { it.isEmpty() || it == "." || it == ".." }) return null
+            File(workspaceRoot, relative)
+        }
         val normalized = relativePath.trim().replace('\\', '/').removePrefix("/")
         if (normalized.isBlank()) return null
         if (normalized.split('/').any { it.isEmpty() || it == "." || it == ".." }) return null
-        return File(File(workspaceRoot, project), normalized)
+        val file = File(directory, normalized)
+        return runCatching { file.takeIf { it.canonicalFile.toPath().startsWith(directory.canonicalFile.toPath()) } }.getOrNull()
     }
 }

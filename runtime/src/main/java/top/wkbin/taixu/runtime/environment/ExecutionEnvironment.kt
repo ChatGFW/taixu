@@ -45,6 +45,8 @@ interface ExecutionFiles {
     suspend fun editDetailed(path: String, oldText: String, newText: String): AppResult<WorkspaceEditOutcome>
     suspend fun previewOrNull(path: String): String?
     suspend fun fileSizeOrNull(path: String): Long?
+    /** One path probe. False proves absence; null means unsupported or unreadable. */
+    suspend fun existsOrNull(path: String): Boolean? = null
     /** Delete a file within this world; absent files succeed, directories and escapes fail. */
     suspend fun delete(path: String): Boolean
 }

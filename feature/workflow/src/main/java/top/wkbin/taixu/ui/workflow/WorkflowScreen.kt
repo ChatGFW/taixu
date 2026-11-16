@@ -31,7 +31,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +58,7 @@ import top.wkbin.taixu.ui.components.widthClassOf
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Scaffold
 import top.wkbin.taixu.ui.miuix.TopAppBarDefaults
+import top.wkbin.taixu.ui.theme.semanticColors
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.Text
@@ -353,7 +353,7 @@ fun WorkflowTimelineView(
 @Composable
 private fun RunSummary(state: WorkflowRuntimeState) {
     val color = when (state.status) {
-        WorkflowRunStatus.SUCCESS -> Color(0xFF2E7D32)
+        WorkflowRunStatus.SUCCESS -> semanticColors().success
         WorkflowRunStatus.FAILED -> RuntimeTheme.colorScheme.error
         else -> RuntimeTheme.colorScheme.primary
     }

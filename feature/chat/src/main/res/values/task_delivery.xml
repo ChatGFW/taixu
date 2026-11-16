@@ -1,15 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="delivery_title">任务交付记录</string>
-    <string name="delivery_expand">展开</string>
+    <string name="delivery_line_changes">最近修改</string>
     <string name="delivery_collapse">收起</string>
-    <string name="delivery_counts">%1$d 条工具记录 · %2$d 份产物记录</string>
+    <string name="delivery_view_changes">查看变更</string>
+    <string name="delivery_counts">%1$d 个文件 · %2$d 个 APK</string>
     <string name="delivery_unverified">工具执行成功不代表目标行为已验证；本轮未记录独立行为验证。</string>
-    <string name="delivery_show_all">显示全部工具记录</string>
-    <string name="delivery_hash_at_creation">记录版本 SHA-256</string>
-    <string name="delivery_artifact_version">指纹对应记录时的字节版本，不证明文件由本轮生成或当前仍存在；变化后需重新核验。</string>
-    <string name="delivery_observed_at">观察时间：%1$s</string>
-    <string name="delivery_kind_log">工具日志</string>
     <string name="delivery_kind_apk">APK 文件</string>
     <string name="delivery_kind_image">图片文件</string>
     <string name="delivery_kind_file">工作区文件</string>
@@ -19,11 +14,6 @@
     <string name="delivery_origin_observed">命令后观察，无法比较先前版本</string>
     <string name="delivery_origin_download">下载完成后观察的版本</string>
     <string name="delivery_origin_image_read">本轮读取的图片版本</string>
-    <string name="delivery_tool_succeeded">执行成功</string>
-    <string name="delivery_tool_failed">执行失败</string>
-    <string name="delivery_tool_unknown">结果未知</string>
-    <string name="delivery_tool_waiting">等待审批</string>
-    <string name="delivery_tool_unsettled">缺少结果</string>
     <string name="delivery_no_evidence">本轮没有已记录的工具证据。</string>
     <string name="delivery_history_incomplete">证据窗口不完整，记录仅覆盖已保留部分。</string>
     <string name="delivery_unknown_outcome">包含结果未知的调用，需核验实际状态。</string>
@@ -37,7 +27,16 @@
     <string name="delivery_artifact_missing">文件已不在工作区，可能被删除或移动</string>
     <string name="delivery_artifact_changed">文件已改动，与记录的 SHA-256 不一致</string>
     <string name="delivery_artifact_open_failed">没有可用的应用打开该文件</string>
+    <string name="delivery_artifact_actions">产物操作</string>
     <string name="delivery_artifact_save">另存</string>
     <string name="delivery_artifact_saved">已保存到所选位置</string>
     <string name="delivery_artifact_save_failed">保存失败</string>
+    <string name="delivery_artifact_install">安装</string>
+    <string name="delivery_origin_write">已写入文件</string>
+    <string name="delivery_origin_edit">已修改文件</string>
+    <string name="delivery_files">%1$d 个文件</string>
+    <string name="delivery_apks">%1$d 个 APK</string>
+    <string name="delivery_preview_too_large">预览支持最大 1 MiB，正在尝试用系统应用打开</string>
+    <string name="delivery_preview_binary">二进制文件将交给系统应用打开</string>
+    <string name="delivery_preview_unreadable">无法读取预览，正在尝试用系统应用打开</string>
 </resources>

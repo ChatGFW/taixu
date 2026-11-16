@@ -24,6 +24,7 @@ internal fun ResourceMetricCard(
     extraInfo: String,
     accentColor: Color,
     icon: RuntimeIconName,
+    onClick: (() -> Unit)? = null,
 ) {
     val effectiveAccent = when {
         progress >= 0.9f -> RuntimeTheme.colorScheme.error
@@ -35,6 +36,7 @@ internal fun ResourceMetricCard(
         containerColor = RuntimeTheme.colorScheme.surfaceContainer,
         shape = RuntimeTheme.shapes.extraLarge,
         contentPadding = PaddingValues(16.dp),
+        onClick = onClick,
     ) {
         Column(
             modifier = Modifier.fillMaxHeight(),

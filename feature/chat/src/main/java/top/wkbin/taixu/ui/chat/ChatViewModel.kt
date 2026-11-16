@@ -22,10 +22,9 @@ import top.wkbin.taixu.core.datastore.AgentPreferences
 import top.wkbin.taixu.harness.session.InteractiveSessionControl
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.SkillSuggestion
-import top.wkbin.taixu.harness.UserMessage
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.ToolCall
-import top.wkbin.taixu.harness.ToolResult
+import top.wkbin.taixu.harness.ToolCallStreamProgress
 import top.wkbin.taixu.harness.PendingMessage
 import top.wkbin.taixu.harness.QueuedPrompt
 import top.wkbin.taixu.harness.ContextWindowPolicy
@@ -243,6 +242,7 @@ class ChatViewModel(
     val running: StateFlow<Boolean> = harnessLoop.running
     val error: StateFlow<String?> = sessionDeletionFeedback.errors(harnessLoop.error, viewModelScope)
     val status: StateFlow<String?> = harnessLoop.status
+    val toolProgress: StateFlow<ToolCallStreamProgress?> = harnessLoop.toolProgress
     val thinkingLive: StateFlow<Boolean> = harnessLoop.thinkingLive
     val workspace: StateFlow<String> = harnessLoop.workspace
     val projectType: StateFlow<String> = harnessLoop.projectType

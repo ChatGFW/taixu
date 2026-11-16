@@ -126,15 +126,41 @@ class TaskDeliveryBuilderTest {
         assertTrue(DeliveryGap.INVALID_ARTIFACT in build(listOf(entry(call()), entry(invalid))).report.gaps)
     }
 
-    @Test fun identicalVersionsDeduplicateButSamePathWithDifferentBytesIsPreserved() {
+    @Test fun latestVersionPerPathRemainsBoundToItsResult() {
         val first = ToolFileArtifact("build/app.apk", "a".repeat(64), 100, FileArtifactKind.APK, FileArtifactOrigin.NEW_AFTER_COMMAND, 10)
         val changed = first.copy(sha256 = "b".repeat(64), origin = FileArtifactOrigin.CHANGED_AFTER_COMMAND, observedAt = 20)
         val messages = listOf(call("call1"), ToolResult("result1", 3, "call1", true, "done", metadata = mapOf(ToolFileArtifacts.METADATA_KEY to ToolFileArtifacts.encode(listOf(first)))),
             call("call2"), ToolResult("result2", 4, "call2", true, "done", metadata = mapOf(ToolFileArtifacts.METADATA_KEY to ToolFileArtifacts.encode(listOf(first, changed)))))
         val report = build(messages.map(::entry)).report
-        assertEquals(2, report.artifacts.size)
-        assertEquals(listOf("result1", "result2"), report.artifacts.map { it.resultEntryId })
-        assertEquals(listOf(first.sha256, changed.sha256), report.artifacts.map { it.sha256 })
+        assertEquals(1, report.artifacts.size)
+        assertEquals("result2", report.artifacts.single().resultEntryId)
+        assertEquals(changed.sha256, report.artifacts.single().sha256)
+    }
+
+    @Test fun repeatedMutationsCountDistinctDeliverablesBeforeApplyingCap() {
+        val messages = (0..40).flatMap { index ->
+            val file = ToolFileArtifact(if (index == 0) "early.kt" else "Main.kt", "%064x".format(index), 10,
+                FileArtifactKind.FILE, FileArtifactOrigin.AFTER_EDIT, index + 10L)
+            listOf(call("call$index"), ToolResult("result$index", index + 3L, "call$index", true, "done",
+                metadata = mapOf(ToolFileArtifacts.METADATA_KEY to ToolFileArtifacts.encode(listOf(file)))))
+        }
+        val report = build(messages.map(::entry)).report
+        assertEquals(listOf("early.kt", "Main.kt"), report.artifacts.map { it.path })
+        assertEquals("result40", report.artifacts.last().resultEntryId)
+        assertTrue(report.historyComplete)
+    }
+
+    @Test fun restoredFileVersionRemainsTheLatestDeliverable() {
+        val messages = listOf("a", "b", "a").flatMapIndexed { index, hash ->
+            val file = ToolFileArtifact("Main.kt", hash.repeat(64), 10, FileArtifactKind.FILE,
+                FileArtifactOrigin.AFTER_WRITE, index + 10L, ArtifactLineChanges(index, 1))
+            listOf(call("call$index"), ToolResult("result$index", index + 3L, "call$index", true, "done",
+                metadata = mapOf(ToolFileArtifacts.METADATA_KEY to ToolFileArtifacts.encode(listOf(file)))))
+        }
+        val artifacts = build(messages.map(::entry)).report.artifacts
+        assertEquals("a".repeat(64), artifacts.last().sha256)
+        assertEquals("result2", artifacts.last().resultEntryId)
+        assertEquals(ArtifactLineChanges(2, 1), artifacts.last().lineChanges)
     }
 
     @Test fun deliveryRecordNeverEntersProviderContextOrCompactionPrompt() {
