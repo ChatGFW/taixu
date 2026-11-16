@@ -7,7 +7,7 @@
     ],
     "generatedAt": "2026-11-13",
     "maxFileLines": 400,
-    "fileCount": 87,
+    "fileCount": 86,
     "files": {
         "core/database/src/main/java/top/wkbin/taixu/core/database/PersistenceRepositories.kt": 425,
         "core/datastore/src/main/java/top/wkbin/taixu/core/datastore/SettingsDataStore.kt": 947,
@@ -25,7 +25,6 @@
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/artifact/ArtifactPreviewSheet.kt": 518,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/floating/FloatingChatView.kt": 648,
         "feature/components/src/main/java/top/wkbin/taixu/ui/components/RuntimeComponents.kt": 636,
-        "feature/components/src/main/java/top/wkbin/taixu/ui/components/RuntimeGlassControls.kt": 425,
         "feature/developer/src/main/java/top/wkbin/taixu/ui/developer/AdbLogcatScreen.kt": 428,
         "feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperScreen.kt": 655,
         "feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperViewModel.kt": 439,

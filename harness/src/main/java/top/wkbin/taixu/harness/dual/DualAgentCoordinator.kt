@@ -114,7 +114,7 @@ class DualAgentCoordinator(
 
             // 1. 调用 Planner 生成决策
             val plannerResult = runCatching {
-                providerClient.chat(effectivePlannerModel, plannerMessages)
+                providerClient.chat(effectivePlannerModel, plannerMessages, sessionKey = sessionId)
             }.getOrElse { throwable ->
                 return@withContext DualAgentOutcome.Failed(
                     message = "Planner 模型调用失败：${throwable.message}",

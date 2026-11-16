@@ -11,6 +11,8 @@ import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ModelConfig
 import top.wkbin.taixu.harness.session.SessionTreeStore
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withContext
+import top.wkbin.taixu.harness.bot.TaskBudgetContext
 
 /**
  * 分支摘要（对齐 pi branch-summarization.ts）：切换分支时把被放弃的分支段
@@ -46,7 +48,7 @@ class BranchSummarizer(
         val abandoned = abandonedMessages(sessionId, oldLeafId, newLeafId)
         if (abandoned.size < MIN_MESSAGES) return false
 
-        val summaryText = generateSummaryText(abandoned, model)
+        val summaryText = withContext(TaskBudgetContext(sessionId)) { generateSummaryText(abandoned, model) }
         if (summaryText.isBlank()) return false
         val now = System.currentTimeMillis()
         val entry = HarnessEntryEntity(

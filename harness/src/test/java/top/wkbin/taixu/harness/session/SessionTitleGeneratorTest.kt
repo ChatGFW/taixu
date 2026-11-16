@@ -54,7 +54,7 @@ class SessionTitleGeneratorTest {
         val calls = mutableListOf<List<ApiMessage>>()
         val gen = SessionTitleGenerator(
             sessions = sessions,
-            modelPort = SessionTitleModelPort { modelId, _, messages ->
+            modelPort = SessionTitleModelPort { modelId, _, messages, _ ->
                 checkNotNull(resolve(modelId)) { "no model" }
                 calls += messages
                 if (fail) throw IllegalStateException("boom")
@@ -127,9 +127,10 @@ class SessionTitleGeneratorTest {
         val calls = mutableListOf<List<ApiMessage>>()
         val gen = SessionTitleGenerator(
             sessions = sessions,
-            modelPort = SessionTitleModelPort { modelId, variant, messages ->
+            modelPort = SessionTitleModelPort { modelId, variant, messages, sessionId ->
                 assertEquals("title-model", modelId)
                 assertEquals(null, variant)
+                assertEquals("s1", sessionId)
                 calls += messages
                 "自定义提示词标题"
             },

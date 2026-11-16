@@ -1,5 +1,11 @@
 # 凭证与暴露面清单 (Security Surface)
 
+## OpenCode 会话路由请求头
+
+模型地址主机为 `opencode.ai`，或模型自定义请求头显式包含 `x-opencode-session` 时，推理请求按持久会话标识派生稳定 UUID，并覆盖该请求头的静态值。同一会话的普通请求、流式请求、协议续传、重试、标题与摘要沿用会话归属；独立连接探针和未绑定会话的一次性调用各自生成 UUID。该路由标识发送给所配置的模型服务，用于会话路由和缓存关联。
+
+OpenCode 请求在缺少自定义 User-Agent 时发送 `TaiXu`。派生值只在请求构造时生成，模型档案继续保存用户原有请求头文本。实现集中于 `core/network/OpenCodeSessionHeaders.kt` 与 `harness/OpenCodeSessionHeaders.kt`。
+
 ## Bot 级 MCP 工具授权
 
 成员详情的能力库支持按服务 ID 配置精确工具名。服务条目缺省时允许该服务全部工具，空工具列表禁用全部工具；服务白名单与工具列表取交集，工具名区分大小写。私聊、群聊和独立委派任务通过持久会话归属读取同一个 Bot 配置。

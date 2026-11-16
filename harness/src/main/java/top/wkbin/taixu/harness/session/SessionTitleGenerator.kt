@@ -19,7 +19,7 @@ import top.wkbin.taixu.harness.UserMessage
  */
 /** 标题生成的模型端口：解析会话绑定的模型并发起一次非流式补全，返回正文（失败抛异常或返回 null）。 */
 fun interface SessionTitleModelPort {
-    suspend fun complete(modelId: String?, variant: String?, messages: List<ApiMessage>): String?
+    suspend fun complete(modelId: String?, variant: String?, messages: List<ApiMessage>, sessionId: String): String?
 }
 
 /** 标题生成的日志端口：Koin verify 不接受 kotlin.Function* 构造参数，日志走具名接口。 */
@@ -75,6 +75,7 @@ class SessionTitleGenerator(
                     ApiMessage(role = "system", content = "你是标题生成器，只输出标题文本。"),
                     ApiMessage(role = "user", content = prompt),
                 ),
+                sessionId,
             )?.trim().orEmpty()
             val title = sanitizeTitle(body)
             if (title.isBlank() || DefaultSessionTitle.isPlaceholder(title)) return

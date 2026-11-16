@@ -97,6 +97,7 @@ class SkillEvolutionAdvisor(
                 ApiMessage(role = "system", content = ADVISOR_SYSTEM_PROMPT),
                 ApiMessage(role = "user", content = buildAdvisorUserPrompt(digest, skills)),
             ),
+            sessionKey = sessId,
         )
         val proposal = parseAdvisorResponse(result.content.orEmpty()) ?: return
         val normalized = normalizeProposal(proposal, skills) ?: return

@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import top.yukonga.miuix.kmp.basic.InputField
 
 /**
@@ -16,7 +19,8 @@ fun RuntimeSearchEntry(label: String, onClick: () -> Unit, modifier: Modifier = 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick),
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = label },
     ) {
         InputField(
             query = "",
@@ -24,7 +28,7 @@ fun RuntimeSearchEntry(label: String, onClick: () -> Unit, modifier: Modifier = 
             onSearch = {},
             expanded = false,
             onExpandedChange = {},
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().clearAndSetSemantics {},
             label = label,
             enabled = false,
         )

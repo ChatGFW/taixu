@@ -200,8 +200,8 @@ internal val toolBackendModule = module {
     // 自动会话标题：模型解析与补全走 ProviderClient 的窄端口（测试用 lambda 打桩）。
     single<SessionTitleModelPort> {
         val providerClient = get<ProviderClient>()
-        SessionTitleModelPort { modelId, variant, messages ->
-            providerClient.chat(providerClient.resolveConfigured(modelId, variant), messages).content
+        SessionTitleModelPort { modelId, variant, messages, sessionId ->
+            providerClient.chat(providerClient.resolveConfigured(modelId, variant), messages, sessionKey = sessionId).content
         }
     }
     single<SessionTitleLog> {

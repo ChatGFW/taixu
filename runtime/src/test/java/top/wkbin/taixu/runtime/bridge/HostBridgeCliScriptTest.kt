@@ -80,12 +80,11 @@ class HostBridgeCliScriptTest {
         private val dir: File = java.nio.file.Files.createTempDirectory("taixu-cli").toFile()
         private val capture = File(dir, "body.json")
         private val invoked = File(dir, "invoked")
-        private val script = File(dir, "taixu-host").apply {
-            writeText(HostBridgeCliScript.TAIXU_HOST_SCRIPT)
-            setExecutable(true)
-        }
-
         init {
+            File(dir, "taixu-host").apply {
+                writeText(HostBridgeCliScript.TAIXU_HOST_SCRIPT)
+                setExecutable(true)
+            }
             File(dir, "curl").apply {
                 writeText(
                     listOf(
@@ -111,10 +110,14 @@ class HostBridgeCliScriptTest {
         fun run(vararg args: String): Run {
             capture.delete()
             invoked.delete()
-            val process = ProcessBuilder(listOf("/bin/sh", script.absolutePath) + args)
+            // Keep literal arguments in a POSIX script across Windows process quoting.
+            val launcher = File(dir, "run-cli.sh").apply {
+                writeText("PATH=.:/usr/bin:\$PATH exec sh ./taixu-host " +
+                    args.joinToString(" ") { HostCapabilityActions.shellQuote(it) })
+            }
+            val process = ProcessBuilder("sh", launcher.name)
                 .directory(dir)
                 .apply {
-                    environment()["PATH"] = dir.absolutePath + File.pathSeparator + environment()["PATH"].orEmpty()
                     environment()["TAIXU_BRIDGE_TOKEN"] = "mock"
                     environment()["CAPTURE"] = capture.absolutePath
                     environment()["INVOKED"] = invoked.absolutePath

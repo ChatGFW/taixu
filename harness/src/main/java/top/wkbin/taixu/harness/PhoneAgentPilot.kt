@@ -175,6 +175,7 @@ internal class PhoneAgentPilot(
                             imageUrls = listOf(image),
                         ),
                     ),
+                    sessionKey = session,
                 )
             } catch (e: CancellationException) {
                 throw e

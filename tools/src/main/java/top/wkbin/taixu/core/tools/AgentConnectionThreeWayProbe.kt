@@ -5,6 +5,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.OkHttpClient
+import top.wkbin.taixu.core.network.withOpenCodeSessionHeaders
 
 /** 单项探针结果：success + 可展示细节（失败原因或成功摘要）。 */
 data class ConnectionProbeOutcome(val success: Boolean, val detail: String)
@@ -69,7 +70,7 @@ class AgentConnectionThreeWayProbe(private val http: OkHttpClient) {
                 """{"model":"$escaped","messages":[{"role":"user","content":"Say OK"}],"max_tokens":8,"stream":true}"""
         }
         val request = baseRequest(url, apiKey, isAnthropic).post(body.toRequestBody("application/json".toMediaType())).build()
-        http.newCall(request).execute().use { response ->
+        http.newCall(request.withOpenCodeSessionHeaders()).execute().use { response ->
             check(response.isSuccessful) { "HTTP ${response.code}" }
             val head = response.body.source()
             var seen = StringBuilder()
@@ -101,7 +102,7 @@ class AgentConnectionThreeWayProbe(private val http: OkHttpClient) {
                 """"tools":[{"type":"function","function":{"name":"get_weather","description":"查询天气","parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}],"tool_choice":{"type":"function","function":{"name":"get_weather"}}}"""
         }
         val request = baseRequest(url, apiKey, isAnthropic).post(body.toRequestBody("application/json".toMediaType())).build()
-        http.newCall(request).execute().use { response ->
+        http.newCall(request.withOpenCodeSessionHeaders()).execute().use { response ->
             val text = response.body.string()
             check(response.isSuccessful) { "HTTP ${response.code}：${text.take(160)}" }
             // 探针只判定「结构化工具调用出现与否」，字符串标记即可（org.json 在 JVM 单测不可用）

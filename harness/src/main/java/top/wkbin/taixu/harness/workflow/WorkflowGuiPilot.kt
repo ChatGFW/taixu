@@ -1,6 +1,7 @@
 package top.wkbin.taixu.harness.workflow
 
 import android.util.Log
+import java.util.UUID
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -81,6 +82,7 @@ class WorkflowGuiPilot(
         var doneReason: String? = null
         var failedReason: String? = null
         var steps = 0
+        val sessionKey = UUID.randomUUID().toString()
 
         for (step in 1..maxSteps.coerceIn(1, 40)) {
             coroutineContext.ensureActive()
@@ -109,6 +111,7 @@ class WorkflowGuiPilot(
                             content = buildUserPrompt(trimmedGoal, targetPackage, observation, step, maxSteps),
                         ),
                     ),
+                    sessionKey = sessionKey,
                 ).content.orEmpty()
             }.getOrElse { err ->
                 appendLog("模型调用失败：${err.message}")

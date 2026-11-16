@@ -3,6 +3,10 @@ package top.wkbin.taixu.core.datastore
 import android.util.AtomicFile
 import java.io.File
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -71,8 +75,9 @@ class RemoteServerPrimaryLocalTest {
         repo.save(server, SshCredentials("secret"))
         val encrypted = file.readText()
         val plain = checkNotNull(decrypt(encrypted))
-        require("\"active\":null" in plain) { plain }
-        file.writeText(encrypt(plain.replace("\"active\":null", "\"active\":\"legacy\"")))
+        val stored = Json.parseToJsonElement(plain).jsonObject
+        val legacy = JsonObject(stored + ("active" to JsonPrimitive("legacy")))
+        file.writeText(encrypt(legacy.toString()))
         val reopened = repository(file)
         assertNull(reopened.activeId.value)
         assertEquals(listOf("legacy"), reopened.servers.value.map { it.id })

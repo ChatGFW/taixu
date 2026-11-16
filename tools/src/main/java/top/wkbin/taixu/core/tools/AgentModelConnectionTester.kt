@@ -6,6 +6,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import top.wkbin.taixu.core.network.withOpenCodeSessionHeaders
 
 class AgentModelConnectionTester(private val http: OkHttpClient, private val external: ExternalProviderProbe? = null) {
     suspend fun test(
@@ -50,7 +51,7 @@ class AgentModelConnectionTester(private val http: OkHttpClient, private val ext
             }
             .get()
             .build()
-        http.newCall(request).execute().use { response ->
+        http.newCall(request.withOpenCodeSessionHeaders()).execute().use { response ->
             val text = response.body.string()
             check(response.isSuccessful) { "连接失败 HTTP ${response.code}：${text.take(240)}" }
         }
@@ -62,7 +63,7 @@ class AgentModelConnectionTester(private val http: OkHttpClient, private val ext
             .header("Content-Type", "application/json")
             .apply { if (!apiKey.isNullOrBlank()) header("Authorization", "Bearer $apiKey") }
             .post(body.toRequestBody("application/json".toMediaType())).build()
-        http.newCall(request).execute().use { response ->
+        http.newCall(request.withOpenCodeSessionHeaders()).execute().use { response ->
             val text = response.body.string()
             check(response.isSuccessful) { "连接失败 HTTP ${response.code}：${text.take(240)}" }
         }
@@ -76,7 +77,7 @@ class AgentModelConnectionTester(private val http: OkHttpClient, private val ext
             .header("Content-Type", "application/json")
             .apply { if (!apiKey.isNullOrBlank()) header("Authorization", "Bearer $apiKey") }
             .post(body.toRequestBody("application/json".toMediaType())).build()
-        http.newCall(request).execute().use { response ->
+        http.newCall(request.withOpenCodeSessionHeaders()).execute().use { response ->
             val text = response.body.string()
             check(response.isSuccessful) { "连接失败 HTTP ${response.code}：${text.take(240)}" }
         }
@@ -89,7 +90,7 @@ class AgentModelConnectionTester(private val http: OkHttpClient, private val ext
             .header("anthropic-version", "2023-06-01")
             .apply { if (!apiKey.isNullOrBlank()) header("x-api-key", apiKey) }
             .post(body.toRequestBody("application/json".toMediaType())).build()
-        http.newCall(request).execute().use { response ->
+        http.newCall(request.withOpenCodeSessionHeaders()).execute().use { response ->
             val text = response.body.string()
             check(response.isSuccessful) { "连接失败 HTTP ${response.code}：${text.take(240)}" }
         }

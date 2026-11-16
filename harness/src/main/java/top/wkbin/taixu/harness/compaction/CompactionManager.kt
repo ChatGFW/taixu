@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import top.wkbin.taixu.core.database.HarnessEntryEntity
 import top.wkbin.taixu.core.database.HarnessRuntimeRepository
@@ -16,6 +17,7 @@ import top.wkbin.taixu.harness.ContextWindowPolicy
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.ModelConfig
 import top.wkbin.taixu.harness.UserMessage
+import top.wkbin.taixu.harness.bot.TaskBudgetContext
 import top.wkbin.taixu.harness.session.SessionTreeStore
 import top.wkbin.taixu.harness.session.SessionContextProjector
 
@@ -92,7 +94,9 @@ class CompactionManager(
         }
         val llmSummary = if (model != null && summarizer != null && collapsedForSummary.isNotEmpty()) {
             try {
-                summarizer.generateSummary(model, collapsedForSummary, previousSummaries, summaryContext)
+                withContext(TaskBudgetContext(sessionId)) {
+                    summarizer.generateSummary(model, collapsedForSummary, previousSummaries, summaryContext)
+                }
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (throwable: Throwable) {

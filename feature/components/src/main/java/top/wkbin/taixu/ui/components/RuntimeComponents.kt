@@ -52,7 +52,7 @@ import top.wkbin.taixu.feature.components.R
 import top.wkbin.taixu.ui.miuix.*
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.icon.extended.Home
+import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.squircle.squircleBackground
 
 /** 太墟四大中枢：太墟·智枢·工坊·乾坤 */
@@ -198,7 +198,7 @@ fun RuntimeLinearProgressIndicator(
 @Composable
 fun RuntimeCircularProgressIndicator(
     modifier: Modifier = Modifier,
-    color: Color = RuntimeTheme.colorScheme.onSurfaceVariant,
+    color: Color = LocalContentColor.current,
     trackColor: Color = Color.Transparent,
     strokeWidth: Dp = 2.dp,
 ) {

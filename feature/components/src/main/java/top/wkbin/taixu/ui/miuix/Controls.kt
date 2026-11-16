@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import top.yukonga.miuix.kmp.theme.LocalContentColor
 
 typealias SwitchColors = top.yukonga.miuix.kmp.basic.SwitchColors
 typealias CheckboxColors = top.yukonga.miuix.kmp.basic.CheckboxColors
@@ -100,7 +101,7 @@ fun LinearProgressIndicator(
 @Composable
 fun CircularProgressIndicator(
     modifier: Modifier = Modifier,
-    color: Color = RuntimeTheme.colorScheme.onSurfaceVariant,
+    color: Color = LocalContentColor.current,
     trackColor: Color = Color.Transparent,
     strokeWidth: Dp = 2.dp,
 ) {

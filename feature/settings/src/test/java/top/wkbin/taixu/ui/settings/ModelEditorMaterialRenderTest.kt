@@ -109,7 +109,8 @@ abstract class ModelEditorRenderSupport {
         val node = nodes(root).single {
             (it.config.getOrNull(SemanticsProperties.Text).orEmpty().any { text -> text.text == label } ||
                 it.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty().contains(label)) &&
-                it.config.getOrNull(SemanticsActions.OnClick) != null
+                it.config.getOrNull(SemanticsActions.OnClick) != null &&
+                it.config.getOrNull(SemanticsProperties.Disabled) == null
         }
         assertTrue(requireNotNull(node.config.getOrNull(SemanticsActions.OnClick)?.action).invoke())
         settle()

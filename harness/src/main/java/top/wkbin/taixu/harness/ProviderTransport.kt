@@ -78,8 +78,10 @@ internal class ProviderTransport(
     }
 
     private suspend fun budgeted(session: String?, model: ModelConfig, client: OkHttpClient,
-        send: suspend (ModelConfig, OkHttpClient) -> ChatResult): ChatResult =
-        budgetGuard?.run(session, model, client, send) ?: send(model, client)
+        send: suspend (ModelConfig, OkHttpClient) -> ChatResult): ChatResult {
+        val scopedClient = client.withOpenCodeSession(model, session)
+        return budgetGuard?.run(session, model, scopedClient, send) ?: send(model, scopedClient)
+    }
 
     private suspend fun request(
         model: ModelConfig,
