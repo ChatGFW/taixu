@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.first
 import top.wkbin.taixu.core.model.bot.GroupMessage
+import top.wkbin.taixu.ui.components.runProgrammaticScroll
 
 /** 群聊滚动跟随：首屏贴底、新消息跟随、上滑后统计未读，不在用户阅读时抢滚动。 */
 @Composable
@@ -81,8 +82,12 @@ internal suspend fun LazyListState.jumpToBottom() {
 /** 点击“回到最新”时滚到真正的内容底部，而不是最后一条消息的顶部。 */
 internal suspend fun LazyListState.animateToBottom() {
     awaitItems()
-    animateScrollToItem(layoutInfo.totalItemsCount - 1)
-    scrollRemainingToBottom(animated = true)
+    // 整段动画滚动经串行器启动：流式期间“新消息效果”与“内容增长效果”会并发触发滚动，
+    // 叠加的动画滚动与用户拖拽竞争会触发框架 "entered drag with non-zero pending scroll" 闪退。
+    runProgrammaticScroll {
+        animateScrollToItem(layoutInfo.totalItemsCount - 1)
+        scrollRemainingToBottom(animated = true)
+    }
 }
 
 private suspend fun LazyListState.scrollRemainingToBottom(animated: Boolean) {
@@ -97,12 +102,14 @@ private suspend fun LazyListState.scrollRemainingToBottom(animated: Boolean) {
 
 /** 跟随流式增长：只补最后一条消息底部的增量，不把用户拉回消息顶部。 */
 private suspend fun LazyListState.followLatestEdge() {
-    repeat(2) {
-        val info = layoutInfo
-        val last = info.visibleItemsInfo.lastOrNull() ?: return
-        if (last.index != info.totalItemsCount - 1) return
-        val delta = last.offset + last.size - info.viewportEndOffset
-        if (delta <= 0) return
-        animateScrollBy(delta.toFloat())
+    runProgrammaticScroll {
+        repeat(2) {
+            val info = layoutInfo
+            val last = info.visibleItemsInfo.lastOrNull() ?: return@repeat
+            if (last.index != info.totalItemsCount - 1) return@repeat
+            val delta = last.offset + last.size - info.viewportEndOffset
+            if (delta <= 0) return@repeat
+            animateScrollBy(delta.toFloat())
+        }
     }
 }

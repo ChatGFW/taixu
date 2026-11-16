@@ -2,6 +2,7 @@ package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyListState
+import top.wkbin.taixu.ui.components.runProgrammaticScroll
 
 /** Last item index for [LazyListState.scrollToItem], or null when the list has not laid out yet. */
 internal fun lastLazyItemIndex(totalItemsCount: Int): Int? =
@@ -22,7 +23,9 @@ internal suspend fun LazyListState.safeScrollToItem(index: Int, animated: Boolea
     val lastIndex = lastLazyItemIndex(layoutInfo.totalItemsCount) ?: return
     val safeIndex = index.coerceIn(0, lastIndex)
     runCatching {
-        if (animated) animateScrollToItem(safeIndex) else scrollToItem(safeIndex)
+        // 动画滚动经串行器启动：与用户拖拽或其他程序化滚动重叠时，
+        // 框架会在拖拽分派进入时抛出 "entered drag with non-zero pending scroll" 闪退。
+        if (animated) runProgrammaticScroll { animateScrollToItem(safeIndex) } else scrollToItem(safeIndex)
     }
 }
 

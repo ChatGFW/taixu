@@ -51,6 +51,7 @@ import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
+import top.wkbin.taixu.ui.components.rememberProgrammaticScrollGuard
 import top.wkbin.taixu.ui.components.runtimeContentPadding
 enum class GroupChatViewMode {
     CHAT,
@@ -79,6 +80,7 @@ fun GroupChatScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
+    rememberProgrammaticScrollGuard(listState)
     val scope = rememberCoroutineScope()
     var following by remember { mutableStateOf(true) }
     var anchorId by remember { mutableStateOf<String?>(null) }

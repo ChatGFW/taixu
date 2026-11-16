@@ -66,6 +66,7 @@ import top.wkbin.taixu.runtime.ProjectType
 import top.wkbin.taixu.runtime.SessionWorkspaceCatalogState
 import top.wkbin.taixu.runtime.WorkspaceProject
 import top.wkbin.taixu.ui.components.MainDestination
+import top.wkbin.taixu.ui.components.rememberProgrammaticScrollGuard
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import top.wkbin.taixu.ui.miuix.*
@@ -171,6 +172,9 @@ fun ChatScreen(
         messages.filterIsInstance<UserMessage>().firstOrNull { it.id == editTargetMessageId }
     }
     val listState = rememberLazyListState()
+    // 程序化滚动守护：拖拽开始时取消进行中的动画滚动，避免框架
+    // "entered drag with non-zero pending scroll" 校验闪退。
+    rememberProgrammaticScrollGuard(listState)
     val context = LocalContext.current
 
     val currentSession = remember(sessions, currentSessionId) { sessions.firstOrNull { it.id == currentSessionId } }

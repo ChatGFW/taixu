@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import top.wkbin.taixu.ui.chat.safeScrollToLastItem
+import top.wkbin.taixu.ui.components.rememberProgrammaticScrollGuard
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -316,6 +317,7 @@ private fun FloatingChatPanel(
 ) {
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    rememberProgrammaticScrollGuard(listState)
 
     val displayMessages = remember(messages) {
         messages.filter { it !is ToolResult }.takeLast(20)
