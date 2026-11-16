@@ -5,7 +5,7 @@
         "\u4e0d\u5728\u57fa\u7ebf\u4e2d\u7684\u65b0\u6587\u4ef6\u5fc5\u987b <= architecture-policy.json \u7684 global.maxFileLines\u3002",
         "\u7ef4\u62a4\uff1a\u8fd0\u884c .\\gradlew.bat architectureBaselineSync \u81ea\u52a8\u540c\u6b65\u3002"
     ],
-    "generatedAt": "2026-11-13",
+    "generatedAt": "2026-11-16",
     "maxFileLines": 400,
     "fileCount": 86,
     "files": {
@@ -19,7 +19,7 @@
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatScreen.kt": 619,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatSheets.kt": 683,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatToolCards.kt": 500,
-        "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatViewModel.kt": 1429,
+        "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatViewModel.kt": 1408,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatWorkbenchPanels.kt": 1395,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ToolDiffView.kt": 464,
         "feature/chat/src/main/java/top/wkbin/taixu/ui/chat/artifact/ArtifactPreviewSheet.kt": 518,

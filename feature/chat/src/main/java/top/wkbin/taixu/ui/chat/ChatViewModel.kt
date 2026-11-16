@@ -67,6 +67,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -573,43 +574,21 @@ class ChatViewModel(
     val mcpServers: StateFlow<List<McpServerConfig>> = mcpServerRepository.servers
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    /** 真实压缩投影缓存（与引擎 ApiContextAssembler 同源）：按 (sessionId, compactionRevision) 从树读取 `CompactionManager.project()`。只在会话切换或某次压缩落库后才重读，避免流式期间（每 token 一次）对 DAO 的频繁查询。键必须同时含 revision：只发 sessionId 会被 distinctUntilChanged 吞掉压缩信号，面板就只有重进应用（ViewModel 重建）才能看到压缩后的用量。已折叠历史以摘要层形式计 token，不再重复计入对话体积。 */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val compactedContext: StateFlow<CompactedContext?> =
-        combine(harnessLoop.currentSessionId, compactionManager.compactionRevision) { sessionId, revision ->
-            sessionId to revision
-        }
-            .distinctUntilChanged()
-            .mapLatest { (sessionId, _) -> compactionManager.project(sessionId) }
-            .flowOn(Dispatchers.Default)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    // 按主 Lane 提交刷新持久化投影，流式增量只在内存中合并。
+    private val compactedContext: StateFlow<CompactedContext?> = observeContextUsageProjection(
+        harnessLoop, runtimeRepository, compactionManager,
+    ).flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** 当前会话上下文用量的 UI 估算。Harness 发请求时会用同一字符/token 近似值再做最终压缩，因此这里明确是预估值，而不是 provider 返回的精确 tokenizer 计数。 */
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
     val contextUsage: StateFlow<ContextUsage> = combine(
-        // 用 revision（消息数量 + 末条 id + 末条内容长度）压缩上游：
-        // contextUsage 的计算含 estimateEffectiveUsage（遍历全部消息）与两次 filterIsInstance 求和，
-        // 都是 O(n)。流式期间 messages 每个 token 块都换新引用，若不压缩会每帧全量重算，
-        // 叠加列表渲染开销后表现为「聊久了明显变卡」。
-        // 末条内容长度必须计入：流式时末条长度持续变化，是 contextUsage 真正需要更新的信号。
-        messages.map { list ->
-            Triple(
-                list.size,
-                list.lastOrNull()?.id,
-                list.lastOrNull()?.let { m ->
-                    when (m) {
-                        is AssistantText -> m.text.length
-                        is ToolResult -> m.output.length
-                        is UserMessage -> m.text.length
-                        else -> 0
-                    }
-                },
-            ) to list
-        }.distinctUntilChanged { a, b -> a.first == b.first },
+        messages.sample(200),
         sessionBoundModel,
         settingsDataStore.contextBudgetTokens,
-    ) { revisionAndMessages, boundModel, defaultBudget ->
+    ) { currentMessages, boundModel, defaultBudget ->
         ContextUsageInputs(
-            currentMessages = revisionAndMessages.second,
+            currentMessages = currentMessages,
             // 与顶栏同源：会话绑定模型优先，回退全局 isActive（详见 sessionBoundModel）。
             activeModel = boundModel,
             defaultBudget = defaultBudget,
