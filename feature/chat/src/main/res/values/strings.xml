@@ -515,7 +515,7 @@
     <string name="chat_artifact_copy">复制</string>
     <string name="chat_artifact_share">分享</string>
     <string name="chat_artifact_save">保存修改</string>
-    <string name="chat_artifact_export">导出到外部</string>
+    <string name="chat_artifact_export">导出</string>
     <string name="chat_artifact_export_short">导出</string>
     <string name="chat_artifact_copied">已复制产物全文到剪贴板</string>
     <string name="chat_artifact_saved">已保存修改</string>
