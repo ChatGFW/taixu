@@ -23,6 +23,17 @@ Android 无 Root 下用 PRoot 跑 Linux 多发行版沙箱 + AI Agent Harness + 
 | **构建 / 测试 / 打包 / 调试** | [`docs/COMMANDS.md`](docs/COMMANDS.md)（常用命令速查）                        |
 | **安全边界 / 凭证暴露面**   | [`docs/SECURITY_SURFACE.md`](docs/SECURITY_SURFACE.md)（凭证流、PRoot 挂载、HostBridge、脱敏） |
 
+## 架构门禁铁律（每次改源码都要守）
+
+`architectureCheck` 挂在 `app:preBuild` 上，**超限直接编不过**。最常踩的坑：
+
+- **单文件 ≤ `architecture-policy.json` → `global.maxFileLines`（当前 400 行）**。未登记在 [`.architecture-baseline.json`](.architecture-baseline.json) 的文件一律按新文件：超 400 行必须先拆文件再提交，禁止指望 baseline 放行。
+- 存量超限文件行数**只许降不许涨**；缩减后跑 `architectureBaselineSync` 下调基线。
+- 新增/调整模块依赖必须同步改 [`architecture-policy.json`](architecture-policy.json) 的 `requires`。
+- 动手前先看 [`docs/ARCHITECTURE_RULES.md`](docs/ARCHITECTURE_RULES.md)；改完相关模块后跑 `.\gradlew.bat architectureCheck`（见 [`docs/COMMANDS.md`](docs/COMMANDS.md)）。
+
+> 反复失败症状：`Architecture violations … 共 N 行，超过 maxFileLines=400`。正确做法是拆出独立文件，不要抬高上限，也不要给新文件登记 baseline。
+
 ## 协作与提交规则（多会话并行）
 
 多个 AI 会话可能与用户在同一工作区并行修改不同文件。Git 操作不得波及本次会话改动之外的文件：

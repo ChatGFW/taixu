@@ -13,7 +13,7 @@
 | **数据流转、时序与核心调用链** | [`docs/EXECUTION_TRACES.md`](EXECUTION_TRACES.md) | Agent 循环、存储挂载、PTY 终端、双栏分屏、进程托管与构建链路 |
 | **执行环境替换与资源清理** | [`docs/EXECUTION_ENVIRONMENTS.md`](EXECUTION_ENVIRONMENTS.md) | 文件/命令/MCP/PTY 绑定、父子资源归属、关闭排空与扩展回滚 |
 | **定位特定类、文件与核心组件** | [`docs/FILE_INDEX.md`](FILE_INDEX.md) | Harness、Runtime、Tools、UI 各领域关键文件路径与职责索引 |
-| **架构红线、产品 UX 与避坑铁律** | [`docs/ARCHITECTURE_RULES.md`](ARCHITECTURE_RULES.md) | Pure Kotlin 隔离、聊天/导航产品 UX、IME 防遮挡 |
+| **架构红线、产品 UX 与避坑铁律** | [`docs/ARCHITECTURE_RULES.md`](ARCHITECTURE_RULES.md) | **maxFileLines=400**、Pure Kotlin 隔离、聊天/导航产品 UX、IME 防遮挡 |
 | **Compose / miuix 页面约定** | [`docs/UI_GUIDELINES.md`](UI_GUIDELINES.md) | 页面骨架、squircle、毛玻璃、宽屏、Dialog/Sheet、语义色与 Compose 性能 |
 | **构建、测试、打包与调试指令** | [`docs/COMMANDS.md`](COMMANDS.md) | Gradle 单元测试、APK 打包、架构合规检查、ADB 部署与日志调试 |
 | **GitFlow 分支与发布流程** | [`docs/GIT_WORKFLOW.md`](GIT_WORKFLOW.md) | main/develop、feature/release/hotfix 起点、合并方向与本地配置 |

@@ -16,8 +16,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
-import org.koin.compose.koinInject
-import top.wkbin.taixu.core.datastore.AppearancePreferences
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.core.datastore.ChatBackgroundPreferences
 import top.wkbin.taixu.core.model.ChatBackgroundStyle
@@ -39,13 +37,10 @@ internal fun ChatPageSurface(
     content: @Composable () -> Unit,
 ) {
     val style by viewModel?.style?.collectAsStateWithLifecycle() ?: previewStateOf(ChatBackgroundStyle())
-    val appearance = previewOrNull { koinInject<AppearancePreferences>() }
-    val classicDots by appearance?.classicToolStatusDots?.collectAsStateWithLifecycle(initialValue = false) ?: previewStateOf(false)
     val normalized = style.normalized()
     ChatIdentityHost {
         CompositionLocalProvider(
             LocalChatBackgroundActive provides (normalized.imageName != null && normalized.visibility > 0f),
-            LocalClassicToolStatusDots provides classicDots,
         ) {
             // One continuous image behind the top bar, conversation, composer and system insets.
             Box(modifier) {

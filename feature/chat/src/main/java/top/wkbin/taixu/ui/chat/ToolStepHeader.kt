@@ -33,7 +33,11 @@ internal fun ToolStepHeader(call: ToolCall, result: ToolResult?, running: Boolea
     Row(Modifier.fillMaxWidth().heightIn(min = 28.dp).padding(horizontal = 2.dp, vertical = 4.dp)
         .semantics { stateDescription = stateText },
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ChatProcessIcon(renderer.icon(ui), running = state == ToolStepState.RUNNING)
+        if (LocalClassicToolStatusDots.current) {
+            ClassicToolStatusDot(state.tone(), running = state == ToolStepState.RUNNING)
+        } else {
+            ChatProcessIcon(renderer.icon(ui), running = state == ToolStepState.RUNNING)
+        }
         val target = renderer.target(ui)
         val title = renderer.title(ui)
         Text(if (target == null) title else "$title · $target", Modifier.weight(1f).then(chatProcessPulse(state == ToolStepState.RUNNING)),
@@ -50,6 +54,13 @@ internal fun ToolStepHeader(call: ToolCall, result: ToolResult?, running: Boolea
         RuntimeIcon(RuntimeIconName.ChevronRight,
             Modifier.size(16.dp), chatProcessColor())
     }
+}
+
+private fun ToolStepState.tone() = when (this) {
+    ToolStepState.SUCCEEDED -> ToolStatusTone.SUCCESS
+    ToolStepState.RUNNING, ToolStepState.WAITING, ToolStepState.DEFERRED -> ToolStatusTone.PROGRESS
+    ToolStepState.FAILED, ToolStepState.UNKNOWN -> ToolStatusTone.ERROR
+    ToolStepState.INCOMPLETE -> ToolStatusTone.NEUTRAL
 }
 
 internal fun toolStateLabel(state: ToolStepState): Int = when (state) {

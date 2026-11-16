@@ -1,0 +1,13 @@
+---
+description: architectureCheck 单文件行数上限（maxFileLines=400），避免 preBuild 反复失败
+alwaysApply: true
+---
+
+# 文件行数棘轮
+
+- 根目录 `architecture-policy.json` → `global.maxFileLines` **当前 = 400**。
+- `architectureCheck` 挂在 `app:preBuild`：超限则整次构建失败。
+- **未登记**在 `.architecture-baseline.json` 的文件一律按新文件 → 必须 ≤400；超了就**拆文件**，不要抬上限，不要给新文件加 baseline。
+- 基线里的存量文件：行数只许减少；缩减后跑 `architectureBaselineSync`。
+- 动手改 Kotlin/Java 源码前先估行数；提交/打包前跑 `.\gradlew.bat architectureCheck`。
+- 细节：`AGENTS.md`「架构门禁铁律」、`docs/ARCHITECTURE_RULES.md` §0。

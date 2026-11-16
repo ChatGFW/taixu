@@ -2,6 +2,16 @@
 
 ---
 
+## 0. 文件行数棘轮（最高频失败）
+
+- **硬上限**：[`architecture-policy.json`](../architecture-policy.json) 的 `global.maxFileLines`，**当前 400 行**。
+- **新文件 / 未进基线的文件**：必须 ≤400；`architectureCheck` 失败时**拆文件**，禁止抬高上限，禁止给新文件登记 baseline「混过去」。
+- **存量基线**：[`.architecture-baseline.json`](../.architecture-baseline.json) 只记录已超限旧文件，行数**只许降不许涨**；缩减后跑 `architectureBaselineSync`。
+- 症状原文：`共 N 行，超过 maxFileLines=400（新文件必须合规；确属存量请运行 architectureBaselineSync 登记）`。
+- 命令见 [`COMMANDS.md`](COMMANDS.md) 的 `architectureCheck` / `architectureBaselineSync`。
+
+---
+
 ## 1. 纯粹模型层隔离 (Model Layer Purity)
 
 - `:core:model` **严禁** 引入 `android.*`、`androidx.*` 或 Compose 依赖，必须保持 Pure Kotlin。

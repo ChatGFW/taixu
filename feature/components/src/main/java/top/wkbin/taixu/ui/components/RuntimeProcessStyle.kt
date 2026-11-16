@@ -1,12 +1,15 @@
 package top.wkbin.taixu.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,10 +20,42 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
+import top.wkbin.taixu.ui.theme.semanticColors
 
 /** Process rows share geometry and neutral ink; status remains in text and accessibility semantics. */
 @Composable
 fun runtimeProcessColor(): Color = RuntimeTheme.colorScheme.onSurfaceVariant
+
+/** 外观设置「经典状态点」。为 true 时工具行用状态色圆点代替类型图标。 */
+val LocalClassicToolStatusDots = compositionLocalOf { false }
+
+/** 供所有 Compose 根复用；设置值变化时只重组读取该 Local 的工具行。 */
+@Composable
+fun ProvideClassicToolStatusDots(enabled: Boolean, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalClassicToolStatusDots provides enabled, content = content)
+}
+
+/** 工具状态只在语义色层收敛一次，chat / bot 不再各写一套颜色映射。 */
+enum class ToolStatusTone { SUCCESS, PROGRESS, ERROR, NEUTRAL }
+
+@Composable
+fun ToolStatusTone.color(): Color = when (this) {
+    ToolStatusTone.SUCCESS -> semanticColors().success
+    ToolStatusTone.PROGRESS -> semanticColors().warning
+    ToolStatusTone.ERROR -> RuntimeTheme.colorScheme.error
+    ToolStatusTone.NEUTRAL -> runtimeProcessColor()
+}
+
+/**
+ * 18dp 槽位与工具图标对齐，圆点本身保持 7dp。执行中沿用过程行的呼吸。
+ * 状态文案由父 Row 的 stateDescription 提供，圆点不再重复播报。
+ */
+@Composable
+fun ClassicToolStatusDot(tone: ToolStatusTone, running: Boolean = false) {
+    Box(Modifier.size(18.dp).then(runtimeProcessPulse(running)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(7.dp).background(tone.color(), CircleShape))
+    }
+}
 
 @Composable
 fun RuntimeProcessContent(content: @Composable () -> Unit) {

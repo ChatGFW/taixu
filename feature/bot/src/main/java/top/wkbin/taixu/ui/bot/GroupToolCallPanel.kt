@@ -81,7 +81,16 @@ private fun GroupToolStepRow(step: GroupToolStep, streaming: Boolean, onClick: (
     Row(Modifier.fillMaxWidth().heightIn(min = 28.dp).clickable(role = Role.Button, onClick = onClick)
         .semantics { stateDescription = status }.padding(horizontal = 2.dp, vertical = 4.dp).testTag("group-step:${step.id}"),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        RuntimeProcessIcon(groupToolIcon(step.name), running)
+        if (LocalClassicToolStatusDots.current) {
+            val tone = when (step.success) {
+                true -> ToolStatusTone.SUCCESS
+                false -> ToolStatusTone.ERROR
+                null -> if (running) ToolStatusTone.PROGRESS else ToolStatusTone.NEUTRAL
+            }
+            ClassicToolStatusDot(tone, running = running)
+        } else {
+            RuntimeProcessIcon(groupToolIcon(step.name), running)
+        }
         Text(groupToolTitle(step.name), Modifier.weight(1f).then(runtimeProcessPulse(running)),
             style = RuntimeTheme.typography.bodySmall, color = runtimeProcessColor(),
             maxLines = 1, overflow = TextOverflow.Ellipsis)
