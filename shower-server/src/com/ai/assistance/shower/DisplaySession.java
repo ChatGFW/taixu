@@ -28,6 +28,11 @@ final class DisplaySession {
     private static final int FLAGS_SECONDARY_HOME = 16201;
     private static final int FLAGS_API34 = 81920;
     private static final int FLAGS_UNTRUSTED = 8521;
+    /** 与宿主 ImagePayloadCompressor.MAX_EDGE_PX 对齐，保证模型看到够清的坐标参考。 */
+    private static final int CAPTURE_MAX_EDGE = 1280;
+    /** 与宿主 ImagePayloadCompressor.JPEG_QUALITY 对齐。 */
+    private static final int CAPTURE_JPEG_QUALITY = 80;
+    private static final long CAPTURE_WAIT_MS = 1000L;
     /** 须匹配宿主 VirtualDisplayIdentity 的 ShowerVirtualDisplay- 前缀，否则 screencap 物理屏解析失败。 */
     private static final String DISPLAY_NAME = "ShowerVirtualDisplay-twin";
 
@@ -238,6 +243,7 @@ final class DisplaySession {
 
     /**
      * 预览挂着时短暂切到 ImageReader 取帧，再挂回客户端 Surface。
+     * 画质对齐宿主 ImagePayloadCompressor：长边 1280、JPEG 80，避免模型看糊图点偏。
      */
     synchronized byte[] captureJpeg() {
         Surface restore = clientSurface;
@@ -258,7 +264,7 @@ final class DisplaySession {
                 }
             }
             Image snapshot = null;
-            long deadline = System.currentTimeMillis() + 700L;
+            long deadline = System.currentTimeMillis() + CAPTURE_WAIT_MS;
             while (System.currentTimeMillis() < deadline) {
                 synchronized (offscreenLock) {
                     if (latestOffscreen != null) {
@@ -280,7 +286,7 @@ final class DisplaySession {
                 return null;
             }
             try {
-                return imageToJpeg(snapshot, 55);
+                return imageToJpeg(snapshot, CAPTURE_JPEG_QUALITY);
             } finally {
                 try {
                     snapshot.close();
@@ -317,10 +323,9 @@ final class DisplaySession {
             cropped = Bitmap.createBitmap(bitmap, 0, 0, w, h);
             bitmap.recycle();
         }
-        int maxEdge = 720;
         Bitmap scaled = cropped;
-        if (w > maxEdge || h > maxEdge) {
-            float scale = Math.min(maxEdge / (float) w, maxEdge / (float) h);
+        if (w > CAPTURE_MAX_EDGE || h > CAPTURE_MAX_EDGE) {
+            float scale = Math.min(CAPTURE_MAX_EDGE / (float) w, CAPTURE_MAX_EDGE / (float) h);
             int nw = Math.max(1, Math.round(w * scale));
             int nh = Math.max(1, Math.round(h * scale));
             scaled = Bitmap.createScaledBitmap(cropped, nw, nh, true);
