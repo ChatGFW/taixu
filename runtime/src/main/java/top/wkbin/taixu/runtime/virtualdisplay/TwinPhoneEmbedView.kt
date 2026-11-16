@@ -264,9 +264,14 @@ class TwinPhoneEmbedView @JvmOverloads constructor(
 
     private suspend fun capturePng(): ByteArray? {
         if (!surfaceReady) return null
-        val size = boundController?.getVideoSize() ?: return null
-        val bw = size.first.takeIf { it > 0 } ?: return null
-        val bh = size.second.takeIf { it > 0 } ?: return null
+        // 优先用已挂上的缓冲尺寸（与 setDefaultBufferSize / VD 对齐），避免 getVideoSize
+        // 与实际 SurfaceTexture 短暂不一致时把错尺寸图送给模型。
+        val bw = fixedBufferW.takeIf { it > 0 }
+            ?: boundController?.getVideoSize()?.first?.takeIf { it > 0 }
+            ?: return null
+        val bh = fixedBufferH.takeIf { it > 0 }
+            ?: boundController?.getVideoSize()?.second?.takeIf { it > 0 }
+            ?: return null
         return withContext(Dispatchers.Main) {
             // 必须按 VD 分辨率取图，否则 PhoneAgent 会把小窗像素当成虚拟屏坐标注入。
             val bitmap = runCatching { getBitmap(bw, bh) }.getOrNull() ?: return@withContext null

@@ -242,20 +242,17 @@ final class ShowerService extends IShowerService.Stub {
 
     @Override
     public void touchDown(int displayId, float x, float y) {
-        long now = SystemClock.uptimeMillis();
-        inputFor(displayId).touch(0, x, y, now, now, 1f, 1f, 0, 1f, 1f, 0, 0);
+        inputFor(displayId).touchDown(x, y);
     }
 
     @Override
     public void touchMove(int displayId, float x, float y) {
-        long now = SystemClock.uptimeMillis();
-        inputFor(displayId).touch(2, x, y, now, now, 1f, 1f, 0, 1f, 1f, 0, 0);
+        inputFor(displayId).touchMove(x, y);
     }
 
     @Override
     public void touchUp(int displayId, float x, float y) {
-        long now = SystemClock.uptimeMillis();
-        inputFor(displayId).touch(1, x, y, now, now, 1f, 1f, 0, 1f, 1f, 0, 0);
+        inputFor(displayId).touchUp(x, y);
     }
 
     @Override

@@ -9,12 +9,16 @@ import java.lang.reflect.Method;
 final class InputController {
     private static final int MODE_ASYNC = 0;
     private static final int MODE_WAIT_FOR_RESULT = 1;
+    /** 普通点击按住时长；过短会被部分应用当成抖动忽略。 */
+    private static final long TAP_HOLD_MS = 50L;
 
     private final Object inputManager;
     private final Method injectInputEvent;
     private final Method setDisplayIdMethod;
     private int displayId;
     private volatile Runnable afterInject;
+    /** touchDown/Move/Up 链路共用的 downTime；避免每次抬起都换新的 downTime。 */
+    private long gestureDownTime;
 
     InputController() {
         try {
@@ -91,9 +95,31 @@ final class InputController {
     }
 
     void tap(float x, float y) {
+        long start = SystemClock.uptimeMillis();
+        // 与 swipe 相同：必须按墙钟推进。只改 eventTime、同毫秒连发 DOWN/UP 时，
+        // 部分应用会吞点击或把触点判成无效手势（对照 twoyi HostDisplay 真实间隔注入）。
+        touch(MotionEvent.ACTION_DOWN, x, y, start, start, 1f, 1f, 0, 1f, 1f, 0, 0);
+        sleepUntil(start + TAP_HOLD_MS);
+        touch(MotionEvent.ACTION_UP, x, y, start, SystemClock.uptimeMillis(), 1f, 1f, 0, 1f, 1f, 0, 0);
+    }
+
+    void touchDown(float x, float y) {
         long now = SystemClock.uptimeMillis();
+        gestureDownTime = now;
         touch(MotionEvent.ACTION_DOWN, x, y, now, now, 1f, 1f, 0, 1f, 1f, 0, 0);
-        touch(MotionEvent.ACTION_UP, x, y, now, now + 20, 1f, 1f, 0, 1f, 1f, 0, 0);
+    }
+
+    void touchMove(float x, float y) {
+        long down = gestureDownTime > 0L ? gestureDownTime : SystemClock.uptimeMillis();
+        long now = SystemClock.uptimeMillis();
+        touch(MotionEvent.ACTION_MOVE, x, y, down, now, 1f, 1f, 0, 1f, 1f, 0, 0);
+    }
+
+    void touchUp(float x, float y) {
+        long down = gestureDownTime > 0L ? gestureDownTime : SystemClock.uptimeMillis();
+        long now = SystemClock.uptimeMillis();
+        gestureDownTime = 0L;
+        touch(MotionEvent.ACTION_UP, x, y, down, now, 1f, 1f, 0, 1f, 1f, 0, 0);
     }
 
     void swipe(float x1, float y1, float x2, float y2, long durationMs) {

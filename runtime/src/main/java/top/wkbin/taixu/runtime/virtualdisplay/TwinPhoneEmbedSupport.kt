@@ -14,7 +14,13 @@ internal object TwinPhoneEmbedSupport {
     /** 与 shower-server DisplaySession 一致：宽高 16 对齐。 */
     fun alignBlock(value: Int): Int = ((value + 15) / 16) * 16
 
-    /** 铺满映射：View 坐标线性落到 VD（与 identity transform 一致）。 */
+    /**
+     * View → VD 触点映射。
+     *
+     * 对照 twoyi guest（`b8.p0`）：`Matrix.setScale(vdW/viewW, vdH/viewH)` 后 transform。
+     * 与 TextureView identity 铺满一致；外层应按 VD 宽高比定框，避免画面被拉扁。
+     * （HostDisplay 的 letterbox 逆映射只在画面本身 letterbox 时适用，这里不能混用。）
+     */
     fun mapViewToDisplay(
         viewX: Float,
         viewY: Float,
@@ -24,9 +30,9 @@ internal object TwinPhoneEmbedSupport {
         vdH: Int,
     ): Pair<Float, Float> {
         if (viewW <= 0 || viewH <= 0 || vdW <= 1 || vdH <= 1) return 0f to 0f
-        val nx = (viewX / viewW).coerceIn(0f, 1f)
-        val ny = (viewY / viewH).coerceIn(0f, 1f)
-        return nx * (vdW - 1) to ny * (vdH - 1)
+        val dx = (viewX * vdW / viewW).coerceIn(0f, (vdW - 1).toFloat())
+        val dy = (viewY * vdH / viewH).coerceIn(0f, (vdH - 1).toFloat())
+        return dx to dy
     }
 
     fun mapMotionEvent(
