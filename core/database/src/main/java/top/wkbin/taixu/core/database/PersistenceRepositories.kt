@@ -153,7 +153,7 @@ class RoomBuildScriptRepository(
 class RoomAndroidAppRepository(private val dao: AndroidAppDao) : AndroidAppRepository {
     override fun observeAll() = dao.observeAll()
     override suspend fun findByPackageName(packageName: String) = dao.findByPackageName(packageName)
-    override suspend fun search(query: String, limit: Int) = dao.search(query, limit)
+    override suspend fun search(query: String, limit: Int) = dao.search(likePattern(query), limit)
     override suspend fun count() = dao.count()
     override suspend fun reconcile(apps: List<AndroidAppEntity>) = dao.reconcile(apps)
 }
@@ -202,7 +202,7 @@ class RoomAgentContextRepository(private val dao: AgentContextDao) : AgentContex
     override suspend fun countMemories(scope: String, ownerId: String) = dao.countMemories(scope, ownerId)
     override fun observeAllMemories() = dao.observeAllMemories()
     override suspend fun searchMemories(query: String, projectOwnerId: String, sessionId: String, limit: Int) =
-        dao.searchMemories(query, projectOwnerId, sessionId, limit)
+        dao.searchMemories(likePattern(query), projectOwnerId, sessionId, limit)
     override suspend fun getPinnedMemories(projectOwnerId: String, sessionId: String) =
         dao.getPinnedMemories(projectOwnerId, sessionId)
     override suspend fun getFreshMemories(projectOwnerId: String, sessionId: String, pinned: Boolean, now: Long, limit: Int) =

@@ -15,8 +15,8 @@ interface AndroidAppDao {
     @Query("SELECT * FROM android_apps WHERE packageName = :packageName LIMIT 1")
     suspend fun findByPackageName(packageName: String): AndroidAppEntity?
 
-    @Query("SELECT * FROM android_apps WHERE packageName LIKE '%' || :query || '%' OR label LIKE '%' || :query || '%' ORDER BY isSystemApp ASC, label COLLATE NOCASE LIMIT :limit")
-    suspend fun search(query: String, limit: Int): List<AndroidAppEntity>
+    @Query("SELECT * FROM android_apps WHERE packageName LIKE '%' || :pattern || '%' ESCAPE '\\' OR label LIKE '%' || :pattern || '%' ESCAPE '\\' ORDER BY isSystemApp ASC, label COLLATE NOCASE LIMIT :limit")
+    suspend fun search(pattern: String, limit: Int): List<AndroidAppEntity>
 
     @Query("SELECT COUNT(*) FROM android_apps")
     suspend fun count(): Int

@@ -231,12 +231,12 @@ class RoomHarnessRuntimeRepository(
     }
     override suspend fun searchBranch(sessionId: String, leafId: String?, query: String, limit: Int): List<HarnessEntryEntity> =
         leafId?.let {
-            val escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            val escaped = likePattern(query)
             dao.searchBranch(sessionId, it, escaped, limit).map(::restoreFromStorage)
         }.orEmpty()
     override suspend fun searchMessages(query: String, limit: Int): List<MessageSearchHitRow> {
         val term = query.trim().takeIf { it.isNotEmpty() } ?: return emptyList()
-        val escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        val escaped = likePattern(term)
         return dao.searchMessagesAcrossSessions(term, escaped, limit.coerceAtLeast(0))
     }
     override suspend fun branchEntryAt(sessionId: String, leafId: String?, index: Int): HarnessEntryEntity? =

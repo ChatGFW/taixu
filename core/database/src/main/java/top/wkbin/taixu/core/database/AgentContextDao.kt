@@ -83,11 +83,11 @@ interface AgentContextDao {
         WHERE ((scope = 'global' AND ownerId = '')
             OR (:projectOwnerId != '' AND scope = 'project' AND ownerId = :projectOwnerId)
             OR (:sessionId != '' AND scope = 'session' AND ownerId = :sessionId))
-          AND (`key` LIKE '%' || :query || '%' OR `value` LIKE '%' || :query || '%')
+          AND (`key` LIKE '%' || :pattern || '%' ESCAPE '\' OR `value` LIKE '%' || :pattern || '%' ESCAPE '\')
         ORDER BY updatedAt DESC, id ASC
         LIMIT :limit
     """)
-    suspend fun searchMemories(query: String, projectOwnerId: String, sessionId: String, limit: Int): List<AgentMemoryEntity>
+    suspend fun searchMemories(pattern: String, projectOwnerId: String, sessionId: String, limit: Int): List<AgentMemoryEntity>
 
     @Query("DELETE FROM agent_memories WHERE id = :id")
     suspend fun deleteMemoryById(id: String)
