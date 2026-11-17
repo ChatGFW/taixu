@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -85,6 +86,8 @@ class BotDetailViewModel(
     val deleted = _deleted.asSharedFlow()
 
     private var boundBotId: String? = null
+    /** bind() 起的一组收集协程；切到另一个 bot 时必须先取消，否则旧 bot 的数据会继续写进同一个 state。 */
+    private var bindJobs: List<Job> = emptyList()
     private val memoryDrafts = mutableMapOf<Pair<String, String>, BotMemoryEditorState>()
 
     internal fun memoryDraft(botId: String, path: String) = memoryDrafts.getOrPut(botId to path) { BotMemoryEditorState() }
@@ -93,26 +96,29 @@ class BotDetailViewModel(
     fun bind(botId: String) {
         if (boundBotId == botId) return
         boundBotId = botId
-        viewModelScope.launch {
-            botRepository.observeBot(botId).collect { bot -> _uiState.update { it.copy(bot = bot) } }
-        }
-        viewModelScope.launch {
-            scheduleRepository.observeForBot(botId).collect { list -> _uiState.update { it.copy(schedules = list) } }
-        }
-        viewModelScope.launch {
-            scheduleRepository.observeDeliveries(botId).collect { list -> _uiState.update { it.copy(deliveries = list) } }
-        }
-        viewModelScope.launch {
-            groupRepository.observeGroups().collect { list -> _uiState.update { it.copy(groups = list) } }
-        }
-        viewModelScope.launch {
-            val files = runCatching { memoryManager.listFiles(botId) }.getOrDefault(emptyList())
-            val commits = runCatching { memoryManager.getCommitHistory(botId) }.getOrDefault(emptyList())
-            val tokens = runCatching { externalRuntime?.listTokens(botId).orEmpty() }.getOrDefault(emptyList())
-            _uiState.update {
-                it.copy(memoryFiles = files, commits = commits, runtimeTokens = tokens, loading = false)
-            }
-        }
+        bindJobs.forEach { it.cancel() }
+        bindJobs = listOf(
+            viewModelScope.launch {
+                botRepository.observeBot(botId).collect { bot -> _uiState.update { it.copy(bot = bot) } }
+            },
+            viewModelScope.launch {
+                scheduleRepository.observeForBot(botId).collect { list -> _uiState.update { it.copy(schedules = list) } }
+            },
+            viewModelScope.launch {
+                scheduleRepository.observeDeliveries(botId).collect { list -> _uiState.update { it.copy(deliveries = list) } }
+            },
+            viewModelScope.launch {
+                groupRepository.observeGroups().collect { list -> _uiState.update { it.copy(groups = list) } }
+            },
+            viewModelScope.launch {
+                val files = runCatching { memoryManager.listFiles(botId) }.getOrDefault(emptyList())
+                val commits = runCatching { memoryManager.getCommitHistory(botId) }.getOrDefault(emptyList())
+                val tokens = runCatching { externalRuntime?.listTokens(botId).orEmpty() }.getOrDefault(emptyList())
+                _uiState.update {
+                    it.copy(memoryFiles = files, commits = commits, runtimeTokens = tokens, loading = false)
+                }
+            },
+        )
     }
 
     fun issueRuntimeToken(label: String, expiresAt: Long? = null) {
