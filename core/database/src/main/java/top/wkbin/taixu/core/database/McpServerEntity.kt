@@ -101,7 +101,8 @@ class McpServerRepository(
 
     val servers: Flow<List<McpServerConfig>> = dao.observeAll()
         .map { rows -> rows.map { it.toModel(json, secretManager).withPresetMetadata() } }
-        .flowOn(Dispatchers.Default)
+        // toModel 要逐条走 AndroidKeyStore 解密（Binder + 密码学运算），属于 IO 而非 CPU 任务。
+        .flowOn(Dispatchers.IO)
 
     suspend fun ensureInitialized() = withContext(Dispatchers.IO) {
         if (initialized) return@withContext
