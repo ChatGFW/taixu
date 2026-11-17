@@ -1,0 +1,66 @@
+TaiXu crash report
+reportTime=2026-11-16 18:45:03.872 +0800
+reportTimeMillis=1794825903872
+package=top.wkbin.taixu
+version=1.11.0 (51)
+processId=27409
+thread=main (2)
+device=vivo V2419A
+android=17 (SDK 37)
+exception=java.lang.IllegalStateException
+message=entered drag with non-zero pending scroll
+
+java.lang.IllegalStateException: entered drag with non-zero pending scroll
+	at io5.c(SourceFile:2)
+	at cj.invoke(SourceFile:444)
+	at q53.a(SourceFile:16)
+	at bka.d(SourceFile:36)
+	at cj.invoke(SourceFile:219)
+	at wl7.a(SourceFile:365)
+	at zja.a(SourceFile:18)
+	at i7a.invoke(SourceFile:955)
+	at pc.invokeSuspend(SourceFile:1032)
+	at pc.invoke(SourceFile:257)
+	at n47.l(SourceFile:41)
+	at n47.invokeSuspend(SourceFile:187)
+	at n47.invoke(SourceFile:62)
+	at n47.m(SourceFile:39)
+	at n47.invokeSuspend(SourceFile:182)
+	at n47.invoke(SourceFile:47)
+	at u03.invokeSuspend(SourceFile:2507)
+	at u03.invoke(SourceFile:437)
+	at eu7.invokeSuspend(SourceFile:132)
+	at eu7.invoke(SourceFile:12)
+	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndispatched(SourceFile:18)
+	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndispatchedOrReturn(SourceFile:1)
+	at kotlinx.coroutines.CoroutineScopeKt.coroutineScope(SourceFile:9)
+	at u03.invokeSuspend(SourceFile:2454)
+	at u03.invoke(SourceFile:422)
+	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndispatched(SourceFile:18)
+	at kotlinx.coroutines.intrinsics.UndispatchedKt.startUndispatchedOrReturn(SourceFile:1)
+	at kotlinx.coroutines.CoroutineScopeKt.coroutineScope(SourceFile:9)
+	at r53.d(SourceFile:10)
+	at vj6.d(SourceFile:99)
+	at bka.g(SourceFile:10)
+	at uja.k1(SourceFile:12)
+	at ce0.invokeSuspend(SourceFile:1717)
+	at ar0.resumeWith(SourceFile:7)
+	at kotlinx.coroutines.DispatchedTask.run(SourceFile:107)
+	at c20.m(SourceFile:23)
+	at b20.doFrame(SourceFile:9)
+	at android.view.Choreographer$CallbackRecord.run(Choreographer.java:2671)
+	at android.view.Choreographer$CallbackRecord.run(Choreographer.java:2682)
+	at android.view.Choreographer.doCallbacks(Choreographer.java:1947)
+	at android.view.Choreographer.doFrame(Choreographer.java:1706)
+	at android.view.Choreographer$FrameDisplayEventReceiver.run(Choreographer.java:2528)
+	at android.os.Handler.handleCallback(Handler.java:1154)
+	at android.os.Handler.dispatchMessageImpl(Handler.java:140)
+	at android.os.Handler.dispatchMessage(Handler.java:129)
+	at android.os.Looper.loopOnce(Looper.java:316)
+	at android.os.Looper.loop(Looper.java:422)
+	at android.app.ActivityThread.main(ActivityThread.java:10945)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:620)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1010)
+	Suppressed: kotlinx.coroutines.internal.DiagnosticCoroutineContextException: [fq7@1b9be02, f20@b86b313, StandaloneCoroutine{Cancelling}@69c3950, c20@ddaf749]
+
