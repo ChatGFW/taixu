@@ -2,6 +2,16 @@ package top.wkbin.taixu.core.model
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
+
+/** 导出用的 JSON 编码器：保持可读缩进，转义交给序列化器。 */
+private val exportJson = Json { prettyPrint = true; prettyPrintIndent = "  " }
 
 /**
  * MCP (Model Context Protocol) 传输协议类型
@@ -79,26 +89,22 @@ data class McpServerConfig(
 
 ) {
     /** 导出为 mcpServers JSON 配置片段（键为服务 id）；配置格式约定归模型层，View 只读展示 */
-    fun toExportJsonConfig(): String = buildString {
-        appendLine("{")
-        appendLine("  \"$id\": {")
-        if (transportType == McpTransportType.STDIO) {
-            appendLine("    \"command\": \"$command\",")
-            appendLine("    \"args\": [${args.joinToString(", ") { "\"$it\"" }}]")
-            if (env.isNotEmpty()) {
-                appendLine("    \"env\": {")
-                env.entries.forEachIndexed { i, (k, v) ->
-                    val comma = if (i == env.size - 1) "" else ","
-                    appendLine("      \"$k\": \"$v\"$comma")
+    fun toExportJsonConfig(): String = exportJson.encodeToString(
+        JsonObject.serializer(),
+        buildJsonObject {
+            putJsonObject(id) {
+                if (transportType == McpTransportType.STDIO) {
+                    put("command", command)
+                    putJsonArray("args") { args.forEach { add(it) } }
+                    if (env.isNotEmpty()) {
+                        putJsonObject("env") { env.forEach { (key, value) -> put(key, value) } }
+                    }
+                } else {
+                    put("url", serverUrl)
                 }
-                appendLine("    }")
             }
-        } else {
-            appendLine("    \"url\": \"$serverUrl\"")
-        }
-        appendLine("  }")
-        append("}")
-    }
+        },
+    )
 }
 
 /**
