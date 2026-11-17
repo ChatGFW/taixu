@@ -13,9 +13,9 @@ class SecretRedactor() : SensitiveDataRedactor {
         result = result.replace(BARE_SECRET_FIELDS) { "${it.groupValues[1]}[REDACTED]" }
         secrets.forEach { result = result.replace(it, "[REDACTED]") }
         return result
-            .replace(Regex("(?i)(OPENAI_API_KEY|API_KEY|TOKEN|AUTHORIZATION)\\s*[=:]\\s*[^\\s,;]+"), "$1=[REDACTED]")
-            .replace(Regex("(?i)Bearer\\s+[A-Za-z0-9._~+/=-]+"), "Bearer [REDACTED]")
-            .replace(Regex("\\b(?:sk-(?:ant-|proj-)?|AIza|xox[bap]-)[A-Za-z0-9._-]{12,}"), "[REDACTED]")
+            .replace(ENV_ASSIGNMENT, "$1=[REDACTED]")
+            .replace(BEARER_TOKEN, "Bearer [REDACTED]")
+            .replace(KNOWN_KEY_PREFIX, "[REDACTED]")
             // Structured tool arguments, including JSON and JavaScript snippets embedded in JSON.
             .replace(JSON_SECRET_VALUE, "$1$2[REDACTED]$4")
             .replace(SCRIPT_SECRET_ASSIGNMENT, "$1$2[REDACTED]$4")
@@ -54,5 +54,9 @@ class SecretRedactor() : SensitiveDataRedactor {
             "(?i)(\\b(?:$SECRET_KEYS)(?:\\.value)?\\s*=\\s*)([\\\"'])(.*?)(\\2)",
         )
         private val MAINLAND_PHONE = Regex("(?<!\\d)1[3-9]\\d{9}(?!\\d)")
+        // 下面三条原先写在 redact() 里：redact 每写一行日志就调一次，正则必须预先编译。
+        private val ENV_ASSIGNMENT = Regex("(?i)(OPENAI_API_KEY|API_KEY|TOKEN|AUTHORIZATION)\\s*[=:]\\s*[^\\s,;]+")
+        private val BEARER_TOKEN = Regex("(?i)Bearer\\s+[A-Za-z0-9._~+/=-]+")
+        private val KNOWN_KEY_PREFIX = Regex("\\b(?:sk-(?:ant-|proj-)?|AIza|xox[bap]-)[A-Za-z0-9._-]{12,}")
     }
 }
