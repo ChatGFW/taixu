@@ -30,6 +30,7 @@ import type {
   RealtimeEventData,
   RealtimeEventName,
   RunResult,
+  SessionBootstrapPayload,
   WorkspaceFilePayload,
   WorkspaceInfo,
   WorkspaceItem,
@@ -54,9 +55,13 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error ?? "请求失败");
 }
 
+function queryToken(): string {
+  return new URLSearchParams(window.location.search).get("token")?.trim() || "";
+}
+
 function initialToken(): string {
-  const queryToken = new URLSearchParams(window.location.search).get("token")?.trim();
-  return queryToken || localStorage.getItem(TOKEN_STORAGE_KEY)?.trim() || "";
+  // 优先深链里的配对码；否则用上次配对换来的会话令牌尝试静默续连。
+  return queryToken() || localStorage.getItem(TOKEN_STORAGE_KEY)?.trim() || "";
 }
 
 function createTaskId(): string {
@@ -97,6 +102,8 @@ export default function App() {
   const workspacePathRef = useRef("");
   const toastTimerRef = useRef<number | null>(null);
   const autoLoginToken = useRef(initialToken());
+  // 登录框只回填深链里的配对码；会话令牌是长串凭证，不该出现在输入框里。
+  const loginPrefill = useRef(queryToken());
 
   function refreshTaskControls() { refreshTasks((version) => version + 1); }
   function showError(error: unknown) {
@@ -275,9 +282,14 @@ export default function App() {
     setLoginError("");
     setAuthenticating(true);
     try {
-      await request("/session/bootstrap", { method: "POST", body: { token } });
-      setAuthToken(token);
-      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      const session = await request<SessionBootstrapPayload>("/session/bootstrap", {
+        method: "POST",
+        body: { token },
+      });
+      // 配对码只用于换取会话令牌；后续请求（含 SSE/下载的 ?token=）统一使用会话令牌。
+      const sessionToken = String(session?.sessionToken ?? "").trim() || token.trim();
+      setAuthToken(sessionToken);
+      localStorage.setItem(TOKEN_STORAGE_KEY, sessionToken);
       const bootstrap = await request<BootstrapPayload>("/bootstrap");
       const info = bootstrap?.workspace?.workspace ?? null;
       const rootPath = bootstrap?.workspace?.root?.path ?? info?.rootPath ?? "";
@@ -656,7 +668,7 @@ export default function App() {
   if (!authenticated) {
     return (
       <LoginView
-        initialToken={autoLoginToken.current}
+        initialToken={loginPrefill.current}
         busy={authenticating}
         error={loginError}
         onLogin={authenticate}

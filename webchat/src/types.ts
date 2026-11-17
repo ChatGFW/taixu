@@ -70,6 +70,12 @@ export interface QuickPhrase {
   description?: string;
 }
 
+/** 配对接口返回：配对码换取的一次性会话令牌（后续请求与 SSE 均使用它）。 */
+export interface SessionBootstrapPayload {
+  authenticated?: boolean;
+  sessionToken?: string;
+}
+
 export interface BootstrapPayload {
   workspace?: {
     workspace?: WorkspaceInfo | null;

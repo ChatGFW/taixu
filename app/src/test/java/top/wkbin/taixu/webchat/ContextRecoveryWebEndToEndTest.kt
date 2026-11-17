@@ -188,8 +188,20 @@ class ContextRecoveryWebEndToEndTest {
             val port = ServerSocket(0).use { it.localPort }
             assertTrue(server.start(port, "654321"))
             val base = "http://127.0.0.1:$port/webchat/api"
+            // 配对码只用于换取会话令牌，数据面（含 SSE）一律使用令牌。
+            val sessionToken = withContext(Dispatchers.IO) {
+                client.newCall(
+                    Request.Builder().url("$base/session/bootstrap")
+                        .post("""{"token":"654321"}""".toRequestBody("application/json".toMediaType()))
+                        .build(),
+                ).execute().use {
+                    val content = it.body.string()
+                    assertEquals(content, 200, it.code)
+                    Json.parseToJsonElement(content).jsonObject["sessionToken"]!!.jsonPrimitive.content
+                }
+            }
             suspend fun request(path: String, body: String? = null): JsonElement = withContext(Dispatchers.IO) {
-                val builder = Request.Builder().url(base + path).header("Authorization", "Bearer 654321")
+                val builder = Request.Builder().url(base + path).header("Authorization", "Bearer $sessionToken")
                 if (body != null) builder.post(body.toRequestBody("application/json".toMediaType()))
                 client.newCall(builder.build()).execute().use {
                     val content = it.body.string()
@@ -198,7 +210,7 @@ class ContextRecoveryWebEndToEndTest {
                 }
             }
             val ready = CompletableDeferred<Unit>()
-            val connection = client.newCall(Request.Builder().url("$base/events").header("Authorization", "Bearer 654321").build())
+            val connection = client.newCall(Request.Builder().url("$base/events").header("Authorization", "Bearer $sessionToken").build())
             stream = connection
             reader = launch(Dispatchers.IO) {
                 try {

@@ -74,9 +74,11 @@ class WebChatBridgeServer(
     private val _status = MutableStateFlow(WebChatServerStatus())
     val status: StateFlow<WebChatServerStatus> = _status.asStateFlow()
 
-    // 远程终端桥与主桥共享 scope 与 PIN；服务停止时一并回收全部 PTY。
+    private val auth = WebChatAuth(System::currentTimeMillis)
+
+    // 远程终端桥与主桥共享 scope 与鉴权实例；服务停止时一并回收全部 PTY。
     private val terminalBridge by lazy {
-        WebTerminalBridge(linuxRuntime, logger, scope) { _status.value.pinCode }
+        WebTerminalBridge(linuxRuntime, logger, scope, auth)
     }
 
     private val sseEmitters = ConcurrentHashMap.newKeySet<AndroidHttpExchange>()
@@ -99,7 +101,7 @@ class WebChatBridgeServer(
         }
         if (_status.value.isRunning) return true
         return try {
-            val generatedPin = pin ?: generatePin()
+            val generatedPin = auth.rotate(pin)
             val server = AndroidHttpServer.create(InetSocketAddress("0.0.0.0", port), 0)
             server.createContext("/webchat/api/session/bootstrap", SessionBootstrapHandler())
             server.createContext("/webchat/api/bootstrap", BootstrapHandler())
@@ -140,6 +142,7 @@ class WebChatBridgeServer(
         runCatching {
             // 先回收终端 PTY（会向订阅者发 exit），再关 HTTP 与其余资源。
             terminalBridge.shutdown()
+            auth.clear()
             heartbeatJob?.cancel()
             heartbeatJob = null
             releaseLocks()
@@ -159,8 +162,11 @@ class WebChatBridgeServer(
         while (iterator.hasNext()) {
             val exchange = iterator.next()
             try {
-                exchange.responseBody.write(payload)
-                exchange.responseBody.flush()
+                // 同一连接必须串行写：多协程并发广播会让两帧字节交错，客户端解析出坏事件。
+                synchronized(exchange) {
+                    exchange.responseBody.write(payload)
+                    exchange.responseBody.flush()
+                }
             } catch (_: Exception) {
                 runCatching { exchange.close() }
                 iterator.remove()
@@ -215,9 +221,16 @@ class WebChatBridgeServer(
     private inner class SessionBootstrapHandler : AndroidHttpHandler {
         override fun handle(exchange: AndroidHttpExchange) = launchRequest(exchange) {
             if (handlePreflight(exchange)) return@launchRequest
-            val token = requestJson(exchange)["token"]?.jsonPrimitive?.content.orEmpty()
-            if (token != _status.value.pinCode) sendJson(exchange, 401, errorJson("配对码不正确"))
-            else sendJson(exchange, 200, buildJsonObject { put("authenticated", true) })
+            val credential = requestJson(exchange)["token"]?.jsonPrimitive?.content
+            when (val outcome = auth.pair(exchange.clientKey(), credential)) {
+                is PairOutcome.Paired -> sendJson(exchange, 200, buildJsonObject {
+                    put("authenticated", true)
+                    // 配对码只用于换取会话令牌，后续请求一律使用该令牌。
+                    put("sessionToken", outcome.sessionToken)
+                })
+                PairOutcome.InvalidCredential -> sendJson(exchange, 401, errorJson("配对码不正确"))
+                is PairOutcome.Throttled -> sendThrottled(exchange, outcome.retryAfterMs)
+            }
         }
     }
 
@@ -386,18 +399,16 @@ class WebChatBridgeServer(
     private inner class SseEventsHandler : AndroidHttpHandler {
         override fun handle(exchange: AndroidHttpExchange) {
             if (handlePreflight(exchange)) return
-            if (!isAuthenticated(exchange)) {
-                sendJson(exchange, 401, errorJson("请先配对"))
-                return
-            }
+            if (!auth.requireAuthorized(exchange)) return
             exchange.responseHeaders.add("Content-Type", "text/event-stream")
             exchange.responseHeaders.add("Cache-Control", "no-cache")
             exchange.responseHeaders.add("Connection", "keep-alive")
             exchange.sendResponseHeaders(200, 0)
-            sseEmitters.add(exchange)
-            _status.value = _status.value.copy(activeConnections = sseEmitters.size)
+            // 首帧先写、再登记进广播集合：否则并发 broadcastEvent 可能与这次写交错。
             exchange.responseBody.write("event: ping\ndata: {}\n\n".toByteArray())
             exchange.responseBody.flush()
+            sseEmitters.add(exchange)
+            _status.value = _status.value.copy(activeConnections = sseEmitters.size)
         }
     }
 
@@ -530,17 +541,7 @@ class WebChatBridgeServer(
         return false
     }
 
-    private fun isAuthenticated(exchange: AndroidHttpExchange): Boolean {
-        val token = getQueryParam(exchange, "token")
-            ?: exchange.requestHeaders.getFirst("Authorization")?.removePrefix("Bearer ")
-        return token != null && token == _status.value.pinCode
-    }
-
-    private fun requireAuthenticated(exchange: AndroidHttpExchange): Boolean {
-        if (isAuthenticated(exchange)) return true
-        sendJson(exchange, 401, errorJson("请先使用配对码连接"))
-        return false
-    }
+    private fun requireAuthenticated(exchange: AndroidHttpExchange): Boolean = auth.requireAuthorized(exchange)
 
     private suspend fun isRegisteredWorkspacePath(path: String): Boolean = runCatching {
         val (project, _) = parseWorkspacePath(path)
@@ -587,7 +588,6 @@ class WebChatBridgeServer(
     }
 
     private fun hasFileExtension(path: String): Boolean = path.substringAfterLast('/', "").contains('.')
-    private fun generatePin(): String = (100000..999999).random().toString()
 
     companion object {
         const val DEFAULT_PORT = DEFAULT_WEBCHAT_PORT

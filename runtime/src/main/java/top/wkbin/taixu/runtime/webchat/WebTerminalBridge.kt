@@ -1,7 +1,6 @@
 package top.wkbin.taixu.runtime.webchat
 
 import java.io.IOException
-import java.net.URLDecoder
 import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -9,11 +8,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
@@ -29,7 +24,7 @@ import top.wkbin.taixu.runtime.shell.TerminalOutput
  * 每个 Web 终端会话通过 [LinuxRuntime.startSession] 起一个独立的 PTY
  * （JNI forkpty 优先，自动回退 script 后端），与手机端 Termux 会话互不干扰：
  * 输出经每个 SSE 订阅者一个 [Channel] 扇出（慢客户端满缓冲即断开，避免无界积压），
- * 输入与 resize 走 POST。鉴权与主桥共用同一 PIN（[pinProvider]）。
+ * 输入与 resize 走 POST。鉴权复用主桥的 [auth]，与主桥共享同一套配对/令牌/节流策略。
  *
  * 生命周期：会话由服务端持有，浏览器断开只断订阅、shell 继续存活，重开页面
  * 可通过列表接口重新订阅同一会话；[shutdown]（服务停止）回收全部 PTY。
@@ -38,9 +33,8 @@ internal class WebTerminalBridge(
     private val linuxRuntime: LinuxRuntime,
     private val logger: AppLogger,
     private val scope: CoroutineScope,
-    private val pinProvider: () -> String,
+    private val auth: WebChatAuth,
 ) {
-    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; explicitNulls = false }
     private val handles = ConcurrentHashMap<String, WebTerminalHandle>()
 
     private class WebTerminalHandle(
@@ -94,10 +88,7 @@ internal class WebTerminalBridge(
             sendResponse(exchange, 204, "text/plain", ByteArray(0))
             return
         }
-        if (!isAuthenticated(exchange)) {
-            sendJson(exchange, 401, errorJson("请先使用配对码连接"))
-            return
-        }
+        if (!auth.requireAuthorized(exchange)) return
         val suffix = exchange.requestURI.path.substringAfter("/terminal", "").trim('/')
         val parts = suffix.split('/').filter(String::isNotBlank)
         when {
@@ -137,6 +128,11 @@ internal class WebTerminalBridge(
     }
 
     private suspend fun createTerminal(exchange: AndroidHttpExchange) {
+        // 每个会话都是一个真实 PTY（进程 + fd），必须设上限，避免一次配对后无限放大。
+        if (handles.size >= MAX_TERMINALS) {
+            sendJson(exchange, 429, errorJson("并发终端已达上限（$MAX_TERMINALS）", "too_many_terminals"))
+            return
+        }
         val body = requestJson(exchange)
         val columns = (body["columns"]?.jsonPrimitive?.content?.toIntOrNull() ?: DEFAULT_COLUMNS)
             .coerceIn(MIN_COLUMNS, MAX_COLUMNS)
@@ -301,39 +297,6 @@ internal class WebTerminalBridge(
 
     // ------------------------------------------------------------------- io
 
-    private fun isAuthenticated(exchange: AndroidHttpExchange): Boolean {
-        val token = exchange.requestURI.query
-            ?.split('&')
-            ?.firstOrNull { it.substringBefore('=') == "token" }
-            ?.substringAfter('=', "")
-            ?.let { URLDecoder.decode(it, Charsets.UTF_8.name()) }
-            ?: exchange.requestHeaders.getFirst("Authorization")?.removePrefix("Bearer ")
-        return token != null && token == pinProvider()
-    }
-
-    private fun requestJson(exchange: AndroidHttpExchange): JsonObject {
-        val raw = exchange.requestBody.bufferedReader().readText()
-        return if (raw.isBlank()) JsonObject(emptyMap()) else json.parseToJsonElement(raw).jsonObject
-    }
-
-    private fun errorJson(message: String) = buildJsonObject { put("error", message) }
-
-    private fun sendJson(exchange: AndroidHttpExchange, code: Int, payload: JsonElement) =
-        sendResponse(exchange, code, "application/json; charset=utf-8", payload.toString().toByteArray())
-
-    private fun sendText(exchange: AndroidHttpExchange, code: Int, text: String) =
-        sendResponse(exchange, code, "text/plain; charset=utf-8", text.toByteArray())
-
-    private fun sendResponse(exchange: AndroidHttpExchange, code: Int, contentType: String, bytes: ByteArray) {
-        exchange.responseHeaders.add("Content-Type", contentType)
-        exchange.responseHeaders.add("Access-Control-Allow-Origin", "*")
-        exchange.responseHeaders.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
-        exchange.responseHeaders.add("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        exchange.sendResponseHeaders(code, bytes.size.toLong())
-        if (bytes.isNotEmpty()) exchange.responseBody.write(bytes)
-        exchange.close()
-    }
-
     private fun sseFrame(event: String, data: String): ByteArray =
         "event: $event\ndata: $data\n\n".toByteArray(Charsets.UTF_8)
 
@@ -347,6 +310,8 @@ internal class WebTerminalBridge(
         const val MAX_ROWS = 200
         /** 单次输入上限：键盘输入与常规粘贴足够；超大文本分片发送。 */
         const val MAX_INPUT_BYTES = 256 * 1024
+        /** 并发 PTY 上限：Web 端多标签 + 重连足够，同时挡住资源放大。 */
+        const val MAX_TERMINALS = 16
         /**
          * 每订阅者缓冲（chunk ≈ PTY 单次读取 ≤ 8KB）。2048 条 ≈ 16MB，覆盖
          * `cat` 大文件这类突发输出；仍溢出说明客户端跟不上，直接断开订阅。
