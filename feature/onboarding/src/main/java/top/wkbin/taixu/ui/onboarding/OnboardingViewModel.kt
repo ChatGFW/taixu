@@ -256,17 +256,21 @@ class OnboardingViewModel(
 
         viewModelScope.launch(Dispatchers.IO) {
             _isInstallingPlugins.value = true
+            var failure: String? = null
             try {
                 toolManager.batchInstallSuites(selected).collect { event ->
                     if (event is InstallEvent.Progress) {
                         _pluginInstallProgress.value = event.message
                     }
                 }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
             } catch (e: Exception) {
-                // 忽略异常保证流程顺畅
+                // 套件是可选组件，失败不阻断引导流程；但异常不能吞掉，留一条可诊断的状态。
+                failure = e.message ?: "未知错误"
             } finally {
                 _isInstallingPlugins.value = false
-                _pluginInstallProgress.value = null
+                _pluginInstallProgress.value = failure?.let { "套件安装失败：$it" }
             }
         }
     }
