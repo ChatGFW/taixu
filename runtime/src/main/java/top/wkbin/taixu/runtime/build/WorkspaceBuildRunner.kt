@@ -226,21 +226,21 @@ class WorkspaceBuildRunner(
             }
             signingEnvironment = env
         }
+        val toolchain = workshopPreferences.androidToolchain.first()
         val workshopEnvironment = buildMap {
-            workshopPreferences.androidSdkPath.first().takeIf { it.isNotBlank() }?.let { put("ANDROID_HOME", it); put("ANDROID_SDK_ROOT", it) }
+            toolchain.sdkPath.takeIf { it.isNotBlank() }?.let { put("ANDROID_HOME", it); put("ANDROID_SDK_ROOT", it) }
             workshopPreferences.ndkPath.first().takeIf { it.isNotBlank() }?.let { put("ANDROID_NDK_HOME", it); put("TAIXU_NDK_PATH", it) }
             workshopPreferences.flutterSdkPath.first().takeIf { it.isNotBlank() }?.let { put("FLUTTER_HOME", it) }
             workshopPreferences.javaPath.first().takeIf { it.isNotBlank() }?.let { put("JAVA_HOME", it) }
             workshopPreferences.gradlePath.first().takeIf { it.isNotBlank() }?.let { put("GRADLE_HOME", it) }
             workshopPreferences.cmakePath.first().takeIf { it.isNotBlank() }?.let { put("TAIXU_CMAKE_HOME", it) }
             workshopPreferences.ninjaPath.first().takeIf { it.isNotBlank() }?.let { put("TAIXU_NINJA_HOME", it) }
-            workshopPreferences.aapt2Path.first().takeIf { it.isNotBlank() }?.let { put("TAIXU_AAPT2_PATH", it) }
+            toolchain.aapt2Path.takeIf { it.isNotBlank() }?.let { put("TAIXU_AAPT2_PATH", it) }
             workshopPreferences.gradleUserHome.first().takeIf { it.isNotBlank() }?.let { put("GRADLE_USER_HOME", it) }
             workshopPreferences.pubCache.first().takeIf { it.isNotBlank() }?.let { put("PUB_CACHE", it) }
             workshopPreferences.toolDir.first().takeIf { it.isNotBlank() }?.let { put("TAIXU_TOOL_DIR", it) }
             putAll(signingEnvironment)
         }
-
         // channelFlow 的 Channel 保证多线程 send 的线程安全：
         // 构建输出回调运行在 ProcessShellExecutor 的 stdout/stderr 读取协程中，
         // 必须用 trySend 跨线程投递进度，禁止在回调里直接 emit。

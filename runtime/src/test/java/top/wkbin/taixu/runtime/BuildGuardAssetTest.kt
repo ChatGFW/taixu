@@ -6,6 +6,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BuildGuardAssetTest {
+    @Test
+    fun armBuildEntriesAcceptVersionedHomuSdkTools() {
+        listOf("build_android.sh", "build_flutter.sh").forEach { name ->
+            val script = File(assets, "scripts/$name").readText()
+            assertTrue(script.contains("/opt/taixu/toolchains/android/sdk-tools/artifacts/homu-*/android-sdk/build-tools/*/aapt2"))
+            assertTrue(script.contains("version >/dev/null 2>&1"))
+        }
+        val flutter = File(assets, "scripts/build_flutter.sh").readText()
+        assertTrue(flutter.contains("export TAIXU_AAPT2_PATH=\"${'$'}AAPT2_PATH\""))
+        assertTrue(flutter.contains("set -- \"${'$'}@\" \"-Pandroid.aapt2FromMavenOverride=${'$'}TAIXU_AAPT2_PATH\""))
+        assertFalse(flutter.contains("ORG_GRADLE_PROJECT_android_aapt2FromMavenOverride"))
+    }
+
     private val assets = File("../app/src/main/assets")
     private val templateAssets = File("../project-template/src/main/assets")
     private val offlineAndroidInstaller =

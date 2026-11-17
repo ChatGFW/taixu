@@ -316,7 +316,7 @@ if [ -f "$FLUTTER_HOME/bin/flutter" ]; then
 fi
 AAPT2_PATH="${TAIXU_AAPT2_PATH:-$ANDROID_HOME/build-tools/35.0.0/aapt2}"
 case "$AAPT2_PATH" in
-    /opt/android-sdk/build-tools/35.0.0/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/*/build-tools/aapt2) ;;
+    /opt/android-sdk/build-tools/35.0.0/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/*/build-tools/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/homu-*/android-sdk/build-tools/*/aapt2) ;;
     *)
         echo "==> [TaiXu Build] ❌ AAPT2 未指向不可变 ARM64 制品目录"
         exit 126
@@ -325,7 +325,7 @@ esac
 AAPT2_MACHINE=$(od -An -t x1 -j 18 -N 2 "$AAPT2_PATH" 2>/dev/null | tr -d '[:space:]')
 if [ "$AAPT2_MACHINE" = "b700" ] && [ -x "$AAPT2_PATH" ] && \
    "$AAPT2_PATH" version >/dev/null 2>&1; then
-    export ORG_GRADLE_PROJECT_android_aapt2FromMavenOverride="$AAPT2_PATH"
+    export TAIXU_AAPT2_PATH="$AAPT2_PATH"
     echo "==> [TaiXu Build] 使用 ARM64 原生 AAPT2: $AAPT2_PATH"
 else
     echo "==> [TaiXu Build] ❌ 固定 ARM64 AAPT2 在构建启动前失效"
@@ -379,6 +379,7 @@ cat > android/gradlew <<'EOF'
 #!/bin/sh
 # 优先复用插件装配期已装好的本地 Gradle 8.14.2，避免 Wrapper 重新下载发行版。
 DIR="$(cd "$(dirname "$0")" && pwd)"
+set -- "$@" "-Pandroid.aapt2FromMavenOverride=$TAIXU_AAPT2_PATH"
 if [ -x "$GRADLE_HOME/bin/gradle" ]; then
     exec "$GRADLE_HOME/bin/gradle" "$@"
 elif [ -x /opt/gradle-8.7/bin/gradle ]; then

@@ -78,6 +78,8 @@ class RuntimePreferences(private val store: SettingsDataStore) {
 }
 
 class WorkshopPreferences(private val store: SettingsDataStore) {
+    val androidToolchain get() = store.observeWorkshopAndroidToolchain()
+    suspend fun setAndroidToolchain(sdkPath: String, aapt2Path: String) = store.setWorkshopAndroidToolchain(sdkPath, aapt2Path)
     val androidSdkPath get() = store.workshopAndroidSdkPath
     val ndkPath get() = store.workshopNdkPath
     val flutterSdkPath get() = store.workshopFlutterSdkPath

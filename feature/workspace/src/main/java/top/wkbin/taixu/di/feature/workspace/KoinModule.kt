@@ -3,12 +3,14 @@ package top.wkbin.taixu.di.feature.workspace
 import org.koin.dsl.module
 import top.wkbin.taixu.ui.workspace.WorkshopSettingsViewModel
 import top.wkbin.taixu.ui.workspace.WorkshopSigningViewModel
+import top.wkbin.taixu.ui.workspace.WorkshopSdkViewModel
 import top.wkbin.taixu.ui.workspace.WorkspaceBuildTaskCoordinator
 import top.wkbin.taixu.ui.workspace.WorkspaceViewModel
 import org.koin.core.module.dsl.viewModel
 
 /** Dependency registrations owned by the feature:workspace module. */
 val featureWorkspaceModule = module {
+    viewModel { WorkshopSdkViewModel(get(), get()) }
     viewModel<WorkshopSettingsViewModel> {
         WorkshopSettingsViewModel(
             context = get(),

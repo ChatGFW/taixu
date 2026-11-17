@@ -7,7 +7,7 @@
     ],
     "generatedAt": "2026-11-16",
     "maxFileLines": 400,
-    "fileCount": 86,
+    "fileCount": 85,
     "files": {
         "core/database/src/main/java/top/wkbin/taixu/core/database/PersistenceRepositories.kt": 425,
         "core/datastore/src/main/java/top/wkbin/taixu/core/datastore/SettingsDataStore.kt": 947,
@@ -54,8 +54,7 @@
         "feature/workflow/src/main/java/top/wkbin/taixu/ui/workflow/WorkflowRunDetails.kt": 405,
         "feature/workflow/src/main/java/top/wkbin/taixu/ui/workflow/WorkflowViewModel.kt": 424,
         "feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/CodeEditorScreen.kt": 489,
-        "feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkshopSettingsScreen.kt": 406,
-        "feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkshopSettingsViewModel.kt": 439,
+        "feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkshopSettingsViewModel.kt": 438,
         "feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkshopSigningScreen.kt": 475,
         "feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkspaceBuildDialogs.kt": 523,
         "feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkspaceCreateDialog.kt": 708,

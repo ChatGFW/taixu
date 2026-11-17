@@ -14,6 +14,7 @@ import top.wkbin.taixu.core.tools.AiProfileWriter
 import top.wkbin.taixu.core.tools.DependencyManagerImpl
 import top.wkbin.taixu.core.tools.DependencyResolver
 import top.wkbin.taixu.core.tools.FlutterSdkDownloader
+import top.wkbin.taixu.core.tools.AndroidSdkManager
 import top.wkbin.taixu.core.tools.InstallLogRepository
 import top.wkbin.taixu.core.tools.InstallTaskRepository
 import top.wkbin.taixu.core.tools.InstallTransactionManager
@@ -57,6 +58,7 @@ import top.wkbin.taixu.runtime.tools.ToolCommandLinker
 
 /** Dependency registrations owned by the tools module. */
 val toolsModule = module {
+    single { AndroidSdkManager(get(), get(), get(), get(), get(), get()) }
     single { RemotePluginLibrary(get(), get()) }
     single { val local = get<LocalBackendAccess>()
         InstalledPluginCatalog(get(), get(), get(), local::requireLocal) }

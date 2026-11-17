@@ -26,15 +26,15 @@ class SettingsDataStore(
     private val secretManager: SecretManager,
 ) {
     internal val appearanceDataStore get() = context.settingsDataStore
-    // 工坊 Android/Flutter 工具链覆盖配置。空值表示使用当前套件的标准路径。
-    private val workshopAndroidSdkPathKey = stringPreferencesKey("workshop_android_sdk_path")
+    internal val workshopDataStore get() = context.settingsDataStore
+    internal val workshopAndroidSdkPathKey = stringPreferencesKey("workshop_android_sdk_path")
     private val workshopNdkPathKey = stringPreferencesKey("workshop_ndk_path")
     private val workshopFlutterSdkPathKey = stringPreferencesKey("workshop_flutter_sdk_path")
     private val workshopJavaPathKey = stringPreferencesKey("workshop_java_path")
     private val workshopGradlePathKey = stringPreferencesKey("workshop_gradle_path")
     private val workshopCmakePathKey = stringPreferencesKey("workshop_cmake_path")
     private val workshopNinjaPathKey = stringPreferencesKey("workshop_ninja_path")
-    private val workshopAapt2PathKey = stringPreferencesKey("workshop_aapt2_path")
+    internal val workshopAapt2PathKey = stringPreferencesKey("workshop_aapt2_path")
     private val workshopGradleUserHomeKey = stringPreferencesKey("workshop_gradle_user_home")
     private val workshopPubCacheKey = stringPreferencesKey("workshop_pub_cache")
     private val workshopToolDirKey = stringPreferencesKey("workshop_tool_dir")

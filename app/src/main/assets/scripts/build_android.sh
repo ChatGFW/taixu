@@ -152,7 +152,7 @@ if [ ! -f "$ANDROID_HOME/build-tools/$REQUIRED_BUILD_TOOLS/source.properties" ] 
     exit 2
 fi
 case "$AAPT2_OVERRIDE" in
-    /opt/android-sdk/build-tools/35.0.0/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/*/build-tools/aapt2) ;;
+    /opt/android-sdk/build-tools/35.0.0/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/*/build-tools/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/homu-*/android-sdk/build-tools/*/aapt2) ;;
     *)
         echo "==> [TaiXu Build] ❌ AAPT2 未指向不可变 ARM64 制品目录"
         exit 2

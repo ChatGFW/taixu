@@ -336,14 +336,13 @@ class WorkshopSettingsViewModel(
 
     fun saveEnvironment() = viewModelScope.launch {
         val d = _draft.value
-        preferences.setAndroidSdkPath(d.androidSdkPath)
+        preferences.setAndroidToolchain(d.androidSdkPath, d.aapt2Path)
         preferences.setNdkPath(d.ndkPath)
         preferences.setFlutterSdkPath(d.flutterSdkPath)
         preferences.setJavaPath(d.javaPath)
         preferences.setGradlePath(d.gradlePath)
         preferences.setCmakePath(d.cmakePath)
         preferences.setNinjaPath(d.ninjaPath)
-        preferences.setAapt2Path(d.aapt2Path)
         preferences.setGradleUserHome(d.gradleUserHome)
         preferences.setPubCache(d.pubCache)
         preferences.setToolDir(d.toolDir)
