@@ -136,17 +136,23 @@ class LocalLlmManager(
         }
     }
 
+    /**
+     * 从外部流导入 GGUF。
+     *
+     * [openStream] 在协程内部才真正打开：调用方往往在返回 Flow 之前就拿到流
+     * （ContentResolver / FileInputStream），若收集被取消或从未开始，那个 fd 就没人关。
+     */
     fun import(
         displayName: String,
-        input: InputStream,
         totalBytes: Long? = null,
+        openStream: () -> InputStream,
     ): Flow<LocalModelTransfer> = flow {
         val destination = resolveModelFile(displayName)
         val partial = File("${destination.absolutePath}.import.part")
         emit(LocalModelTransfer.Started)
         try {
             var copied = 0L
-            input.use { source ->
+            openStream().use { source ->
                 partial.outputStream().buffered().use { output ->
                     val buffer = ByteArray(COPY_BUFFER_BYTES)
                     while (true) {
@@ -178,7 +184,7 @@ class LocalLlmManager(
         val source = File(path.trim()).canonicalFile
         require(source.isFile && source.canRead()) { "文件不存在或不可读取：${source.absolutePath}" }
         require(source.extension.equals(GGUF_EXTENSION, ignoreCase = true)) { "请选择 .gguf 模型文件" }
-        return import(source.name, FileInputStream(source), source.length())
+        return import(source.name, source.length()) { FileInputStream(source) }
     }
 
     suspend fun start(fileName: String, contextTokens: Int? = null) = serviceMutex.withLock {
