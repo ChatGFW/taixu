@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="taixu_theme" parent="Theme.SplashScreen">
-        <!-- Android 12+ (API 31+) 系统级属性 -->
+        <!-- 系统闪屏只负责冷启动首帧：纯色底 + 透明图标。
+             Logo 拼合动画由应用内 TaiXuSplash 播放（对齐 KernelSU-Next）：
+             系统启动窗口持有动画时长与生命周期，ROM 可能跳过或在退出时截断，
+             应用内播放 + 动画结束回调退场才能保证每次都完整播完。 -->
         <item name="android:windowSplashScreenBackground">@color/taixu_splash_background</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/taixu_splash_animated</item>
-        <item name="android:windowSplashScreenAnimationDuration">500</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/taixu_splash_blank</item>
+        <item name="android:windowSplashScreenAnimationDuration">0</item>
 
-        <!-- AndroidX 兼容库属性 -->
+        <!-- AndroidX 兼容库属性（API 29-30 由兼容库接管） -->
         <item name="windowSplashScreenBackground">@color/taixu_splash_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/taixu_splash_animated</item>
-        <item name="windowSplashScreenAnimationDuration">500</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/taixu_splash_blank</item>
+        <item name="windowSplashScreenAnimationDuration">0</item>
         <item name="postSplashScreenTheme">@style/taixu_post_splash_theme</item>
     </style>
     <style name="taixu_post_splash_theme" parent="Theme.AppCompat.DayNight.NoActionBar">

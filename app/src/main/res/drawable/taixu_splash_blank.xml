@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 系统闪屏占位图标：完全透明。
+     冷启动时系统启动窗口只铺 taixu_splash_background 纯色底，
+     Logo 拼合动画改由应用内 TaiXuSplash 播放，避免系统截断动画。 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@android:color/transparent" />
+    <size
+        android:width="288dp"
+        android:height="288dp" />
+</shape>

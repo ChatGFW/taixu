@@ -28,7 +28,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,7 +35,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -50,6 +48,7 @@ import top.wkbin.taixu.ui.components.ProvideRuntimeWidthClass
 import top.wkbin.taixu.ui.navigation.TaiXuNavHost
 import top.wkbin.taixu.ui.navigation.openOnboardingAutostartSettings
 import top.wkbin.taixu.ui.InterfaceScale
+import top.wkbin.taixu.ui.TaiXuSplash
 import top.wkbin.taixu.ui.theme.TaiXuTheme
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
@@ -78,8 +77,7 @@ class MainActivity : AppCompatActivity() {
     private val botGroupSessions: BotGroupSessionRepository? get() =
         runCatching { getKoin().getOrNull<BotGroupSessionRepository>() }.getOrNull()
 
-    /** Splash 等到 onboarding 偏好就绪。 */
-    private val keepSplashOnScreen: MutableState<Boolean> = mutableStateOf(true)
+    /** 冷启动计时，仅用于启动耗时日志。 */
     private var createdUptimeMs: Long = 0L
     private val twinPipHost = TwinPhonePipHost(this)
     private val interfaceScale by lazy { InterfaceScale(resources) }
@@ -87,8 +85,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         createdUptimeMs = SystemClock.uptimeMillis()
-        val splashScreen = installSplashScreen()
-        splashScreen.setupTaiXuSplashAnimation { keepSplashOnScreen.value }
+        // 系统闪屏只铺纯色底兜住冷启动首帧；Logo 动画在应用内播放（见 TaiXuSplash）。
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(twinPipHost)
         handleNavigationIntent(intent)
@@ -125,19 +123,8 @@ class MainActivity : AppCompatActivity() {
                     ProvideClassicToolStatusDots(enabled = classicToolStatusDots) {
                         val onboardingViewModel: OnboardingViewModel = koinViewModel()
                         val onboarding by onboardingViewModel.status.collectAsStateWithLifecycle()
-
-                        LaunchedEffect(onboarding.loaded) {
-                            if (onboarding.loaded && keepSplashOnScreen.value) {
-                                val elapsed = SystemClock.uptimeMillis() - createdUptimeMs
-                                val remaining = (420L - elapsed).coerceAtLeast(0L)
-                                if (remaining > 0L) delay(remaining)
-                                keepSplashOnScreen.value = false
-                                Log.i(
-                                    "TaiXuStartup",
-                                    "splash dismissed in ${SystemClock.uptimeMillis() - createdUptimeMs}ms",
-                                )
-                            }
-                        }
+                        // 应用内启动页：动画播完才揭幕，不再依赖系统闪屏的播放时长。
+                        var splashVisible by remember { mutableStateOf(true) }
 
                         var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
                         val currentVersionName = rememberAppVersionName()
@@ -160,19 +147,33 @@ class MainActivity : AppCompatActivity() {
                             startActivity = { startActivity(it) },
                         )
 
-                        ProvideRuntimeWidthClass {
-                            when {
-                                !onboarding.loaded -> Box(
-                                    Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    CircularProgressIndicator(color = RuntimeTheme.colorScheme.primary)
+                        Box(Modifier.fillMaxSize()) {
+                            ProvideRuntimeWidthClass {
+                                when {
+                                    !onboarding.loaded -> Box(
+                                        Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        CircularProgressIndicator(color = RuntimeTheme.colorScheme.primary)
+                                    }
+                                    onboarding.completed -> TaiXuNavHost(globalNavigationBus = globalNavigationBus)
+                                    else -> OnboardingScreen(
+                                        onboardingViewModel,
+                                        onOpenAutostartSettings = { openOnboardingAutostartSettings() },
+                                        onNotificationGranted = { startRuntimeServiceWhenNotificationAllowed() },
+                                    )
                                 }
-                                onboarding.completed -> TaiXuNavHost(globalNavigationBus = globalNavigationBus)
-                                else -> OnboardingScreen(
-                                    onboardingViewModel,
-                                    onOpenAutostartSettings = { openOnboardingAutostartSettings() },
-                                    onNotificationGranted = { startRuntimeServiceWhenNotificationAllowed() },
+                            }
+
+                            if (splashVisible) {
+                                TaiXuSplash(
+                                    onFinished = {
+                                        splashVisible = false
+                                        Log.i(
+                                            "TaiXuStartup",
+                                            "splash dismissed in ${SystemClock.uptimeMillis() - createdUptimeMs}ms",
+                                        )
+                                    },
                                 )
                             }
                         }
