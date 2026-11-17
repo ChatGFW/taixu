@@ -35,7 +35,14 @@ class GitCredentialsStore(
     }.getOrDefault(mutableMapOf())
 
     private fun writeMap(map: Map<String, StoredCredentials>) {
-        file().writeText(json.encodeToString(map))
+        // 原子替换：直接 writeText 若被中途杀掉会留下半截 JSON，readMap 兜底成空表 = 所有凭据静默丢失。
+        val target = file()
+        val temp = File(target.parentFile, "${target.name}.tmp")
+        temp.writeText(json.encodeToString(map))
+        if (!temp.renameTo(target)) {
+            target.writeText(json.encodeToString(map))
+            temp.delete()
+        }
     }
 
     /** 返回 (username, token)；未配置返回 null。 */
