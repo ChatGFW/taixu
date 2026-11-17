@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -31,7 +32,11 @@ internal class LinuxSessionTerminalBackend(
     private val pipeOut = PipedOutputStream()
     private val pipeIn = PipedInputStream(pipeOut, PIPE_BUFFER_BYTES)
 
+    /** 待发往远端的按键/粘贴数据；由唯一的写协程顺序消费。 */
+    private val inputQueue = Channel<ByteArray>(Channel.UNLIMITED)
+
     @Volatile private var pump: Job? = null
+    @Volatile private var writer: Job? = null
     @Volatile private var closed = false
 
     override fun start(rows: Int, columns: Int): Int {
@@ -53,6 +58,11 @@ internal class LinuxSessionTerminalBackend(
                 runCatching { pipeOut.close() }
             }
         }
+        writer = scope.launch(Dispatchers.IO) {
+            for (chunk in inputQueue) {
+                runCatching { session.write(chunk) }
+            }
+        }
         // SSH 会话不暴露本地 pid：用正哨兵值让 Termux 侧 isRunning / write 判定成立。
         return session.pid?.takeIf { it > 0L }?.toInt() ?: 1
     }
@@ -61,7 +71,10 @@ internal class LinuxSessionTerminalBackend(
         pipeIn.read(buffer, offset, length)
 
     override fun write(buffer: ByteArray, offset: Int, length: Int) {
-        runBlocking { session.write(buffer.copyOfRange(offset, offset + length)) }
+        if (closed || length <= 0) return
+        // Termux 在输入线程上直接调这里：原来 runBlocking 等 SSH 写完，网络慢时按键卡在
+        // 调用线程（UI 上就是输入延迟/卡顿）。改为投递到后台唯一写协程，顺序由队列保证。
+        inputQueue.trySend(buffer.copyOfRange(offset, offset + length))
     }
 
     override fun setSize(rows: Int, columns: Int) {
@@ -69,18 +82,22 @@ internal class LinuxSessionTerminalBackend(
     }
 
     override fun waitForExit(): Int {
+        // 保留阻塞语义：调用方是 Termux 的后台等待线程，需要拿到退出码。
         runBlocking { while (session.isAlive) delay(50) }
         return (session as? SshLinuxSession)?.exitCode ?: -1
     }
 
     override fun kill() {
+        // 终止必须同步完成：返回后 Termux 侧就认为会话已死，不能留后台收尾。
         runBlocking { session.close() }
     }
 
     override fun close() {
         if (closed) return
-        runBlocking { session.close() }
         closed = true
+        inputQueue.close()
+        writer?.cancel()
+        runBlocking { session.close() }
         pump?.cancel()
         runCatching { pipeIn.close() }
         runCatching { pipeOut.close() }
