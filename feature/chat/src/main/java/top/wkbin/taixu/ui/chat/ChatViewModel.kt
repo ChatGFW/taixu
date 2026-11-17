@@ -853,8 +853,7 @@ class ChatViewModel(
         mcpServerRepository.servers,
     ) { text, skills, mcps ->
         if (!text.contains("@")) return@combine emptyList()
-        val regex = Regex("""@([^\s@,，:：\n]+)""")
-        val matchedNames = regex.findAll(text).map { it.groupValues[1].trim().lowercase() }.toSet()
+        val matchedNames = MENTION_PATTERN.findAll(text).map { it.groupValues[1].trim().lowercase() }.toSet()
         if (matchedNames.isEmpty()) return@combine emptyList()
 
         val matchedSkills = skills
@@ -1062,6 +1061,7 @@ class ChatViewModel(
 
     private companion object {
         const val MESSAGE_SEARCH_LIMIT = 30
+        val MENTION_PATTERN = Regex("""@([^\s@,，:：\n]+)""")
     }
 
     /** 创建针对工具安装或沙箱异常的专属自愈会话并立即启动诊断 */

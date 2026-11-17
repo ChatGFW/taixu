@@ -35,10 +35,18 @@ internal class ChatSpeechGate {
 
 /** Keep prose, avoid reading code blocks, image URLs and Markdown punctuation aloud. */
 internal fun speechText(text: String): String = text
-    .replace(Regex("(?s)<think>.*?(?:</think>|$)"), " ")
-    .replace(Regex("(?s)```.*?```|~~~.*?~~~"), " ")
-    .replace(Regex("!\\[[^]]*]\\([^)]*\\)"), " ")
-    .replace(Regex("\\[([^]]+)]\\([^)]*\\)"), "$1")
-    .replace(Regex("(?m)^\\s{0,3}(#{1,6}\\s+|>\\s*|[-*+]\\s+)"), "")
-    .replace(Regex("[`*_~]"), "")
+    .replace(REASONING_BLOCK, " ")
+    .replace(FENCED_CODE, " ")
+    .replace(IMAGE_MARKDOWN, " ")
+    .replace(LINK_MARKDOWN, "$1")
+    .replace(LINE_PREFIX, "")
+    .replace(INLINE_MARKUP, "")
     .trim()
+
+// 这些模式是编译期常量：原来每次朗读都现编 6 个 Regex。
+private val REASONING_BLOCK = Regex("(?s)<think>.*?(?:</think>|$)")
+private val FENCED_CODE = Regex("(?s)```.*?```|~~~.*?~~~")
+private val IMAGE_MARKDOWN = Regex("!\\[[^]]*]\\([^)]*\\)")
+private val LINK_MARKDOWN = Regex("\\[([^]]+)]\\([^)]*\\)")
+private val LINE_PREFIX = Regex("(?m)^\\s{0,3}(#{1,6}\\s+|>\\s*|[-*+]\\s+)")
+private val INLINE_MARKUP = Regex("[`*_~]")
