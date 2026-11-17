@@ -569,6 +569,8 @@ feature/chat/src/main/java/top/wkbin/taixu/ui/chat/floating/FloatingChatView.kt
 
 > 顺序建议：1–24 → **26** → 25（style 在 docs 之前），这样任何一步之后 `architectureCheck` 都是绿的。
 
+> **补记（实际执行时新增）**：第 27 条 `fix(database): MCP 服务配置解密改到 IO 线程池`（`McpServerEntity.kt`，`flowOn(Default)` → `IO`）。初次整理清单时漏了这个文件，已单独补提交。
+
 ---
 
 ## 附：本次实际执行过的验证项
