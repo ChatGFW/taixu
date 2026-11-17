@@ -8,7 +8,7 @@ import top.wkbin.taixu.core.network.ResumableFileDownloader
 
 /** Dependency registrations owned by the core:network module. */
 val coreNetworkModule = module {
-    single<AppUpdateManager> { AppUpdateManager(context = get(), httpClient = get()) }
+    single<AppUpdateManager> { AppUpdateManager(context = get(), httpClient = get(), fileDownloader = get()) }
 
     single<ChecksumVerifier> { ChecksumVerifier() }
 

@@ -16,13 +16,13 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import top.wkbin.taixu.core.model.AppUpdateInfo
 import java.io.File
-import java.io.FileOutputStream
 /**
  * 太墟 · 应用版本更新管理器 (GitHub Releases API)
  */
 class AppUpdateManager(
     private val context: Context,
     private val httpClient: OkHttpClient,
+    private val fileDownloader: FileDownloader,
 ) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
     companion object {
@@ -30,6 +30,8 @@ class AppUpdateManager(
         const val GITHUB_REPO_URL = "https://github.com/taixu-lab/taixu"
         const val QQ_GROUP_ID = "964382207"
         private const val RELEASES_API = "https://api.github.com/repos/taixu-lab/taixu/releases/latest"
+        /** APK 体积上限：当前安装包 ~150MB，留足余量同时挡住异常超大响应。 */
+        private const val MAX_APK_BYTES = 512L * 1024 * 1024
     }
 
     /**
@@ -120,45 +122,31 @@ class AppUpdateManager(
     }
 
     /**
-     * 下载 APK 文件并报告下载进度
+     * 下载 APK 文件并报告下载进度。
+     *
+     * 复用统一的 [FileDownloader]：强制 HTTPS、断点重试、体积上限都在那里；
+     * 旧实现裸用 OkHttp，非 2xx 分支 Response 未关闭，且 http 链路也照下。
      */
     suspend fun downloadApk(
         downloadUrl: String,
         onProgress: (downloadedBytes: Long, totalBytes: Long?) -> Unit,
     ): Result<File> = withContext(Dispatchers.IO) {
         runCatching {
-            val request = Request.Builder()
-                .url(downloadUrl)
-                .get()
-                .build()
-
-            val response = httpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                throw IllegalStateException("下载失败 HTTP ${response.code}")
-            }
-
-            val body = response.body
-            val contentLength = body.contentLength().takeIf { it > 0 }
             val downloadDir = File(context.cacheDir, "updates").apply { mkdirs() }
             val apkFile = File(downloadDir, "taixu-latest.apk")
             if (apkFile.exists()) apkFile.delete()
 
-            body.byteStream().use { input ->
-                FileOutputStream(apkFile).use { output ->
-                    val buffer = ByteArray(32 * 1024)
-                    var downloaded = 0L
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read < 0) break
-                        output.write(buffer, 0, read)
-                        downloaded += read
-                        onProgress(downloaded, contentLength)
-                    }
-                    output.flush()
+            var completed: File? = null
+            fileDownloader.download(
+                DownloadRequest(url = downloadUrl.trim(), destination = apkFile, maxBytes = MAX_APK_BYTES),
+            ).collect { event ->
+                when (event) {
+                    is DownloadEvent.Progress -> onProgress(event.downloadedBytes, event.totalBytes)
+                    is DownloadEvent.Completed -> completed = event.file
+                    DownloadEvent.Started, DownloadEvent.Verifying -> Unit
                 }
             }
-
-            apkFile
+            completed ?: throw IllegalStateException("APK 下载未完成")
         }
     }
 
