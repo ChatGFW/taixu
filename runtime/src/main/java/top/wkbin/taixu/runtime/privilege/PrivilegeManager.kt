@@ -222,7 +222,7 @@ class PrivilegeManager(
      */
     private fun checkRootPrivilege(): PrivilegeCheckResult {
         return try {
-            val process = ProcessBuilder("su", "-c", "id").start()
+            val process = ProcessBuilder("su", "-c", "id").redirectErrorStream(true).start()
             val completed = process.waitFor(5, TimeUnit.SECONDS)
             if (!completed) {
                 process.destroyForcibly()
@@ -231,8 +231,8 @@ class PrivilegeManager(
                     "请求 Root 授权超时，请在 Magisk / KernelSU / APatch 弹窗中允许授权。",
                 )
             }
-
-            val output = process.inputStream.bufferedReader().readText()
+            // stderr 并入 stdout：只读 stdout 时 su 写满 stderr 管道会自阻塞，5s 后误判为无 Root。
+            val output = process.inputStream.bufferedReader().use { it.readText() }
             val exitCode = process.exitValue()
 
             if (exitCode == 0 && output.contains("uid=0")) {
