@@ -298,7 +298,7 @@ private fun launchSettingIntents(context: Context, brand: OemBrand, topic: Keepa
         try {
             context.startActivity(intent)
             return
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             // 继续尝试降级 intent
         }
     }

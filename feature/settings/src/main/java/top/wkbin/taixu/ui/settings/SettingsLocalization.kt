@@ -534,31 +534,31 @@ private fun legacyStringResource(source: String): Int? = hashlineLegacyString(so
 internal fun resolveLegacyString(source: String): String {
     legacyStringResource(source)?.let { return stringResource(it) }
     // NOTE: raw 字符串不做转义处理，此处必须写 \d；写成 \\d 会匹配字面 "\d" 导致永不命中。
-    Regex("""(\d+) 套系统 · (.+)""").matchEntire(source)?.also {
+    legacySystemModeRegex.matchEntire(source)?.also {
         return stringResource(R.string.settings_dynamic_system_mode, it.groupValues[1], it.groupValues[2])
     }
-    Regex("""(\d+) 套系统""").matchEntire(source)?.also {
+    legacySystemCountRegex.matchEntire(source)?.also {
         return stringResource(R.string.settings_dynamic_system_count, it.groupValues[1])
     }
-    Regex("""(\d+) 个模型 · (\d+) 技能""").matchEntire(source)?.also {
+    legacyModelSkillCountRegex.matchEntire(source)?.also {
         return stringResource(R.string.settings_dynamic_model_skill_count, it.groupValues[1], it.groupValues[2])
     }
-    Regex("""(\d+) 个模型""").matchEntire(source)?.also {
+    legacyModelCountRegex.matchEntire(source)?.also {
         return stringResource(R.string.settings_dynamic_model_count, it.groupValues[1])
     }
-    Regex("""(\d+) 个技能""").matchEntire(source)?.also {
+    legacySkillCountRegex.matchEntire(source)?.also {
         return stringResource(R.string.settings_dynamic_skill_count, it.groupValues[1])
     }
-    Regex("""(\d+) 个""").matchEntire(source)?.also {
+    legacyItemCountRegex.matchEntire(source)?.also {
         return stringResource(R.string.settings_dynamic_item_count, it.groupValues[1])
     }
-    Regex("""(\d+) 轮""").matchEntire(source)?.also {
+    legacyRoundCountRegex.matchEntire(source)?.also {
         return stringResource(R.string.settings_dynamic_round_count, it.groupValues[1])
     }
-    Regex("""下载中：(.+) / (.+) MB""").matchEntire(source)?.also {
+    legacyDownloadProgressRegex.matchEntire(source)?.also {
         return stringResource(R.string.settings_dynamic_download_progress, it.groupValues[1], it.groupValues[2])
     }
-    Regex("""已下载：(.+) MB""").matchEntire(source)?.also {
+    legacyDownloadedRegex.matchEntire(source)?.also {
         return stringResource(R.string.settings_dynamic_downloaded, it.groupValues[1])
     }
     if (source.startsWith("发现新版本 v")) {
@@ -567,13 +567,13 @@ internal fun resolveLegacyString(source: String): String {
     if (source.startsWith("确定删除 ") && source.endsWith("？")) {
         return stringResource(R.string.settings_dynamic_delete_confirm, source.removePrefix("确定删除 ").removeSuffix("？"))
     }
-    Regex("""成功探测到 (\d+) 个工具""").matchEntire(source)?.also {
+    legacyToolDiscoveredRegex.matchEntire(source)?.also {
         return stringResource(R.string.settings_dynamic_tool_count, it.groupValues[1])
     }
-    Regex("""轮次用尽时先让模型收束并记录进度，再自动续跑，无需用户点击继续；总预算上限 (\d+) 轮""").matchEntire(source)?.also {
+    legacyRoundBudgetRegex.matchEntire(source)?.also {
         return stringResource(R.string.settings_text_0340, it.groupValues[1])
     }
-    Regex("""(\d+) 次""").matchEntire(source)?.also {
+    legacyTimesRegex.matchEntire(source)?.also {
         return stringResource(R.string.settings_text_0341, it.groupValues[1])
     }
     return source
