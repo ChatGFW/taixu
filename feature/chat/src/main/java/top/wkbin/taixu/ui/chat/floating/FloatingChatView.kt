@@ -597,8 +597,7 @@ private fun FloatingChatPanel(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.CenterStart,
+                    modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart,
                 ) {
                     if (inputText.isEmpty()) {
                         Text(
@@ -632,16 +631,14 @@ private fun FloatingChatPanel(
 
                 // 迷你实心圆钮，与主 composer 发送按钮同族
                 Box(
-                    modifier = Modifier.size(24.dp).clip(CircleShape)
-                        .background(if (inputText.isNotBlank()) RuntimeTheme.colorScheme.primary
-                            else RuntimeTheme.colorScheme.surfaceContainerHigh)
+                    modifier = Modifier.size(24.dp).clip(CircleShape).background(if (inputText.isNotBlank()) RuntimeTheme.colorScheme.primary
+                        else RuntimeTheme.colorScheme.surfaceContainerHigh)
                         .clickable(enabled = inputText.isNotBlank()) {
                             onSendPrompt(inputText.trim()); inputText = ""
                         },
                     contentAlignment = Alignment.Center,
                 ) {
-                    RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(14.dp),
-                        tint = if (inputText.isNotBlank()) RuntimeTheme.colorScheme.onPrimary
+                    RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(14.dp), tint = if (inputText.isNotBlank()) RuntimeTheme.colorScheme.onPrimary
                         else RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
                 }
             }

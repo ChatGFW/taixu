@@ -593,14 +593,10 @@ fun ChatScreen(
     if (showOutline) ChatOutlineSheet(messages, onDismiss = { showOutline = false }, onJump = { showOutline = false; jumpToMessage(it) })
 
     if (showApprovalModes) {
-        ApprovalModeSheet(currentApprovalMode = currentApprovalMode,
-            onSelect = { mode -> viewModel?.setCurrentSessionApprovalMode(mode); showApprovalModes = false },
-            onDismiss = { showApprovalModes = false }) }
+        ApprovalModeSheet(currentApprovalMode = currentApprovalMode, onSelect = { mode -> viewModel?.setCurrentSessionApprovalMode(mode); showApprovalModes = false }, onDismiss = { showApprovalModes = false }) }
 
     if (showRunModes) {
-        RunModeSheet(currentRunMode = currentRunMode,
-            onSelect = { mode -> viewModel?.setCurrentSessionRunMode(mode); showRunModes = false },
-            onDismiss = { showRunModes = false }) }
+        RunModeSheet(currentRunMode = currentRunMode, onSelect = { mode -> viewModel?.setCurrentSessionRunMode(mode); showRunModes = false }, onDismiss = { showRunModes = false }) }
 
     if (showReasoningSlider) {
         PlainBackdropModalBottomSheet(onDismissRequest = { showReasoningSlider = false }) { ReasoningEffortSlider(
@@ -610,8 +606,7 @@ fun ChatScreen(
     }
 
     if (showMemorySheet) {
-        SessionMemorySheet(memories = memories, scratchpads = scratchpads, sessionId = currentSessionId, failureMemoryAccess = viewModel?.failureMemoryAccess,
-            onDeleteMemory = { arg0 -> viewModel?.deleteMemory(arg0) }, onDeleteScratchpad = { arg0 -> viewModel?.deleteScratchpad(arg0) },
+        SessionMemorySheet(memories = memories, scratchpads = scratchpads, sessionId = currentSessionId, failureMemoryAccess = viewModel?.failureMemoryAccess, onDeleteMemory = { arg0 -> viewModel?.deleteMemory(arg0) }, onDeleteScratchpad = { arg0 -> viewModel?.deleteScratchpad(arg0) },
             onClearScratchpads = { viewModel?.clearScratchpads() }, onDismiss = { showMemorySheet = false })
     }
 
