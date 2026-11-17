@@ -20,6 +20,7 @@ import top.wkbin.taixu.core.model.McpServerConfig
 import java.io.IOException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import org.json.JSONObject
 import top.wkbin.taixu.core.model.McpAuthMode
 import top.wkbin.taixu.core.model.McpAuthState
@@ -44,7 +45,7 @@ class McpOAuthCoordinator(
         val effective = provisioned.config
         OAuthEndpointPolicy.requireSecure(effective.oauthAuthorizationEndpoint)
         OAuthEndpointPolicy.requireSecure(effective.oauthTokenEndpoint)
-        _states.value = _states.value + (server.id to McpAuthState.Authorizing)
+        _states.update { it + (server.id to McpAuthState.Authorizing) }
         val state = OAuthPkce.randomState()
         val verifier = OAuthPkce.codeVerifier()
         credentials.saveTransaction(
@@ -133,20 +134,18 @@ class McpOAuthCoordinator(
             return CallbackResult.Invalid("OAuth state 已被消费")
         }
         if (error != null) {
-            _states.value = _states.value + (transaction.serverId to McpAuthState.Error(error))
+            _states.update { it + (transaction.serverId to McpAuthState.Error(error)) }
             return CallbackResult.Cancelled(error)
         }
         val token = try {
             exchange(transaction, code!!)
         } catch (cancellation: CancellationException) {
-            _states.value = _states.value - transaction.serverId
+            _states.update { it - transaction.serverId }
             throw cancellation
         } catch (failure: Throwable) {
-            _states.value = _states.value + (
-                transaction.serverId to McpAuthState.Error(
-                    failure.message ?: "OAuth token exchange failed",
-                )
-            )
+            _states.update {
+                it + (transaction.serverId to McpAuthState.Error(failure.message ?: "OAuth token exchange failed"))
+            }
             throw failure
         }
         val lock = locks.getOrPut(transaction.serverId) { Mutex() }
@@ -168,7 +167,7 @@ class McpOAuthCoordinator(
                 ),
             )
         }
-        _states.value = _states.value - transaction.serverId
+        _states.update { it - transaction.serverId }
         return CallbackResult.Authorized(transaction.serverId)
     }
 
@@ -195,7 +194,7 @@ class McpOAuthCoordinator(
                 .apply { current.resource?.let { add("resource", it) } }
                 .build()
             val request = Request.Builder().url(endpoint).post(body).build()
-            _states.value = _states.value + (serverId to McpAuthState.Authorizing)
+            _states.update { it + (serverId to McpAuthState.Authorizing) }
             try {
                 val token = executeTokenRequest(request, now)
                 credentials.saveCredential(
@@ -208,13 +207,13 @@ class McpOAuthCoordinator(
                         credentialRevision = now,
                     ),
                 )
-                _states.value = _states.value - serverId
+                _states.update { it - serverId }
                 token.accessToken
             } catch (cancellation: CancellationException) {
-                _states.value = _states.value - serverId
+                _states.update { it - serverId }
                 throw cancellation
             } catch (failure: Throwable) {
-                _states.value = _states.value + (serverId to McpAuthState.Error(failure.message ?: "OAuth token refresh failed"))
+                _states.update { it + (serverId to McpAuthState.Error(failure.message ?: "OAuth token refresh failed")) }
                 throw failure
             }
         }
@@ -223,7 +222,7 @@ class McpOAuthCoordinator(
     suspend fun logout(serverId: String) {
         credentials.deleteCredential(serverId)
         locks.remove(serverId)
-        _states.value = _states.value - serverId
+        _states.update { it - serverId }
     }
 
     private suspend fun exchange(transaction: McpOAuthTransaction, code: String): TokenResponse {
