@@ -64,6 +64,7 @@ import top.wkbin.taixu.core.database.task.AgentTaskDao
         BotWorkBatchEntity::class,
         BotGroupSessionEntity::class,
         BotScheduleDeliveryEntity::class,
+        BotInboxItemEntity::class,
         GroupDeliveryEntity::class,
         BotAssignmentRequestEntity::class,
         TaskBudgetEntity::class,
@@ -72,7 +73,7 @@ import top.wkbin.taixu.core.database.task.AgentTaskDao
         AgentMessageFeedbackEntity::class,
         ExternalAgentRuntimeTokenEntity::class,
     ],
-    version = 91,
+    version = 92,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -107,6 +108,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun groupChatDao(): GroupChatDao
     abstract fun botScheduleDao(): BotScheduleDao
     abstract fun botScheduleDeliveryDao(): BotScheduleDeliveryDao
+    abstract fun botInboxDao(): BotInboxDao
     abstract fun botAssignmentDao(): BotAssignmentDao
     abstract fun botGroupSessionDao(): BotGroupSessionDao
     abstract fun btwQueryDao(): BtwQueryDao

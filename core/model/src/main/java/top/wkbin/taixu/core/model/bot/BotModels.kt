@@ -265,3 +265,42 @@ data class BotSchedule(
     val lastRunAt: Long? = null,
     val createdAt: Long,
 )
+
+/**
+ * Inbox 投影：某条来源对某个 Bot「为什么可见、是否已被看见」的事实。
+ *
+ * 派生表，不持权：`group_deliveries`、`bot_schedule_deliveries` 等仍是 authority，
+ * 投影失败不应阻断原投递链路。
+ */
+data class BotInboxItem(
+    val id: String,
+    val botId: String,
+    val sourceKind: String,
+    val sourceId: String,
+    val sessionId: String? = null,
+    val reason: String,
+    val priority: Int = 0,
+    val state: String = BotInboxState.PENDING,
+    val observedAt: Long? = null,
+    val createdAt: Long,
+    val updatedAt: Long? = null,
+)
+
+/** Attention Decision 的取值；pending 是由「尚未决策」推导出来的，不是执行结果。 */
+object BotInboxState {
+    const val PENDING = "pending"
+    const val OBSERVED = "observed"
+    const val DEFERRED = "deferred"
+    const val IGNORED = "ignored"
+    const val HANDLED = "handled"
+}
+
+/** 来源类型；新增渠道时在这里登记，避免各处自造字符串。 */
+object BotInboxSource {
+    const val SCHEDULE = "schedule"
+    const val GROUP_MESSAGE = "group_message"
+    const val ASSIGNMENT = "assignment"
+    const val DIRECT_MESSAGE = "direct_message"
+    const val SYSTEM = "system"
+}
+

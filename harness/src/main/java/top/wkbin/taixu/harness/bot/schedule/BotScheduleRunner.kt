@@ -9,7 +9,9 @@ import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.repository.BotScheduleRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotInboxSource
 import top.wkbin.taixu.core.model.bot.BotScheduleDelivery
+import top.wkbin.taixu.harness.bot.inbox.BotInboxProjection
 
 fun interface BotScheduledSubmission {
     suspend fun submit(bot: Bot, instruction: String, groupId: String?, scheduleId: String): Boolean
@@ -21,6 +23,7 @@ class BotScheduleRunner(
     private val botRepository: PersonaBotRepository,
     private val logger: AppLogger,
     private val submit: BotScheduledSubmission,
+    private val inbox: BotInboxProjection? = null,
 ) {
     private val mutex = Mutex()
     private var recovered = false
@@ -56,6 +59,7 @@ class BotScheduleRunner(
         var admitted = 0
         scheduleRepository.pendingDeliveries(MAX_DUE_PER_RUN).forEach { delivery ->
             if (!scheduleRepository.claimDelivery(delivery.id)) return@forEach
+            inbox?.admit(delivery.botId, BotInboxSource.SCHEDULE, delivery.id, "排期触发")
             try {
                 val bot = botRepository.getBot(delivery.botId)
                 val accepted = bot != null &&
@@ -66,16 +70,23 @@ class BotScheduleRunner(
                     if (accepted) null else "会话未受理，请检查 Bot、群成员和目标会话",
                 )
                 disableWhenNoNextOccurrence(delivery.scheduleId)
-                if (accepted) admitted++
+                if (accepted) {
+                    inbox?.observe(delivery.botId, BotInboxSource.SCHEDULE, delivery.id)
+                    admitted++
+                } else {
+                    inbox?.ignore(delivery.botId, BotInboxSource.SCHEDULE, delivery.id)
+                }
             } catch (cancelled: CancellationException) {
                 withContext(NonCancellable) {
                     scheduleRepository.finishDelivery(delivery.id, BotScheduleDelivery.UNKNOWN, "投递被中断，请核对会话记录")
+                    inbox?.defer(delivery.botId, BotInboxSource.SCHEDULE, delivery.id)
                     disableWhenNoNextOccurrence(delivery.scheduleId)
                 }
                 throw cancelled
             } catch (failure: Exception) {
                 // Submission can throw after committing admission. Retrying would risk duplicate effects.
                 scheduleRepository.finishDelivery(delivery.id, BotScheduleDelivery.UNKNOWN, "投递结果待核对")
+                inbox?.defer(delivery.botId, BotInboxSource.SCHEDULE, delivery.id)
                 disableWhenNoNextOccurrence(delivery.scheduleId)
                 logger.e("[BotScheduleRunner] 排期 ${delivery.scheduleId} 投递结果未知", failure)
             }

@@ -10,11 +10,12 @@ internal suspend fun exportBotPackage(
     context: Context,
     packageService: BotPackageService,
     bot: Bot,
+    includeHistory: Boolean = true,
 ): String {
     val base = context.getExternalFilesDir(null) ?: context.filesDir
     val dir = File(base, "bot-exports").apply { mkdirs() }
     val safeName = bot.name.replace(Regex("[^\\p{L}\\p{N}_-]"), "_")
     val target = File(dir, "$safeName-${System.currentTimeMillis()}.zip")
-    packageService.exportBot(bot.id, target)
+    packageService.exportBot(bot.id, target, includeHistory)
     return "已导出到 ${target.absolutePath}"
 }

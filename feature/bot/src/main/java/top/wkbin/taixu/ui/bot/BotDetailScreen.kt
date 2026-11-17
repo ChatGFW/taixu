@@ -40,6 +40,7 @@ import top.wkbin.taixu.ui.components.RuntimeIconButton
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
+import top.wkbin.taixu.ui.components.RuntimeSwitch
 import top.wkbin.taixu.ui.components.runtimeContentPadding
 import top.wkbin.taixu.ui.components.runtimeScrollViewport
 
@@ -59,6 +60,8 @@ fun BotDetailScreen(
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var memoryPath by rememberSaveable(botId) { mutableStateOf<String?>(null) }
     var memoryHash by rememberSaveable(botId) { mutableStateOf<String?>(null) }
+    var exportConfirm by rememberSaveable(botId) { mutableStateOf(false) }
+    var includeHistory by rememberSaveable(botId) { mutableStateOf(true) }
     val bot = state.bot
 
     LaunchedEffect(botId) { viewModel.bind(botId) }
@@ -80,7 +83,7 @@ fun BotDetailScreen(
                         RuntimeIcon(RuntimeIconName.Chat, Modifier.size(20.dp))
                     }
                     RuntimeIconButton(
-                        onClick = viewModel::exportBot,
+                        onClick = { exportConfirm = true },
                         enabled = bot != null && !state.busy,
                         contentDescription = stringResource(R.string.fbot_export),
                     ) {
@@ -196,6 +199,38 @@ fun BotDetailScreen(
     }
     memoryHash?.let { hash ->
         key(botId, hash) { BotMemoryDiffDialog(hash, { memoryHash = null }) { viewModel.memoryDiff(botId, hash) } }
+    }
+    if (exportConfirm && bot != null) {
+        RuntimeAlertDialog(
+            onDismissRequest = { exportConfirm = false },
+            title = { Text(stringResource(R.string.fbot_export_history_title)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.fbot_export_history_note))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.fbot_export_history_include),
+                            modifier = Modifier.weight(1f),
+                        )
+                        RuntimeSwitch(checked = includeHistory, onCheckedChange = { includeHistory = it })
+                    }
+                }
+            },
+            confirmButton = {
+                RuntimeTextButton(onClick = {
+                    exportConfirm = false
+                    viewModel.exportBot(includeHistory)
+                }) { Text(stringResource(R.string.fbot_export)) }
+            },
+            dismissButton = {
+                RuntimeTextButton(onClick = { exportConfirm = false }) {
+                    Text(stringResource(R.string.fbot_cancel))
+                }
+            },
+        )
     }
     if (confirmDelete && bot != null) {
         RuntimeAlertDialog(

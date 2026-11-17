@@ -17,10 +17,13 @@ import org.robolectric.shadows.ShadowLog
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.BotEntity
+import top.wkbin.taixu.core.database.BotScheduleDeliveryEntity
 import top.wkbin.taixu.core.database.BotScheduleEntity
+import top.wkbin.taixu.core.database.repository.RoomBotInboxRepository
 import top.wkbin.taixu.core.database.repository.RoomBotScheduleRepository
 import top.wkbin.taixu.core.database.repository.RoomPersonaBotRepository
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.harness.bot.inbox.BotInboxProjection
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -30,6 +33,7 @@ class BotScheduleRunnerTest {
     private val schedules = RoomBotScheduleRepository(db.botScheduleDao(), db.botScheduleDeliveryDao())
     private val bots = RoomPersonaBotRepository(db.personaBotDao())
     private val log = AppLogger(context) { it }
+    private val inbox = BotInboxProjection(RoomBotInboxRepository(db.botInboxDao()), log)
 
     @After fun close() = db.close()
 
@@ -39,10 +43,59 @@ class BotScheduleRunnerTest {
     }
 
     private fun runner(submit: suspend (Bot, String, String?, String) -> Boolean) =
-        BotScheduleRunner(schedules, bots, log, BotScheduledSubmission(submit))
+        BotScheduleRunner(schedules, bots, log, BotScheduledSubmission(submit), inbox)
 
     private fun status(): String = db.openHelper.readableDatabase.query("SELECT status FROM bot_schedule_deliveries").use {
         assertTrue(it.moveToFirst()); it.getString(0)
+    }
+
+    private fun deliveryCount(): Int = db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM bot_schedule_deliveries").use {
+        assertTrue(it.moveToFirst()); it.getInt(0)
+    }
+
+    @Test fun `pending occurrence coalesces later firings instead of stacking`() = runBlocking {
+        seed()
+        db.botScheduleDeliveryDao().stage("schedule", 100, 101, 200)
+        db.botScheduleDeliveryDao().stage("schedule", 200, 202, 300)
+
+        val pending = db.botScheduleDeliveryDao().pending(10)
+        assertEquals(1, pending.size)
+        assertEquals(200, pending.single().scheduledAt)
+        assertEquals("work", pending.single().instruction)
+        assertEquals(1, deliveryCount())
+    }
+
+    @Test fun `coalesced occurrence admits once and leaves no backlog`() = runBlocking {
+        seed()
+        db.botScheduleDeliveryDao().stage("schedule", 100, 101, 200)
+        db.botScheduleDeliveryDao().stage("schedule", 200, 202, 300)
+
+        var submissions = 0
+        assertEquals(1, runner { _, _, _, _ -> submissions++; true }.runDue(250))
+        assertEquals(1, submissions)
+        assertTrue(db.botScheduleDeliveryDao().pending(10).isEmpty())
+    }
+
+    @Test fun `legacy pending backlog collapses to one`() = runBlocking {
+        seed()
+        db.botScheduleDeliveryDao().insert(BotScheduleDeliveryEntity("schedule:90", "schedule", "bot", null, "work", 90, 91, "pending", null))
+        db.botScheduleDeliveryDao().insert(BotScheduleDeliveryEntity("schedule:95", "schedule", "bot", null, "work", 95, 96, "pending", null))
+
+        db.botScheduleDeliveryDao().stage("schedule", 100, 101, 200)
+
+        val pending = db.botScheduleDeliveryDao().pending(10)
+        assertEquals(1, pending.size)
+        assertEquals(100, pending.single().scheduledAt)
+        assertEquals(1, deliveryCount())
+    }
+
+    @Test fun `restart delivers only the latest missed occurrence`() = runBlocking {
+        seed()
+        var submissions = 0
+        assertEquals(1, runner { _, _, _, _ -> submissions++; true }.runDue(1_000))
+        assertEquals(1, submissions)
+        assertEquals(1, deliveryCount())
+        assertTrue(db.botScheduleDeliveryDao().pending(10).isEmpty())
     }
 
     @Test fun `rejection is not counted as accepted`() = runBlocking {
@@ -83,6 +136,23 @@ class BotScheduleRunnerTest {
         seed()
         assertEquals(0, runner { _, _, _, _ -> error("lost receipt") }.runDue(101))
         assertEquals("unknown", status())
+    }
+
+    @Test fun `accepted occurrence is projected as observed`() = runBlocking {
+        seed()
+        assertEquals(1, runner { _, _, _, _ -> true }.runDue(101))
+        val item = db.botInboxDao().findBySource("bot", "schedule", "schedule:100")
+        assertNotNull(item)
+        assertEquals("observed", item!!.state)
+        assertNotNull(item.observedAt)
+    }
+
+    @Test fun `rejected occurrence is projected as ignored`() = runBlocking {
+        seed()
+        assertEquals(0, runner { _, _, _, _ -> false }.runDue(101))
+        val item = db.botInboxDao().findBySource("bot", "schedule", "schedule:100")
+        assertEquals("ignored", item!!.state)
+        assertNull(item.observedAt)
     }
 
     @Test fun `null nextAfter delivers once then parks at max and disables`() = runBlocking {

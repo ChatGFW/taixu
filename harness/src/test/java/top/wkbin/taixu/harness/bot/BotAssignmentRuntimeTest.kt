@@ -21,6 +21,7 @@ import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.*
 import top.wkbin.taixu.core.security.SecretManager
 import top.wkbin.taixu.harness.HarnessMessage
+import top.wkbin.taixu.harness.bot.inbox.BotInboxProjection
 import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
 import top.wkbin.taixu.harness.queue.PromptQueue
 import top.wkbin.taixu.harness.session.PromptSubmission
@@ -51,8 +52,15 @@ class BotAssignmentRuntimeTest {
         sessions.upsert(HarnessSessionEntity("parent", "Group", 1, 1, null, workspace = "/workspace/project", executionTargetJson = "frozen-target"))
     }
 
-    private fun runtime(capabilities: BotCapabilityScope? = null, execute: BotAssignmentExecutor) =
-        BotAssignmentRuntime(tasks, groups, bots, sessions, control, tracker, execute, log, scope, capabilityScope = capabilities)
+    private fun runtime(
+        capabilities: BotCapabilityScope? = null,
+        inbox: BotInboxProjection? = null,
+        execute: BotAssignmentExecutor,
+    ) = BotAssignmentRuntime(
+        tasks, groups, bots, sessions, control, tracker, execute, log, scope,
+        capabilityScope = capabilities,
+        inbox = inbox,
+    )
     private suspend fun awaitStatus(id: String, expected: BotAssignmentStatus) = withTimeout(10_000) {
         while (tasks.get(id)?.status != expected) delay(10)
     }
@@ -70,6 +78,47 @@ class BotAssignmentRuntimeTest {
         assertEquals(listOf("read"), grant.policy.tools["remote"])
         assertEquals(Long.MAX_VALUE, grant.policy.expiresAt)
         awaitStatus(task.id, BotAssignmentStatus.COMPLETED)
+    }
+
+    @Test fun `assignment request is projected as observed once admitted`() = runBlocking {
+        seed()
+        val projection = BotInboxProjection(RoomBotInboxRepository(db.botInboxDao()), log)
+        val engine = runtime(inbox = projection) { task, request, admitted ->
+            val sid = requireNotNull(task.sessionId)
+            val accepted = control.submit(sid, request.instruction) as PromptSubmission.Accepted
+            admitted(accepted.taskId)
+            control.setState(sid, SessionRunState.COMPLETED)
+            GroupTurnOutcome("done", false, observed = true)
+        }
+        val task = engine.create("member", "group", "chief", "parent", "work")
+        awaitStatus(task.id, BotAssignmentStatus.COMPLETED)
+        val requestId = tasks.requestsFor(task.id).single().id
+        withTimeout(10_000) {
+            while (db.botInboxDao().findBySource("member", BotInboxSource.ASSIGNMENT, requestId)?.state
+                != BotInboxState.OBSERVED
+            ) delay(10)
+        }
+        val item = db.botInboxDao().findBySource("member", BotInboxSource.ASSIGNMENT, requestId)!!
+        assertNotNull(item.observedAt)
+    }
+
+    @Test fun `assignment request rejected before admission is projected as ignored`() = runBlocking {
+        seed()
+        val projection = BotInboxProjection(RoomBotInboxRepository(db.botInboxDao()), log)
+        val engine = runtime(inbox = projection) { task, _, _ ->
+            control.setState(requireNotNull(task.sessionId), SessionRunState.COMPLETED)
+            GroupTurnOutcome("failed", failed = true)
+        }
+        val task = engine.create("member", "group", "chief", "parent", "work")
+        awaitStatus(task.id, BotAssignmentStatus.FAILED)
+        val requestId = tasks.requestsFor(task.id).single().id
+        withTimeout(10_000) {
+            while (db.botInboxDao().findBySource("member", BotInboxSource.ASSIGNMENT, requestId)?.state
+                != BotInboxState.IGNORED
+            ) delay(10)
+        }
+        val item = db.botInboxDao().findBySource("member", BotInboxSource.ASSIGNMENT, requestId)!!
+        assertNull(item.observedAt)
     }
 
     @Test fun `active followup queues without interrupting tools then reuses the same session and frozen target`() = runBlocking {

@@ -3,6 +3,7 @@ package top.wkbin.taixu.harness.plugins
 import kotlinx.serialization.json.jsonPrimitive
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.harness.bot.memory.BotMemoryManager
+import top.wkbin.taixu.harness.bot.memory.BotResidentMemory
 
 /**
  * Bot 的 Git 记忆能力：上下文注入 + 读写工具。
@@ -13,6 +14,7 @@ import top.wkbin.taixu.harness.bot.memory.BotMemoryManager
 fun botMemoryPlugin(
     botRepository: PersonaBotRepository,
     memoryManager: BotMemoryManager,
+    residentMemory: BotResidentMemory,
 ): HarnessPlugin {
     val descriptor = botMemoryDescriptor()
     val readSchema = pluginObjectSchema(
@@ -36,7 +38,8 @@ fun botMemoryPlugin(
         contexts = listOf(
             PluginContext("memory-context") { request ->
                 val bot = botRepository.getBotBySessionId(request.sessionId) ?: return@PluginContext ""
-                memoryManager.assembleContext(bot.id)
+                // 会话内冻结：同一轮次序列不再逐次重读 Git 记忆，避免注入内容随写入漂移。
+                residentMemory.render(bot.id, request.sessionId)
             },
         ),
         tools = listOf(

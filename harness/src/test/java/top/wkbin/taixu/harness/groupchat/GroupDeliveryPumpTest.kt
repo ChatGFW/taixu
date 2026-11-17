@@ -15,10 +15,12 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.*
+import top.wkbin.taixu.core.database.repository.RoomBotInboxRepository
 import top.wkbin.taixu.core.database.repository.RoomGroupChatRepository
 import top.wkbin.taixu.core.database.repository.RoomPersonaBotRepository
 import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.*
+import top.wkbin.taixu.harness.bot.inbox.BotInboxProjection
 import top.wkbin.taixu.harness.AssistantText
 import top.wkbin.taixu.harness.HarnessMessage
 import top.wkbin.taixu.harness.projection.LiveMessagePort
@@ -55,6 +57,53 @@ class GroupDeliveryPumpTest {
 
     private suspend fun awaitStatus(id: String, status: String) = withTimeout(10_000) {
         while (db.groupChatDao().findGroupDelivery("$id:bot")?.status != status) delay(10)
+    }
+
+    private suspend fun awaitInbox(sourceId: String, state: String) = withTimeout(10_000) {
+        while (db.botInboxDao().findBySource("bot", BotInboxSource.GROUP_MESSAGE, sourceId)?.state != state) delay(10)
+    }
+
+    @Test fun `group delivery that entered a turn is projected as observed`() = runBlocking {
+        seed()
+        stage("accepted")
+        val projection = BotInboxProjection(RoomBotInboxRepository(db.botInboxDao()), logger)
+        val pump = GroupDeliveryPump(groups, replies, scope, logger, inbox = projection) {
+            GroupTurnOutcome("done", failed = false, observed = true)
+        }
+        pump.start()
+        awaitStatus("accepted", GroupDelivery.COMPLETED)
+        awaitInbox("accepted", BotInboxState.OBSERVED)
+        val item = db.botInboxDao().findBySource("bot", BotInboxSource.GROUP_MESSAGE, "accepted")!!
+        assertEquals("accepted", item.sourceId)
+        assertNotNull(item.observedAt)
+    }
+
+    @Test fun `group delivery rejected before submission is projected as ignored`() = runBlocking {
+        seed()
+        stage("rejected")
+        val projection = BotInboxProjection(RoomBotInboxRepository(db.botInboxDao()), logger)
+        val pump = GroupDeliveryPump(groups, replies, scope, logger, inbox = projection) {
+            GroupTurnOutcome("无法准备会话", failed = true)
+        }
+        pump.start()
+        awaitStatus("rejected", GroupDelivery.FAILED)
+        awaitInbox("rejected", BotInboxState.IGNORED)
+        val item = db.botInboxDao().findBySource("bot", BotInboxSource.GROUP_MESSAGE, "rejected")!!
+        assertNull(item.observedAt)
+    }
+
+    @Test fun `group delivery with uncertain admission is projected as deferred`() = runBlocking {
+        seed()
+        stage("uncertain")
+        val projection = BotInboxProjection(RoomBotInboxRepository(db.botInboxDao()), logger)
+        val pump = GroupDeliveryPump(groups, replies, scope, logger, inbox = projection) {
+            GroupTurnOutcome("待核对", failed = true, uncertain = true, observed = true)
+        }
+        pump.start()
+        awaitStatus("uncertain", GroupDelivery.UNKNOWN)
+        awaitInbox("uncertain", BotInboxState.DEFERRED)
+        val item = db.botInboxDao().findBySource("bot", BotInboxSource.GROUP_MESSAGE, "uncertain")!!
+        assertNull(item.observedAt)
     }
 
     @Test fun `restart delivers only pending sources once and preserves uncertain native admission`() = runBlocking {

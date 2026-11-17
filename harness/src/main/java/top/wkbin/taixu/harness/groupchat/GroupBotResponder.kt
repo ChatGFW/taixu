@@ -194,7 +194,7 @@ internal class GroupBotResponder(
                         onLateReply = onLateReply,
                         taskId = admittedTaskId,
                     )
-                    return GroupTurnOutcome("", failed = false, working = true, messageId = placeholderId)
+                    return GroupTurnOutcome("", failed = false, working = true, messageId = placeholderId, observed = true)
                 }
                 first ?: observe(completionOnly = false)
             } else {
@@ -207,7 +207,7 @@ internal class GroupBotResponder(
                 isGroupPass(content)
             if (cleanPass) {
                 groupRepository.deleteMessage(placeholderId)
-                return GroupTurnOutcome("", failed = false, passed = true, messageId = placeholderId)
+                return GroupTurnOutcome("", failed = false, passed = true, messageId = placeholderId, observed = true)
             }
             val finalText = when {
                 outcome.replyTimedOut -> "❌ 本轮超过 ${GroupReplyTimeoutPolicy.REPLY_TIMEOUT_MS / 60_000} 分钟，已请求停止；执行结果待核对，请检查已有工具结果"
@@ -230,6 +230,7 @@ internal class GroupBotResponder(
                 messageId = placeholderId,
                 blockedReason = finalText.takeIf { outcome.noExecutionProgress },
                 nativeTaskId = admittedTaskId,
+                observed = true,
             )
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
@@ -250,7 +251,7 @@ internal class GroupBotResponder(
             val text = "❌ 回复失败：${failure.message}"
             groupRepository.updateStreamingMessage(placeholderId, text, false)
             awaitSettledPlaceholder(group.id, placeholderId)
-            return GroupTurnOutcome(text, failed = true, uncertain = submissionAttempted)
+            return GroupTurnOutcome(text, failed = true, uncertain = submissionAttempted, observed = submissionAttempted)
         } finally {
             val binding = contextBinding
             if (binding != null && activeSessionId != null) freshness?.end(activeSessionId, binding)

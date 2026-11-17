@@ -44,6 +44,15 @@ abstract class BotScheduleDeliveryDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     abstract suspend fun insert(row: BotScheduleDeliveryEntity): Long
 
+    @Query("SELECT * FROM bot_schedule_deliveries WHERE scheduleId = :scheduleId AND status = 'pending' ORDER BY scheduledAt DESC LIMIT 1")
+    abstract suspend fun pendingForSchedule(scheduleId: String): BotScheduleDeliveryEntity?
+
+    @Query("UPDATE bot_schedule_deliveries SET scheduledAt = :scheduledAt, createdAt = :now, instruction = :instruction WHERE id = :id AND status = 'pending'")
+    abstract suspend fun supersedePending(id: String, scheduledAt: Long, now: Long, instruction: String): Int
+
+    @Query("DELETE FROM bot_schedule_deliveries WHERE scheduleId = :scheduleId AND status = 'pending' AND id != :keepId")
+    abstract suspend fun dropOtherPending(scheduleId: String, keepId: String): Int
+
     @Query("UPDATE bot_schedules SET lastRunAt = :now, nextRunAt = :next WHERE id = :id")
     abstract suspend fun advance(id: String, now: Long, next: Long)
 
@@ -51,10 +60,19 @@ abstract class BotScheduleDeliveryDao {
     @Transaction
     open suspend fun stage(id: String, scheduledAt: Long, now: Long, next: Long) {
         val schedule = occurrence(id, scheduledAt) ?: return
-        insert(BotScheduleDeliveryEntity(
-            "$id:$scheduledAt", id, schedule.botId, schedule.groupId, schedule.instruction,
-            scheduledAt, now, BotScheduleDelivery.PENDING, null,
-        ))
+        val pending = pendingForSchedule(id)
+        if (pending == null) {
+            insert(BotScheduleDeliveryEntity(
+                "$id:$scheduledAt", id, schedule.botId, schedule.groupId, schedule.instruction,
+                scheduledAt, now, BotScheduleDelivery.PENDING, null,
+            ))
+        } else {
+            // 一个排期最多保留一条未观察触发：新的发生刷新时间与指令，而不是继续堆叠。
+            // 正在 admitting 的那条不在 pending 里，因此“执行中一条 + 待执行一条”是上限。
+            // 旧版本可能已经积累多条 pending，这里顺手把多余的收掉（它们从未执行过）。
+            dropOtherPending(id, pending.id)
+            supersedePending(pending.id, scheduledAt, now, schedule.instruction)
+        }
         advance(id, now, next)
     }
 

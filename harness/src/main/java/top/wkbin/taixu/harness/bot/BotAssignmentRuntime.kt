@@ -29,9 +29,11 @@ import top.wkbin.taixu.core.model.SessionRunState
 import top.wkbin.taixu.core.model.bot.BotAssignment
 import top.wkbin.taixu.core.model.bot.BotAssignmentRequest
 import top.wkbin.taixu.core.model.bot.BotAssignmentStatus
+import top.wkbin.taixu.core.model.bot.BotInboxSource
 import top.wkbin.taixu.core.model.bot.BotWorkBatch
 import top.wkbin.taixu.core.model.bot.BotWorkBatchStatus
 import top.wkbin.taixu.harness.HarnessPathResolver
+import top.wkbin.taixu.harness.bot.inbox.BotInboxProjection
 import top.wkbin.taixu.harness.groupchat.GroupTurnOutcome
 import top.wkbin.taixu.harness.session.SessionControl
 
@@ -55,6 +57,7 @@ class BotAssignmentRuntime(
     private val nativeTasks: AgentTaskRepository? = null,
     private val runtimeRepository: HarnessRuntimeRepository? = null,
     private val capabilityScope: BotCapabilityScope? = null,
+    private val inbox: BotInboxProjection? = null,
 ) {
     private val pump = AssignmentRequestPump(repository, scope, logger, ::execute)
     private val maintenanceLock = Mutex()
@@ -212,7 +215,11 @@ class BotAssignmentRuntime(
     private suspend fun execute(request: BotAssignmentRequest) {
         if (!repository.claimRequest(request.id, System.currentTimeMillis())) return
         val task = repository.get(request.assignmentId) ?: return
+        val botId = task.botId
+        // 单条 request 才是可见性单元；assignment 会把多次追加要求折叠成一次观察。
+        inbox?.admit(botId, BotInboxSource.ASSIGNMENT, request.id, "派工任务", sessionId = task.sessionId)
         tracker.track(task, currentCoroutineContext()[Job])
+        var observed = false
         try {
             val sessionId = requireNotNull(task.sessionId)
             requireNotNull(sessions.findById(sessionId)) { "独立任务会话已删除" }
@@ -226,6 +233,8 @@ class BotAssignmentRuntime(
             if (modelManager != null) modelManager.withBotLock(task.botId, syncModel) else syncModel()
             val result = executor.execute(task, request) { nativeId ->
                 check(repository.admitRequest(request.id, nativeId)) { "任务已停止或受理回执未保存" }
+                observed = true
+                inbox?.observe(botId, BotInboxSource.ASSIGNMENT, request.id)
             }
             if (!result.uncertain) withTimeout(10_000) {
                 control.sessionRunStates.first { it[sessionId] !in BUSY_STATES }
@@ -245,15 +254,23 @@ class BotAssignmentRuntime(
             val failed = result.failed || state == SessionRunState.FAILED
             val detail = if (unknownEffects) "原工具副作用或历史待核对，请先只读核验原会话与产物。\n${result.text}" else result.text
             repository.finishRequest(request.id, !failed, uncertain, result.text, if (failed || uncertain) detail else null)
+            when {
+                uncertain -> inbox?.defer(botId, BotInboxSource.ASSIGNMENT, request.id)
+                observed -> Unit
+                failed -> inbox?.ignore(botId, BotInboxSource.ASSIGNMENT, request.id)
+                else -> inbox?.defer(botId, BotInboxSource.ASSIGNMENT, request.id)
+            }
         } catch (cancelled: CancellationException) {
             task.sessionId?.let(control::cancel)
             withContext(NonCancellable) {
                 repository.finishRequest(request.id, false, true, null, "执行被中断，结果待核对")
+                inbox?.defer(botId, BotInboxSource.ASSIGNMENT, request.id)
             }
             throw cancelled
         } catch (failure: Exception) {
             logger.e("[BotAssignment] 独立任务执行结果待核对", failure)
             repository.finishRequest(request.id, false, true, null, "执行结果待核对：${failure.message}")
+            inbox?.defer(botId, BotInboxSource.ASSIGNMENT, request.id)
         } finally {
             tracker.untrack(task.id)
         }

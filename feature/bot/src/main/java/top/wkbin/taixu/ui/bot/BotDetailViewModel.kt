@@ -259,9 +259,9 @@ class BotDetailViewModel(
         }
     }
 
-    fun exportBot() {
+    fun exportBot(includeHistory: Boolean = true) {
         val bot = _uiState.value.bot ?: return
-        launchBusy { exportBotPackage(context, packageService, bot) }
+        launchBusy { exportBotPackage(context, packageService, bot, includeHistory) }
     }
 
     suspend fun readMemoryDocument(botId: String, path: String) = memoryManager.readDocument(botId, path)

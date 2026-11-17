@@ -11,6 +11,7 @@ import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.ApprovalMode
 import top.wkbin.taixu.core.model.bot.Bot
 import top.wkbin.taixu.harness.bot.memory.BotMemoryManager
+import top.wkbin.taixu.harness.bot.memory.BotResidentMemory
 import top.wkbin.taixu.harness.session.PromptSubmission
 import top.wkbin.taixu.harness.session.SessionControl
 import top.wkbin.taixu.harness.subagent.SubagentLaneResult
@@ -36,6 +37,7 @@ class BotOrchestrator(
     private val sessionControl: SessionControl,
     private val laneRunner: SubagentLaneRunner,
     private val memoryManager: BotMemoryManager,
+    private val residentMemory: BotResidentMemory,
     private val logger: AppLogger,
     private val modelManager: BotModelManager,
     private val assignmentRepository: BotAssignmentRepository? = null,
@@ -143,6 +145,8 @@ class BotOrchestrator(
         modelManager.syncSessions(updated)
         if (updated.systemPrompt != current.systemPrompt) {
             memoryManager.writeMemory(botId, BotMemoryManager.PERSONA, updated.systemPrompt, "feat: 更新 Persona 设定")
+            // 用户改人格是显式动作：让所有会话下一轮立即读到新版本；模型自己的 memory-write 不刷新。
+            residentMemory.invalidateBot(botId)
         }
         updated
     }
@@ -166,6 +170,7 @@ class BotOrchestrator(
                     .onFailure { logger.w("[BotOrchestrator] 删除群维度会话失败: ${it.message}", it) }
             }
         botRepository.deleteBot(botId)
+        residentMemory.invalidateBot(botId)
         memoryManager.deleteMemory(botId)
         logger.i("[BotOrchestrator] 已删除 Bot: ${bot.name}")
     }
@@ -234,6 +239,7 @@ class BotOrchestrator(
             .filter { it.independent }.mapNotNull { it.sessionId }
         (groupSessionRepository.listSessionIdsForGroup(groupId) + independent).distinct().forEach { sessionId ->
             sessionControl.deleteSession(sessionId)
+            residentMemory.invalidateSession(sessionId)
         }
     }
 
@@ -289,7 +295,7 @@ class BotOrchestrator(
             ensureSession(bot)
             bot.sessionId
         }
-        val memoryContext = memoryManager.assembleContext(botId)
+        val memoryContext = residentMemory.render(botId, sessionId)
         val prompt = buildString {
             if (memoryContext.isNotBlank()) appendLine(memoryContext).appendLine()
             if (extraContext.isNotBlank()) appendLine(extraContext).appendLine()

@@ -2,7 +2,6 @@ package top.wkbin.taixu.harness.bot.archive
 
 import java.io.File
 import java.io.IOException
-import java.nio.file.Files
 import java.util.UUID
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -16,7 +15,10 @@ import top.wkbin.taixu.harness.bot.BotOrchestrator
 import top.wkbin.taixu.harness.bot.memory.BotMemoryManager
 
 /**
- * Bot 归档：`bot.json` + `memory/`（含 Git 历史）打包为 ZIP。
+ * Bot 归档：`bot.json` + `memory/` 打包为 ZIP。
+ *
+ * 记忆默认携带 Git 历史（可在导入后回滚）；`includeHistory = false` 时排除整个 `.git`，
+ * 避免把已删除内容的历史提交一起分享出去。
  *
  * 导入按不可信输入处理：限制包大小、条目数与解压总量，拒绝绝对路径与 `..` 越界。
  */
@@ -27,7 +29,7 @@ class BotPackageService(
     private val json: Json,
     private val logger: AppLogger,
 ) {
-    suspend fun exportBot(botId: String, destination: File): File {
+    suspend fun exportBot(botId: String, destination: File, includeHistory: Boolean = true): File {
         val bot = requireNotNull(botRepository.getBot(botId)) { "Bot 不存在" }
         val staging = File(destination.parentFile ?: File("."), "bot-export-${UUID.randomUUID()}").apply { mkdirs() }
         try {
@@ -53,21 +55,7 @@ class BotPackageService(
                 zip.putNextEntry(ZipEntry(MANIFEST))
                 zip.write(File(staging, MANIFEST).readBytes())
                 zip.closeEntry()
-                if (memoryDir.isDirectory) {
-                    memoryDir.walkTopDown().filter { it != memoryDir }.forEach { entry ->
-                        val relative = entry.relativeTo(memoryDir).invariantSeparatorsPath
-                        if (relative == ".git/index.lock" || relative.endsWith("/index.lock")) return@forEach
-                        val name = "$MEMORY_DIR/$relative"
-                        if (entry.isDirectory) {
-                            zip.putNextEntry(ZipEntry("$name/"))
-                            zip.closeEntry()
-                        } else if (!Files.isSymbolicLink(entry.toPath())) {
-                            zip.putNextEntry(ZipEntry(name))
-                            entry.inputStream().use { input -> input.copyTo(zip) }
-                            zip.closeEntry()
-                        }
-                    }
-                }
+                writeMemoryToZip(zip, memoryDir, includeHistory)
             }
             logger.i("[BotPackageService] 已导出 Bot ${bot.name} → ${destination.name}")
             return destination

@@ -32,6 +32,7 @@ import top.wkbin.taixu.harness.MentionExtractor
 import top.wkbin.taixu.harness.approval.RunInitiator
 import top.wkbin.taixu.harness.approval.RunInitiatorContext
 import top.wkbin.taixu.harness.bot.BotOrchestrator
+import top.wkbin.taixu.harness.bot.inbox.BotInboxProjection
 import top.wkbin.taixu.harness.session.PromptSubmission
 import top.wkbin.taixu.harness.session.SessionControl
 
@@ -46,6 +47,8 @@ data class GroupTurnOutcome(
     val working: Boolean = false,
     val blockedReason: String? = null,
     val nativeTaskId: String? = null,
+    /** 内容是否真正进入过某一轮（`sessionControl.submit` 受理）；入队与通知不算。 */
+    val observed: Boolean = false,
 )
 
 /**
@@ -69,6 +72,7 @@ class GroupChatDispatcher(
     taskRepository: AgentTaskRepository? = null,
     runtimeRepository: HarnessRuntimeRepository? = null,
     private val contextScope: GroupContextScope? = null,
+    private val inbox: BotInboxProjection? = null,
 ) {
     private val replies = GroupReplyQueue(scope)
 
@@ -111,6 +115,7 @@ class GroupChatDispatcher(
     private val deliveryPump = GroupDeliveryPump(
         groupRepository, replies, scope, logger,
         isExternalRuntime = { botId -> botRepository.getBot(botId)?.runtimeMode == BotRuntimeMode.EXTERNAL },
+        inbox = inbox,
         deliver = ::deliver,
     )
 

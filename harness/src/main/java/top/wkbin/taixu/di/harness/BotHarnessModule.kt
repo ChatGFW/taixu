@@ -20,7 +20,9 @@ import top.wkbin.taixu.harness.bot.archive.BotPackageService
 import top.wkbin.taixu.harness.bot.diagnostics.BotDiagnosticsExporter
 import top.wkbin.taixu.harness.bot.market.BotMarketRepository
 import top.wkbin.taixu.harness.bot.market.GroupTeamImporter
+import top.wkbin.taixu.harness.bot.inbox.BotInboxProjection
 import top.wkbin.taixu.harness.bot.memory.BotMemoryManager
+import top.wkbin.taixu.harness.bot.memory.BotResidentMemory
 import top.wkbin.taixu.harness.bot.schedule.BotScheduleRunner
 import top.wkbin.taixu.harness.bot.schedule.BotScheduleWakeup
 import top.wkbin.taixu.harness.bot.schedule.BotScheduledSubmission
@@ -43,6 +45,7 @@ val botHarnessModule = module {
     single { GroupContextScope(groups = get(), assignments = get(), nativeTasks = get()) }
     single { GroupReplyFreshness(groups = get(), messages = get(), contextScope = get()) }
     single { BotMemoryManager(pathManager = get(), logger = get()) }
+    single { BotResidentMemory(get()) }
     single { BotAttachmentPreparer(context = get(), paths = get()) }
     single { TaskBudgetGuard(get()) }
     single { BotAssignmentTracker(repository = get()) }
@@ -56,6 +59,7 @@ val botHarnessModule = module {
             sessionControl = get(),
             laneRunner = get(),
             memoryManager = get(),
+            residentMemory = get(),
             logger = get(), assignmentRepository = get(),
             modelManager = get(),
         )
@@ -72,6 +76,7 @@ val botHarnessModule = module {
             taskRepository = get(),
             runtimeRepository = get(),
             contextScope = get(),
+            inbox = get(),
         )
     }
     single {
@@ -89,6 +94,7 @@ val botHarnessModule = module {
             nativeTasks = get(),
             runtimeRepository = get(),
             capabilityScope = get(),
+            inbox = get(),
         )
     }
     single<BotAssignmentExecutor> {
@@ -119,7 +125,8 @@ val botHarnessModule = module {
             }
         }
     }
-    single { BotScheduleRunner(scheduleRepository = get(), botRepository = get(), logger = get(), submit = get()) }
+    single { BotInboxProjection(repository = get(), logger = get()) }
+    single { BotScheduleRunner(scheduleRepository = get(), botRepository = get(), logger = get(), submit = get(), inbox = get()) }
     single { BotPackageService(botRepository = get<PersonaBotRepository>(), orchestrator = get(), memoryManager = get(), json = get(), logger = get()) }
     single {
         BotDiagnosticsExporter(
@@ -134,7 +141,7 @@ val botHarnessModule = module {
         )
     }
     single { BotMarketRepository(orchestrator = get(), subagentRepository = get()) }
-    single<HarnessPlugin>(named("taixu.bot-memory")) { botMemoryPlugin(get<PersonaBotRepository>(), get()) }
+    single<HarnessPlugin>(named("taixu.bot-memory")) { botMemoryPlugin(get<PersonaBotRepository>(), get(), get()) }
     single<HarnessPlugin>(named("taixu.bot-management")) {
         botManagementPlugin(
             botRepository = get<PersonaBotRepository>(),

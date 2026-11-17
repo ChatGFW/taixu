@@ -46,6 +46,7 @@ import top.wkbin.taixu.core.database.WorkflowRepository
 import top.wkbin.taixu.core.database.WorkspaceRepository
 import top.wkbin.taixu.core.database.repository.BotAssignmentRepository
 import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
+import top.wkbin.taixu.core.database.repository.BotInboxRepository
 import top.wkbin.taixu.core.database.repository.BotMemberGroupRepository
 import top.wkbin.taixu.core.database.repository.BotScheduleRepository
 import top.wkbin.taixu.core.database.repository.BtwQueryRepository
@@ -53,6 +54,7 @@ import top.wkbin.taixu.core.database.repository.ExternalAgentRuntimeTokenReposit
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.database.repository.RoomBotMemberGroupRepository
+import top.wkbin.taixu.core.database.repository.RoomBotInboxRepository
 import top.wkbin.taixu.core.database.repository.RoomBotScheduleRepository
 import top.wkbin.taixu.core.database.repository.RoomExternalAgentRuntimeTokenRepository
 import top.wkbin.taixu.core.database.repository.RoomGroupChatRepository
@@ -142,6 +144,10 @@ val coreDatabaseModule = module {
     single<RoomBotScheduleRepository> { RoomBotScheduleRepository(dao = get(), deliveries = get()) }
 
     factory<BotScheduleRepository> { get<RoomBotScheduleRepository>() }
+
+    single<RoomBotInboxRepository> { RoomBotInboxRepository(dao = get()) }
+
+    factory<BotInboxRepository> { get<RoomBotInboxRepository>() }
 
     single<TaskBudgetRepository> { RoomTaskBudgetRepository(get<BotAssignmentDao>()) }
     single<RoomBotAssignmentRepository> { RoomBotAssignmentRepository(dao = get(), json = get()) }

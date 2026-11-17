@@ -38,6 +38,8 @@
 | **Web 协作台与 Harness 对齐** | [`docs/WEB_HARNESS_ALIGNMENT.md`](WEB_HARNESS_ALIGNMENT.md) | 输入队列、反馈、工具状态、请求恢复与当前 Web 能力边界 |
 | **存储分类与清理边界** | [`docs/STORAGE_MANAGEMENT.md`](STORAGE_MANAGEMENT.md) | 六类空间归属、清理计划、运行时互斥与后续管理建议 |
 | **Hashline 编辑协议（v0 / M12）** | [`docs/HASHLINE_PROTOCOL.md`](HASHLINE_PROTOCOL.md) | 行内容哈希锚点、`read`/`edit` ops、`0:00` 文件头插入、legacy 默认关与观测启发式 |
+| **架构决策记录（ADR）** | [`docs/adr/README.md`](adr/README.md) | 一决策一文件、状态/背景/选项/决策/影响/验收；已回填记忆冻结、定时合并、导出历史、审批基线、清单版本、渠道边界、Inbox 投影 7 篇 |
+| **术语表（单一事实源）** | [`docs/GLOSSARY.md`](GLOSSARY.md) | Bot 记忆、定时投递、归档清单、审批与运行时的统一命名，其它文档只链接不重复定义 |
 
 ---
 

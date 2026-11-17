@@ -18,6 +18,9 @@
     <string name="fbot_installing">安装中…</string>
     <string name="fbot_import">导入 Bot 包</string>
     <string name="fbot_export">导出 Bot 包</string>
+    <string name="fbot_export_history_title">导出记忆历史</string>
+    <string name="fbot_export_history_include">包含提交历史（可回滚）</string>
+    <string name="fbot_export_history_note">不含历史时，导入后无法回滚到导出前的版本；包含历史会连已删除内容的旧提交一起打包。</string>
     <string name="fbot_open_session">在会话中打开</string>
     <string name="fbot_export_diagnostics">导出诊断</string>
     <string name="fbot_diagnostics_subject">太墟群聊诊断</string>

@@ -17,7 +17,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.repository.GroupDeliveryRepository
+import top.wkbin.taixu.core.model.bot.BotInboxSource
 import top.wkbin.taixu.core.model.bot.GroupDelivery
+import top.wkbin.taixu.harness.bot.inbox.BotInboxProjection
 
 /** Only unsubmitted receipts are replayable. Native admission uncertainty never retries execution. */
 internal class GroupDeliveryPump(
@@ -26,6 +28,7 @@ internal class GroupDeliveryPump(
     private val scope: CoroutineScope,
     private val logger: AppLogger,
     private val isExternalRuntime: suspend (botId: String) -> Boolean = { false },
+    private val inbox: BotInboxProjection? = null,
     private val deliver: suspend (GroupDelivery) -> GroupTurnOutcome,
 ) {
     private val startLock = Mutex()
@@ -62,6 +65,7 @@ internal class GroupDeliveryPump(
     private suspend fun enqueue(receipt: GroupDelivery) {
         val job = replies.launch(receipt.groupId, "${receipt.botId}:${receipt.groupId}") {
             val nonce = repository.claimDelivery(receipt.id) ?: return@launch
+            inbox?.admit(receipt.botId, BotInboxSource.GROUP_MESSAGE, receipt.sourceMessageId, "群消息")
             val claimed = receipt.copy(claimNonce = nonce, status = GroupDelivery.SUBMITTING)
             try {
                 val result = deliver(claimed)
@@ -70,12 +74,15 @@ internal class GroupDeliveryPump(
                     result.failed -> GroupDelivery.FAILED
                     else -> GroupDelivery.COMPLETED
                 }, result.text.takeIf { result.failed || result.uncertain }, nonce)
+                projectResult(result, claimed)
             } catch (cancelled: CancellationException) {
                 withContext(NonCancellable) {
+                    inbox?.defer(claimed.botId, BotInboxSource.GROUP_MESSAGE, claimed.sourceMessageId)
                     markUnknown(claimed.id, "群消息处理被中断，请核对会话记录", nonce)
                 }
                 throw cancelled
             } catch (failure: Exception) {
+                inbox?.defer(claimed.botId, BotInboxSource.GROUP_MESSAGE, claimed.sourceMessageId)
                 logger.e("[GroupDelivery] 群消息处理失败", failure)
                 markUnknown(claimed.id, "群消息处理结果待核对，请检查会话记录", nonce)
             }
@@ -90,6 +97,16 @@ internal class GroupDeliveryPump(
     private fun unschedule(receipt: GroupDelivery) {
         synchronized(scheduled) { scheduled.remove("${receipt.botId}:${receipt.groupId}") }
         refresh.trySend(Unit)
+    }
+
+    /** Attention Decision：不确定优先记 deferred，其次才看是否真正进过轮次。 */
+    private suspend fun projectResult(result: GroupTurnOutcome, delivery: GroupDelivery) {
+        val inbox = inbox ?: return
+        when {
+            result.uncertain -> inbox.defer(delivery.botId, BotInboxSource.GROUP_MESSAGE, delivery.sourceMessageId)
+            result.observed -> inbox.observe(delivery.botId, BotInboxSource.GROUP_MESSAGE, delivery.sourceMessageId)
+            else -> inbox.ignore(delivery.botId, BotInboxSource.GROUP_MESSAGE, delivery.sourceMessageId)
+        }
     }
 
     private suspend fun markUnknown(id: String, reason: String, claimNonce: String) {

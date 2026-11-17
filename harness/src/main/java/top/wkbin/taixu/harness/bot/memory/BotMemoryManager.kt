@@ -107,7 +107,10 @@ class BotMemoryManager(
             .toList()
     }
 
-    /** 供系统提示注入的人格与长期记忆；字符预算由插件上下文统一裁剪。 */
+    /**
+     * 供诊断与回填使用的完整记忆视图（三档 + 领域知识，无冻结语义）。
+     * 线上注入已改由 [BotResidentMemory] 负责：会话内冻结、领域知识按需读取。
+     */
     suspend fun assembleContext(botId: String): String = withMemory(botId) {
         val dir = memoryDir(botId)
         if (!dir.isDirectory) return@withMemory ""

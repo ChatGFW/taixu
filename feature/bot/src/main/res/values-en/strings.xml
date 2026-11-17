@@ -21,6 +21,9 @@
     <string name="fbot_installing">Installing…</string>
     <string name="fbot_import">Import Bot package</string>
     <string name="fbot_export">Export Bot package</string>
+    <string name="fbot_export_history_title">Export memory history</string>
+    <string name="fbot_export_history_include">Include commit history (rollback)</string>
+    <string name="fbot_export_history_note">Without history, an imported Bot cannot roll back to versions from before the export. With history, old commits of deleted content are packed too.</string>
     <string name="fbot_open_session">Open in session</string>
     <string name="fbot_export_diagnostics">Export diagnostics</string>
     <string name="fbot_diagnostics_subject">TaiXu group diagnostics</string>
