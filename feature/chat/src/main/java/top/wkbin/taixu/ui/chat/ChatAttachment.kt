@@ -154,11 +154,15 @@ object AttachmentHelper {
                     val bitmap = BitmapFactory.decodeFile(targetFile.absolutePath, decodeOptions)
                     if (bitmap != null) {
                         val baos = ByteArrayOutputStream()
+                        var oriented: Bitmap? = null
                         try {
                             // BitmapFactory 不读 EXIF：带方向元数据的相机照片须先归一，否则模型看到横竖颠倒的图
-                            val oriented = applyExifOrientation(bitmap, targetFile.absolutePath)
-                            oriented.compress(Bitmap.CompressFormat.JPEG, 80, baos)
+                            val rotated = applyExifOrientation(bitmap, targetFile.absolutePath)
+                            oriented = rotated.takeIf { it !== bitmap }
+                            rotated.compress(Bitmap.CompressFormat.JPEG, 80, baos)
                         } finally {
+                            // 旋转会产生一张新位图，只回收原图会让它在原生堆里滞留到 GC。
+                            oriented?.recycle()
                             bitmap.recycle()
                         }
                         val bytes = baos.toByteArray()
