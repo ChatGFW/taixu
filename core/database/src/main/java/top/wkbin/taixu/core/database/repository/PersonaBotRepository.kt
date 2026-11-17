@@ -98,7 +98,8 @@ interface BotScheduleRepository {
     suspend fun getSchedule(id: String): BotSchedule?
     suspend fun saveSchedule(schedule: BotSchedule)
     suspend fun deleteSchedule(id: String)
-    suspend fun deleteForBot(botId: String)
+suspend fun deleteForBot(botId: String)
+    suspend fun deleteForGroup(groupId: String)
     suspend fun markRun(id: String, lastRunAt: Long, nextRunAt: Long)
     suspend fun setScheduleEnabled(id: String, enabled: Boolean)
     suspend fun stageDelivery(schedule: BotSchedule, now: Long, next: Long)
@@ -282,6 +283,8 @@ class RoomBotScheduleRepository(private val dao: BotScheduleDao, private val del
     override suspend fun deleteSchedule(id: String) = dao.deleteById(id)
 
     override suspend fun deleteForBot(botId: String) = dao.deleteForBot(botId)
+
+    override suspend fun deleteForGroup(groupId: String) = dao.deleteForGroup(groupId)
 
     override suspend fun markRun(id: String, lastRunAt: Long, nextRunAt: Long) = dao.markRun(id, lastRunAt, nextRunAt)
     override suspend fun setScheduleEnabled(id: String, enabled: Boolean) = dao.setEnabled(id, enabled)

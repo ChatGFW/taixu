@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -215,11 +214,8 @@ class GroupChatViewModel(
                 dispatcher.cancelGroup(groupId)
                 assignments.cancelGroup(groupId)
                 orchestrator.deleteGroupSessions(groupId)
-                botRepository.listBots().forEach { bot ->
-                    scheduleRepository.observeForBot(bot.id).first()
-                        .filter { it.groupId == groupId }
-                        .forEach { scheduleRepository.deleteSchedule(it.id) }
-                }
+                // 按群一次删掉全部定时任务：原实现逐 bot 观察全表再逐条删，是 N+1。
+                scheduleRepository.deleteForGroup(groupId)
                 groupRepository.deleteGroup(groupId)
             }.onSuccess {
                 onDeleted()
@@ -281,10 +277,13 @@ class GroupChatViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(stopping = true) }
             val background = activeAssignments.value
-            runCatching { assignmentRuntime.cancelGroup(groupId)
-                dispatcher.cancelGroup(groupId) }
-                .onFailure { _notices.tryEmit(context.getString(R.string.fbot_stop_failed, it.message)) }
-            assignments.cancelGroup(groupId)
+            // 三个取消互不依赖：任一失败不能跳过其余，否则群会「假停」；失败信息合并上报。
+            val failures = listOfNotNull(
+                runCatching { assignmentRuntime.cancelGroup(groupId) }.exceptionOrNull(),
+                runCatching { dispatcher.cancelGroup(groupId) }.exceptionOrNull(),
+                runCatching { assignments.cancelGroup(groupId) }.exceptionOrNull(),
+            )
+            failures.firstOrNull()?.let { _notices.tryEmit(context.getString(R.string.fbot_stop_failed, it.message)) }
             if (background.isNotEmpty()) {
                 runCatching {
                     dispatcher.postSystemNotification(

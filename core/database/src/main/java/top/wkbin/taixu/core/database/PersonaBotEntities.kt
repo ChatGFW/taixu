@@ -378,6 +378,9 @@ interface BotScheduleDao {
     @Query("DELETE FROM bot_schedules WHERE botId = :botId")
     suspend fun deleteForBot(botId: String)
 
+    @Query("DELETE FROM bot_schedules WHERE groupId = :groupId")
+    suspend fun deleteForGroup(groupId: String)
+
     @Query("UPDATE bot_schedules SET enabled = :enabled WHERE id = :id")
     suspend fun setEnabled(id: String, enabled: Boolean)
 

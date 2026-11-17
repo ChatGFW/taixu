@@ -165,11 +165,8 @@ class BotListViewModel(
             runCatching {
                 orchestrator.deleteGroupSessions(group.id)
                 groupRepository.deleteGroup(group.id)
-                botRepository.listBots().forEach { bot ->
-                    scheduleRepository.observeForBot(bot.id).first()
-                        .filter { it.groupId == group.id }
-                        .forEach { scheduleRepository.deleteSchedule(it.id) }
-                }
+                // 按群一次删掉全部定时任务：原实现逐 bot 观察全表再逐条删，是 N+1。
+                scheduleRepository.deleteForGroup(group.id)
                 wakeup?.request()
             }.onSuccess { emit("已删除群聊「${group.name}」") }
                 .onFailure { emit("操作失败：${it.message}") }
