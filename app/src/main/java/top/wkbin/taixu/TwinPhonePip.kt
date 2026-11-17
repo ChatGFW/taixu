@@ -80,7 +80,7 @@ internal object TwinPhonePip {
             activity.setPictureInPictureParams(
                 buildParams(activity, aspect = ratio, sourceRect = source),
             )
-        } catch (t: Throwable) {
+        } catch (t: Exception) {
             Log.w(TAG, "setPictureInPictureParams refused: ${t.message}")
         }
     }
@@ -95,7 +95,7 @@ internal object TwinPhonePip {
             activity.enterPictureInPictureMode(
                 buildParams(activity, aspect = ratio, sourceRect = source, autoEnter = true),
             )
-        } catch (t: Throwable) {
+        } catch (t: Exception) {
             Log.w(TAG, "enterPictureInPictureMode refused: ${t.message}")
             false
         }
