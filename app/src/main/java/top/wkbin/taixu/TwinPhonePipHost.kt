@@ -58,9 +58,13 @@ internal class TwinPhonePipHost(
 
     fun onUserLeaveHint() {
         if (Build.VERSION.SDK_INT < 26 || !TwinPhonePip.shouldOfferPip()) return
-        // API 31+ 依赖 autoEnter；任务开始后若不刷新 params，Home 仍沿用旧的 false。
+        // 任务开始后若不刷新 params，Home 仍沿用旧的 false。
         TwinPhonePip.syncParams(activity)
-        TwinPhonePip.enter(activity)
+        if (Build.VERSION.SDK_INT < 31) {
+            // API 31+ 交给 autoEnter：onUserLeaveHint 也可能由冷启动系统切换、权限页等触发，
+            // 此处手动 enter 会把普通聊天页误收成 PiP 小窗。
+            TwinPhonePip.enter(activity)
+        }
     }
 
     fun onPictureInPictureModeChanged(isInPip: Boolean) {
