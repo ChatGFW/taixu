@@ -227,6 +227,8 @@ fun GroupChatScreen(
                 Box(Modifier.fillMaxSize()) {
                     LazyColumn(
                         state = listState,
+                        // 避开 EdgeEffect 拖拽分派的 pending scroll 框架校验闪退。
+                        overscrollEffect = null,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = runtimeContentPadding(
                             horizontal = 16.dp,

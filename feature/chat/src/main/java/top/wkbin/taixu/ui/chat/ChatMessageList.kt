@@ -142,6 +142,8 @@ internal fun ChatMessageList(
     val showToolPreview = running && toolProgress?.let { it.name == "write" || it.name == "edit" } == true
     LazyColumn(
         state = listState,
+        // EdgeEffect 的拖拽分派可能残留 pending scroll，触发 LazyListState 框架校验闪退。
+        overscrollEffect = null,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             top = androidx.compose.foundation.layout.WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 64.dp,

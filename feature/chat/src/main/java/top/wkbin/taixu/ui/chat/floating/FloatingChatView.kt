@@ -462,7 +462,7 @@ private fun FloatingChatPanel(
                     }
                 } else {
                     LazyColumn(
-                        state = listState,
+                        state = listState, overscrollEffect = null, // 规避 EdgeEffect pending scroll 闪退
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 8.dp, vertical = 6.dp),
