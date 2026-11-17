@@ -89,10 +89,10 @@ class TranslationManager(
     private val englishModel = TranslateRemoteModel.Builder(TranslateLanguage.ENGLISH).build()
     private val chineseModel = TranslateRemoteModel.Builder(TranslateLanguage.CHINESE).build()
 
-    /** 内存翻译缓存，避免重复推演计算，最多保存 100 条思考片段 */
+    /** 内存翻译缓存，避免重复推演计算，最多保存 100 条思考片段；键用原文，hash 会撞键串译文 */
     private val translationCache = Collections.synchronizedMap(
-        object : LinkedHashMap<Int, String>(64, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Int, String>?): Boolean {
+        object : LinkedHashMap<String, String>(64, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean {
                 return size > 100
             }
         }
@@ -286,8 +286,7 @@ class TranslationManager(
     suspend fun translate(text: String): Result<String> = withContext(Dispatchers.IO) {
         if (text.isBlank()) return@withContext Result.success("")
 
-        val cacheKey = text.hashCode()
-        translationCache[cacheKey]?.let {
+        translationCache[text]?.let {
             return@withContext Result.success(it)
         }
 
@@ -303,7 +302,7 @@ class TranslationManager(
 
         try {
             val translated = translator.translate(text).awaitResult()
-            translationCache[cacheKey] = translated
+            translationCache[text] = translated
             Result.success(translated)
         } catch (e: Exception) {
             appLogger.e("TranslationManager: Translation execution failed", e)
