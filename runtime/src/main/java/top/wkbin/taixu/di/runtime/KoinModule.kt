@@ -55,10 +55,6 @@ import top.wkbin.taixu.runtime.remote.RemoteSystemService
 import top.wkbin.taixu.runtime.remote.SshConnectionTester
 import top.wkbin.taixu.runtime.remote.SshConnector
 import top.wkbin.taixu.runtime.remote.androidLanSockets
-import top.wkbin.taixu.runtime.rootfs.LxcImagesClient
-import top.wkbin.taixu.runtime.rootfs.OciRegistryClient
-import top.wkbin.taixu.runtime.rootfs.RootfsInstaller
-import top.wkbin.taixu.runtime.rootfs.RootfsValidator
 import top.wkbin.taixu.runtime.rootfs.TarStreamExtractor
 import top.wkbin.taixu.runtime.scripts.RuntimeAssetSynchronizer
 import top.wkbin.taixu.runtime.service.LocalServiceLauncherImpl
@@ -77,6 +73,7 @@ import top.wkbin.taixu.runtime.webchat.WebChatBridgeServer
 
 /** Dependency registrations owned by the runtime module. */
 val runtimeModule = module {
+    includes(rootfsModule)
     single { LocalDistributionSelection(get<RuntimePreferences>(), get<LinuxRuntime>()) }
     single { LocalBackendAccess(get()) }
     single { SessionWorkspaceCatalog(servers = get(), remote = get(), local = get()) }
@@ -159,6 +156,7 @@ val runtimeModule = module {
             hostBridge = get(),
             sandboxCredentials = get(),
             distroConfigurator = get(),
+            bundledRootfsProvisioner = get(),
             logger = get(),
         )
     }
@@ -340,19 +338,6 @@ val runtimeModule = module {
     single<ScriptPtyManager> { ScriptPtyManager() }
 
     single<NativePtyManager> { NativePtyManager(scriptFallback = get()) }
-    single<LxcImagesClient> { LxcImagesClient(http = get(), logger = get()) }
-    single<OciRegistryClient> { OciRegistryClient(http = get(), logger = get()) }
-    single<RootfsInstaller> {
-        RootfsInstaller(
-            pathManager = get(),
-            tarStreamExtractor = get(),
-            rootfsValidator = get(),
-            logger = get(),
-            ociRegistryClient = get(),
-            lxcImagesClient = get(),
-        )
-    }
-    single<RootfsValidator> { RootfsValidator(elfInspector = get()) }
     single<RuntimeAssetSynchronizer> { RuntimeAssetSynchronizer(context = get(), pathManager = get()) }
     single<LocalServiceLauncherImpl> { LocalServiceLauncherImpl(linuxRuntime = get()) }
     single<ProcessRegistryImpl> {

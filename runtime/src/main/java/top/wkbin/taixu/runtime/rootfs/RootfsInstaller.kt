@@ -75,7 +75,12 @@ class RootfsInstaller(
         }
     }
 
-    suspend fun importArchive(distroId: String, archive: File): AppResult<File> = withContext(Dispatchers.IO) {
+    suspend fun importArchive(
+        distroId: String,
+        archive: File,
+        version: String = "local-import",
+        digest: String = "local-${archive.length()}-${archive.lastModified()}",
+    ): AppResult<File> = withContext(Dispatchers.IO) {
         val safeId = distroId.lowercase().trim()
         require(safeId.matches(Regex("[a-z0-9][a-z0-9_-]{0,31}"))) { "Linux 发行版 ID 无效" }
         require(archive.isFile) { "导入文件不存在" }
@@ -97,7 +102,7 @@ class RootfsInstaller(
                 }
                 stream.use { tarStreamExtractor.extract(it, staging, handleWhiteouts = false) }
             }
-            val actualRoot = normalizeImportedRoot(staging)
+            val actualRoot = staging.normalizedImportRoot()
             if (actualRoot != staging) {
                 val normalized = File(staging.parentFile, "rootfs.normalized")
                 SafeFileTree.delete(normalized)
@@ -109,7 +114,7 @@ class RootfsInstaller(
             val target = pathManager.rootfsDir(safeId)
             if (pathManager.isDistroInstalled(safeId)) preserveUserDirectories(target, staging)
             replaceRootfs(safeId, staging, retainBackup = false)
-            markInstalled(safeId, OciRegistryClient.ImageInfo("local-import", "local-${archive.length()}-${archive.lastModified()}"))
+            markInstalled(safeId, OciRegistryClient.ImageInfo(version, digest))
             pathManager.homeDir(safeId).mkdirs()
             AppResult.Success(target)
         } catch (cancellation: CancellationException) {
@@ -119,16 +124,6 @@ class RootfsInstaller(
             logger.e("Failed to import rootfs archive for $safeId", throwable)
             failure("导入 RootFS（$safeId）失败", throwable)
         }
-    }
-
-    private fun normalizeImportedRoot(staging: File): File {
-        val children = staging.listFiles().orEmpty().filterNot { it.name == ".taixu" }
-        if (children.size == 1 && children[0].isDirectory) {
-            val nested = children[0]
-            val hasRootMarker = File(nested, "etc/os-release").isFile || File(nested, "usr/lib/os-release").isFile
-            if (hasRootMarker) return nested
-        }
-        return staging
     }
 
     suspend fun updateOci(

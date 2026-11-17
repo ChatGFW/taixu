@@ -7,7 +7,8 @@
 | Material Symbols Rounded | 保留的矢量资源与品牌图标回退，SVG 转 Android VectorDrawable | [Google 官方仓库](https://github.com/google/material-design-icons)，固定修订 `49d4db35df873165d6bd6ba09b063c7dafbac2f4`；映射与转换见 `tools/sync-material-symbols.py` | Apache-2.0；许可证随 APK 置于 `feature/components/src/main/assets/licenses/material-symbols-LICENSE`，每个矢量资源保留来源与转换说明 |
 | Miuix | 应用主题、基础控件、Preference、导航和功能图标 | [上游仓库](https://github.com/compose-miuix-ui/miuix)，`0.9.3` | Apache-2.0，完整许可证随 APK 置于 `assets/licenses/miuix-LICENSE` |
 | AndroidX A2UI 目录适配源码 | 保留官方组件状态投影、无障碍、动作转发和 SVG 解析，将展示实现适配到 Miuix | Google Maven `material3-a2ui:1.0.0-alpha02` source JAR，源码位于 `feature/a2uipoc/.../miuix` | Copyright 2026 The Android Open Source Project，Apache-2.0。保留各文件版权头，并标明适配修改，完整许可证随 APK 置于 `assets/licenses/a2ui-LICENSE` |
-| Debian / Ubuntu ARM64 rootfs | Android Linux 用户态系统 | Kotlin 安装流程对齐 `proot-distro 5.10.0` OCI 机制从 Docker/OCI Registry 拉取 | 各发行版及其中的软件包分别遵循各自许可证；不内置 APK，发布前需要提供对应版权与许可证获取地址 |
+| Debian / Ubuntu ARM64 rootfs | Android Linux 用户态系统 | Kotlin 安装流程对齐 `proot-distro 5.10.0` OCI 机制从 Docker/OCI Registry 拉取；`tools/bundled-rootfs/` 可产出可选内置包 | 各发行版及其中的软件包分别遵循各自许可证；内置包归档默认不入库，随包分发前必须在此登记该归档内全部软件包的版权与许可证获取地址 |
+| `ccch1mneyyy/dsh-go` 运行时构建模式 | `tools/bundled-rootfs/` 的输入 pin、GPG 校验、固定 `SOURCE_DATE_EPOCH`、归一化打包与可复现比对思路 | [上游仓库](https://github.com/ccch1mneyyy/dsh-go)，参考 `runtime/build-runtime.sh` | AGPL-3.0；脚本为独立重写，未复制上游源码。本仓库为 GPL-3.0，若将来与 AGPL-3.0 代码组合分发，按 GPLv3 §13 处理并保留上游来源与许可证地址 |
 | Termux PRoot | Android ARM64 PRoot 启动器 | Termux 主仓库二进制包，版本和 SHA-256 见 `ProotInstaller` | 必须随对应二进制包核对许可证、NOTICE 和源码获取地址；APK 仅携带当前 ARM64 构建 |
 | `libandroid-shmem.so` / `libtalloc.so` | PRoot 动态库依赖 | 与 PRoot 构建匹配的 Termux 包 | 不能只因为文件是 `.so` 就假定可自由再分发；发布前核对上游包的许可证文本 |
 | `zstd-jni` | Android ARM64 `.tar.zst` 解压 | Maven Central，`1.5.5-4` AAR | 按上游 zstd-jni 的许可证和 NOTICE 分发 |

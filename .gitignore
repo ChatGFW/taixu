@@ -42,6 +42,10 @@ Desktop.ini
 # Temporary third-party repo clones (Operit analysis workspace)
 .tmp_operit_analysis/
 
+# Bundled RootFS build outputs (~17 MiB): reproduce with tools/bundled-rootfs,
+# keep manifests, scripts and checksums versioned instead of the binary archive.
+app/src/main/assets/rootfs/
+
 # Locally downloaded offline-plugin SDK archives (about 1.6 GiB).
 # Keep manifests, scripts, checksums and download instructions versioned.
 assets/plugins/android-suite-offline/payload/archives/

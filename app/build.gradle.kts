@@ -140,6 +140,11 @@ extensions.configure<ApplicationExtension> {
             )
         }
     }
+
+    androidResources {
+        // 内置 RootFS 是已压缩的 xz 归档，二次压缩只会拖慢打包并增大 APK。
+        noCompress += "xz"
+    }
 }
 
 dependencies {

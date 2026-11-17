@@ -33,6 +33,7 @@ import top.wkbin.taixu.runtime.proot.QemuCompatibilityLayout
 import top.wkbin.taixu.runtime.proot.hostSupplementaryGroupIds
 import top.wkbin.taixu.runtime.proot.syncGuestGroups
 import top.wkbin.taixu.runtime.pty.PtyManager
+import top.wkbin.taixu.runtime.rootfs.BundledRootfsProvisioner
 import top.wkbin.taixu.runtime.rootfs.RootfsInstaller
 import top.wkbin.taixu.runtime.shell.CommandResult
 import top.wkbin.taixu.runtime.shell.ForegroundCommandAdmission
@@ -61,6 +62,7 @@ class LinuxRuntimeImpl(
     private val hostBridge: HostBridge,
     private val sandboxCredentials: SandboxCredentialStore,
     private val distroConfigurator: DistroConfigurator,
+    private val bundledRootfsProvisioner: BundledRootfsProvisioner,
     private val logger: AppLogger,
 ) : LinuxRuntime {
 
@@ -299,18 +301,16 @@ class LinuxRuntimeImpl(
                     failInitialization(prootError)
                     return@withContext AppResult.Failure(prootError)
                 }
-
                 val distroId = request.distributionId.lowercase().trim()
                 val distribution = DistributionCatalog.require(distroId)
-                updateInitializing("下载 ${distribution.displayName}", 0.2f, "通过 proot-distro 5.10.0 OCI 机制下载 linux/arm64 镜像")
-                val rootfsResult = rootfsInstaller.installOci(
-                    distribution,
-                    request.registryRoute,
+                updateInitializing("准备 ${distribution.displayName}", 0.2f, "优先使用随包内置发行版，缺失时回退 OCI 镜像")
+                val rootfsResult = bundledRootfsProvisioner.install(
+                    distribution, request.registryRoute,
+                    onStage = { updateInitializing(it, 0.2f) },
                 ) { progress -> updateDownloadProgress("下载 ${distribution.displayName}", 0.2f, 0.55f, progress) }
-                val rootfsError = rootfsResult.errorOrNull()
-                if (rootfsError != null) {
-                    failInitialization(rootfsError)
-                    return@withContext AppResult.Failure(rootfsError)
+                rootfsResult.errorOrNull()?.let { error ->
+                    failInitialization(error)
+                    return@withContext AppResult.Failure(error)
                 }
 
                 updateInitializing("configureRootfs", 0.75f)
