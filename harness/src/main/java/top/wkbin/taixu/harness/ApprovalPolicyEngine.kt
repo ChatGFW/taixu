@@ -349,8 +349,8 @@ class ApprovalPolicyEngine(
         // Allow token-saving read pipelines and `cd <path> && <routine>` composition that the
         // agent prompt itself recommends (e.g. `ls ... 2>&1 | head -40`, `cd proj && rg ... | head`).
         val withoutSafeRedirects = normalized
-            .replace(Regex("""\s+\d*>&\d+\b"""), " ")
-            .replace(Regex("""\s+>&\d+\b"""), " ")
+            .replace(FD_DUP_PADDED, " ")
+            .replace(FD_DUP_PADDED_SHORT, " ")
             .trim()
         // 裸 `&`（后台执行符）不可自动放行：`cat pom.xml & rm x` 的后半段会在 shell
         // 后台直接执行并完全绕过前缀白名单。必须先剥 `2>&1` 类 fd 重定向、拆掉 `&&`
@@ -409,8 +409,8 @@ class ApprovalPolicyEngine(
     /** File redirection (`>` / `<`) except fd-to-fd forms like `2>&1`. */
     private fun hasUnsafeFileRedirection(command: String): Boolean {
         val stripped = command
-            .replace(Regex("""\d*>&\d+"""), "")
-            .replace(Regex(""">&\d+"""), "")
+            .replace(FD_DUP, "")
+            .replace(FD_DUP_SHORT, "")
         return ">" in stripped || "<" in stripped
     }
 

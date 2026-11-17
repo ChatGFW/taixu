@@ -1001,25 +1001,23 @@ object ContextWindowPolicy {
         if (prompt.isBlank()) return emptyList()
         val issues = mutableListOf<String>()
         // ISO 8601 date: 2026-09-05 or 2026/09/05
-        if (Regex("""\b20\d{2}[-/]\d{2}[-/]\d{2}\b""").containsMatchIn(prompt)) {
+        if (ISO_DATE_REGEX.containsMatchIn(prompt)) {
             issues += "ISO 日期（YYYY-MM-DD）"
         }
         // Time of day: 14:30 or 14:30:05
-        if (Regex("""\b\d{1,2}:\d{2}(:\d{2})?\b""").containsMatchIn(prompt)) {
+        if (CLOCK_TIME_REGEX.containsMatchIn(prompt)) {
             issues += "时间（HH:MM）"
         }
         // Unix timestamp (10-13 digit integer, typically used as currentTimeMillis or epochSeconds)
-        if (Regex("""\b1[6-9]\d{8}\b|\b17\d{8}\b|\b1[6-9]\d{11}\b|\b17\d{11}\b""")
-                .containsMatchIn(prompt)) {
+        if (UNIX_TIMESTAMP_REGEX.containsMatchIn(prompt)) {
             issues += "UNIX 时间戳"
         }
         // Chinese date patterns like "2026年9月5日"
-        if (Regex("""\d{4}年\d{1,2}月\d{1,2}日""").containsMatchIn(prompt)) {
+        if (CHINESE_DATE_REGEX.containsMatchIn(prompt)) {
             issues += "中文日期（YYYY年M月D日）"
         }
         // Battery/charge level patterns: "电量: 83%" or "battery: 83%"
-        if (Regex("""(?:电量|battery)[^\n]{0,20}?\d{1,3}%""", RegexOption.IGNORE_CASE)
-                .containsMatchIn(prompt)) {
+        if (BATTERY_PERCENT_REGEX.containsMatchIn(prompt)) {
             issues += "实时电量百分比"
         }
         return issues
