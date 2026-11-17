@@ -255,7 +255,12 @@ class BotAssignmentRuntime(
             val detail = if (unknownEffects) "原工具副作用或历史待核对，请先只读核验原会话与产物。\n${result.text}" else result.text
             repository.finishRequest(request.id, !failed, uncertain, result.text, if (failed || uncertain) detail else null)
             when {
-                uncertain -> inbox?.defer(botId, BotInboxSource.ASSIGNMENT, request.id)
+                uncertain -> inbox?.defer(
+                    botId,
+                    BotInboxSource.ASSIGNMENT,
+                    request.id,
+                    observedAt = if (observed) System.currentTimeMillis() else null,
+                )
                 observed -> Unit
                 failed -> inbox?.ignore(botId, BotInboxSource.ASSIGNMENT, request.id)
                 else -> inbox?.defer(botId, BotInboxSource.ASSIGNMENT, request.id)
@@ -264,13 +269,23 @@ class BotAssignmentRuntime(
             task.sessionId?.let(control::cancel)
             withContext(NonCancellable) {
                 repository.finishRequest(request.id, false, true, null, "执行被中断，结果待核对")
-                inbox?.defer(botId, BotInboxSource.ASSIGNMENT, request.id)
+                inbox?.defer(
+                    botId,
+                    BotInboxSource.ASSIGNMENT,
+                    request.id,
+                    observedAt = if (observed) System.currentTimeMillis() else null,
+                )
             }
             throw cancelled
         } catch (failure: Exception) {
             logger.e("[BotAssignment] 独立任务执行结果待核对", failure)
             repository.finishRequest(request.id, false, true, null, "执行结果待核对：${failure.message}")
-            inbox?.defer(botId, BotInboxSource.ASSIGNMENT, request.id)
+            inbox?.defer(
+                botId,
+                BotInboxSource.ASSIGNMENT,
+                request.id,
+                observedAt = if (observed) System.currentTimeMillis() else null,
+            )
         } finally {
             tracker.untrack(task.id)
         }

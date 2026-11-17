@@ -19,6 +19,7 @@ import top.wkbin.taixu.core.database.AndroidAppDao
 import top.wkbin.taixu.core.database.AppDatabase
 import top.wkbin.taixu.core.database.BotAssignmentDao
 import top.wkbin.taixu.core.database.BotGroupSessionDao
+import top.wkbin.taixu.core.database.BotInboxDao
 import top.wkbin.taixu.core.database.BotMemberGroupDao
 import top.wkbin.taixu.core.database.BotScheduleDao
 import top.wkbin.taixu.core.database.BotScheduleDeliveryDao
@@ -62,6 +63,7 @@ import top.wkbin.taixu.di.AppModule.provideAiModelDao
 import top.wkbin.taixu.di.AppModule.provideAndroidAppDao
 import top.wkbin.taixu.di.AppModule.provideBotAssignmentDao
 import top.wkbin.taixu.di.AppModule.provideBotGroupSessionDao
+import top.wkbin.taixu.di.AppModule.provideBotInboxDao
 import top.wkbin.taixu.di.AppModule.provideBotMemberGroupDao
 import top.wkbin.taixu.di.AppModule.provideBotScheduleDao
 import top.wkbin.taixu.di.AppModule.provideBotScheduleDeliveryDao
@@ -169,6 +171,7 @@ val appModule = module {
 
     single<BotScheduleDao> { provideBotScheduleDao(database = get()) }
     single<BotScheduleDeliveryDao> { provideBotScheduleDeliveryDao(database = get()) }
+    single<BotInboxDao> { provideBotInboxDao(database = get()) }
 
     single<BotAssignmentDao> { provideBotAssignmentDao(database = get()) }
 

@@ -62,6 +62,7 @@ val botHarnessModule = module {
             residentMemory = get(),
             logger = get(), assignmentRepository = get(),
             modelManager = get(),
+            inboxRepository = get(),
         )
     }
     single {

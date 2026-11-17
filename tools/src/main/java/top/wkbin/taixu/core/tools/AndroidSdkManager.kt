@@ -80,18 +80,19 @@ class AndroidSdkManager(
         onProgress: (String, Float?) -> Unit,
     ): InstalledAndroidSdk = mutex.withLock {
         withContext(Dispatchers.IO) {
+            val checksum = requireNotNull(release.sha256) { "上游未提供 SHA-256，已拒绝安装可执行 SDK" }
             local.requireLocal()
             // Reconstruct and validate the destination independently of UI state or remote metadata.
             require(release.directoryName.matches(Regex("homu-[0-9]+(?:\\.[0-9]+){1,3}(?:-[A-Za-z0-9.-]+)?-musl")))
             require(release.url == "${AndroidSdkReleases.REPOSITORY}/releases/download/${release.version}/android-sdk-aarch64-linux-musl.tar.xz")
             installed(distroId).firstOrNull { it.version == release.version }?.let { return@withContext it }
             val archive = File(cache(distroId), "${release.directoryName}.tar.xz")
-            val verifiedCache = archive.isFile && release.sha256 != null && runCatching {
-                checksums.verify(archive, release.sha256)
+            val verifiedCache = archive.isFile && runCatching {
+                checksums.verify(archive, checksum)
             }.isSuccess
             if (!verifiedCache) {
                 downloader.download(DownloadRequest(
-                    url = release.url, destination = archive, sha256 = release.sha256,
+                    url = release.url, destination = archive, sha256 = checksum,
                     maxBytes = 512L * 1024 * 1024,
                 )).collect { event ->
                     when (event) {

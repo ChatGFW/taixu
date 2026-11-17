@@ -8,6 +8,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -36,6 +38,7 @@ internal class WebTerminalBridge(
     private val auth: WebChatAuth,
 ) {
     private val handles = ConcurrentHashMap<String, WebTerminalHandle>()
+    private val createMutex = Mutex()
 
     private class WebTerminalHandle(
         val id: String,
@@ -127,11 +130,11 @@ internal class WebTerminalBridge(
         })
     }
 
-    private suspend fun createTerminal(exchange: AndroidHttpExchange) {
+    private suspend fun createTerminal(exchange: AndroidHttpExchange) = createMutex.withLock {
         // 每个会话都是一个真实 PTY（进程 + fd），必须设上限，避免一次配对后无限放大。
         if (handles.size >= MAX_TERMINALS) {
             sendJson(exchange, 429, errorJson("并发终端已达上限（$MAX_TERMINALS）", "too_many_terminals"))
-            return
+            return@withLock
         }
         val body = requestJson(exchange)
         val columns = (body["columns"]?.jsonPrimitive?.content?.toIntOrNull() ?: DEFAULT_COLUMNS)
@@ -155,6 +158,8 @@ internal class WebTerminalBridge(
                 ),
                 distroId = distroId,
             )
+        } catch (cancellation: CancellationException) {
+            throw cancellation
         } catch (throwable: Throwable) {
             logger.e("太墟智枢 Web 终端创建失败", throwable)
             throw IllegalArgumentException("终端启动失败：${throwable.message ?: "PTY 不可用"}")

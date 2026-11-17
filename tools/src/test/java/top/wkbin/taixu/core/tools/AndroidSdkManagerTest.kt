@@ -81,6 +81,17 @@ class AndroidSdkManagerTest {
         assertEquals(2, fixture.manager.installed("ubuntu").size)
     }
 
+    @Test fun missingDigestIsRejectedBeforeAnyDownload() = runBlocking {
+        val fixture = Fixture()
+        val failure = runCatching {
+            fixture.manager.install("ubuntu", fixture.release().copy(sha256 = null)) { _, _ -> }
+        }.exceptionOrNull()
+        assertTrue(failure is IllegalArgumentException)
+        assertTrue(failure!!.message!!.contains("SHA-256"))
+        assertEquals(0, fixture.downloads)
+        assertEquals("old-aapt2", fixture.baseAapt2.readText())
+    }
+
     @Test fun cancelledDownloadLeavesExistingSdkUsable() = runBlocking {
         val fixture = Fixture()
         fixture.cancelDownload = true

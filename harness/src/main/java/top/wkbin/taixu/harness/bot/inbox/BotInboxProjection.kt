@@ -1,5 +1,6 @@
 package top.wkbin.taixu.harness.bot.inbox
 
+import kotlinx.coroutines.CancellationException
 import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.repository.BotInboxRepository
 import top.wkbin.taixu.core.model.bot.BotInboxItem
@@ -41,8 +42,13 @@ class BotInboxProjection(
     suspend fun observe(botId: String, sourceKind: String, sourceId: String, now: Long = System.currentTimeMillis()) =
         decide(botId, sourceKind, sourceId, BotInboxState.OBSERVED, now, now)
 
-    suspend fun defer(botId: String, sourceKind: String, sourceId: String, now: Long = System.currentTimeMillis()) =
-        decide(botId, sourceKind, sourceId, BotInboxState.DEFERRED, null, now)
+    suspend fun defer(
+        botId: String,
+        sourceKind: String,
+        sourceId: String,
+        now: Long = System.currentTimeMillis(),
+        observedAt: Long? = null,
+    ) = decide(botId, sourceKind, sourceId, BotInboxState.DEFERRED, observedAt, now)
 
     suspend fun ignore(botId: String, sourceKind: String, sourceId: String, now: Long = System.currentTimeMillis()) =
         decide(botId, sourceKind, sourceId, BotInboxState.IGNORED, null, now)
@@ -62,8 +68,12 @@ class BotInboxProjection(
         repository.decide(item.id, state, observedAt, now)
     } ?: false
 
-    private suspend fun <T> guard(action: String, block: suspend () -> T): T? =
-        runCatching { block() }
-            .onFailure { logger.w("[BotInboxProjection] $action 失败: ${it.message}", it) }
-            .getOrNull()
+    private suspend fun <T> guard(action: String, block: suspend () -> T): T? = try {
+        block()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Throwable) {
+        logger.w("[BotInboxProjection] $action 失败: ${failure.message}", failure)
+        null
+    }
 }

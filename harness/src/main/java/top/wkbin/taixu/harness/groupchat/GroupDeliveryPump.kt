@@ -103,7 +103,12 @@ internal class GroupDeliveryPump(
     private suspend fun projectResult(result: GroupTurnOutcome, delivery: GroupDelivery) {
         val inbox = inbox ?: return
         when {
-            result.uncertain -> inbox.defer(delivery.botId, BotInboxSource.GROUP_MESSAGE, delivery.sourceMessageId)
+            result.uncertain -> inbox.defer(
+                delivery.botId,
+                BotInboxSource.GROUP_MESSAGE,
+                delivery.sourceMessageId,
+                observedAt = if (result.observed) System.currentTimeMillis() else null,
+            )
             result.observed -> inbox.observe(delivery.botId, BotInboxSource.GROUP_MESSAGE, delivery.sourceMessageId)
             else -> inbox.ignore(delivery.botId, BotInboxSource.GROUP_MESSAGE, delivery.sourceMessageId)
         }

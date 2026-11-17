@@ -103,7 +103,7 @@ class GroupDeliveryPumpTest {
         awaitStatus("uncertain", GroupDelivery.UNKNOWN)
         awaitInbox("uncertain", BotInboxState.DEFERRED)
         val item = db.botInboxDao().findBySource("bot", BotInboxSource.GROUP_MESSAGE, "uncertain")!!
-        assertNull(item.observedAt)
+        assertNotNull(item.observedAt)
     }
 
     @Test fun `restart delivers only pending sources once and preserves uncertain native admission`() = runBlocking {

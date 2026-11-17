@@ -2,6 +2,7 @@ package top.wkbin.taixu.harness.bot.inbox
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
@@ -66,6 +67,35 @@ class BotInboxProjectionTest {
 
         projection.ignore("bot", BotInboxSource.ASSIGNMENT, "a1", now = 31)
         assertEquals(BotInboxState.IGNORED, repository.findBySource("bot", BotInboxSource.ASSIGNMENT, "a1")!!.state)
+    }
+
+    @Test fun `defer preserves the first observation across repeated uncertain outcomes`() = runBlocking {
+        projection.admit("bot", BotInboxSource.ASSIGNMENT, "observed", "被派工", now = 10)
+        projection.observe("bot", BotInboxSource.ASSIGNMENT, "observed", now = 20)
+        projection.defer("bot", BotInboxSource.ASSIGNMENT, "observed", now = 30)
+        projection.defer("bot", BotInboxSource.ASSIGNMENT, "observed", now = 40, observedAt = 99)
+        val item = repository.findBySource("bot", BotInboxSource.ASSIGNMENT, "observed")!!
+        assertEquals(BotInboxState.DEFERRED, item.state)
+        assertEquals(20L, item.observedAt)
+    }
+
+    @Test fun `uncertain admitted receipt records its observation time`() = runBlocking {
+        projection.admit("bot", BotInboxSource.GROUP_MESSAGE, "uncertain", "群消息", now = 10)
+        projection.defer("bot", BotInboxSource.GROUP_MESSAGE, "uncertain", now = 30, observedAt = 20)
+        val item = repository.findBySource("bot", BotInboxSource.GROUP_MESSAGE, "uncertain")!!
+        assertEquals(BotInboxState.DEFERRED, item.state)
+        assertEquals(20L, item.observedAt)
+    }
+
+    @Test fun `cancellation is never converted into a projection failure`() = runBlocking {
+        val cancelled = BotInboxProjection(object : BotInboxRepository by repository {
+            override suspend fun findBySource(botId: String, sourceKind: String, sourceId: String): BotInboxItem? =
+                throw CancellationException("caller cancelled")
+        }, log)
+        val failure = runCatching {
+            cancelled.observe("bot", BotInboxSource.SYSTEM, "cancelled")
+        }.exceptionOrNull()
+        assertTrue(failure is CancellationException)
     }
 
     @Test fun `projection failures are contained instead of blocking the caller`() = runBlocking {

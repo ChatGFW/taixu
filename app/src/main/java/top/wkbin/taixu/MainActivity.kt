@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,7 +125,7 @@ class MainActivity : AppCompatActivity() {
                         val onboardingViewModel: OnboardingViewModel = koinViewModel()
                         val onboarding by onboardingViewModel.status.collectAsStateWithLifecycle()
                         // 应用内启动页：动画播完才揭幕，不再依赖系统闪屏的播放时长。
-                        var splashVisible by remember { mutableStateOf(true) }
+                        var splashVisible by rememberSaveable { mutableStateOf(true) }
 
                         var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
                         val currentVersionName = rememberAppVersionName()

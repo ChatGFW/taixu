@@ -13,6 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.android.ext.koin.androidContext
@@ -28,10 +29,16 @@ import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.database.WorkflowRepository
 import top.wkbin.taixu.core.database.WorkflowScheduleStore
+import top.wkbin.taixu.core.database.repository.BotInboxRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.bot.Bot
+import top.wkbin.taixu.core.model.bot.BotInboxItem
+import top.wkbin.taixu.core.model.bot.BotInboxSource
+import top.wkbin.taixu.core.model.bot.BotInboxState
 import top.wkbin.taixu.harness.HarnessLoop
 import top.wkbin.taixu.harness.bot.BotOrchestrator
+import top.wkbin.taixu.harness.bot.memory.BotMemoryManager
+import top.wkbin.taixu.harness.bot.memory.BotResidentMemory
 import top.wkbin.taixu.harness.plugins.HarnessPlugin
 import top.wkbin.taixu.harness.session.InteractiveSessionControl
 import top.wkbin.taixu.harness.session.PromptSubmission
@@ -138,6 +145,66 @@ class KoinAndroidIntegrationTest {
                 control.submit("missing-remote", "hello"))
             assertEquals(foreground, control.currentSessionId.value)
         } finally {
+            koin.get<AppDatabase>().close()
+        }
+    }
+
+    @Test
+    fun userMemoryEditsAndRollbackRefreshFrozenSnapshots() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        context.applicationInfo.nativeLibraryDir = context.filesDir.absolutePath
+        val application = startKoin { androidContext(context); modules(taiXuModule) }
+        val koin = application.koin
+        val memory = koin.get<BotMemoryManager>()
+        val botId = "memory-refresh"
+        try {
+            val orchestrator = koin.get<BotOrchestrator>()
+            val resident = koin.get<BotResidentMemory>()
+            val first = requireNotNull(memory.writeMemory(botId, BotMemoryManager.PERSONA, "first", "test: first"))
+            assertTrue(resident.render(botId, "memory-session").contains("first"))
+
+            orchestrator.saveMemoryDocument(botId, BotMemoryManager.PERSONA, "second", null)
+            val saved = resident.render(botId, "memory-session")
+            assertTrue(saved.contains("second"))
+            assertTrue(!saved.contains("first"))
+
+            orchestrator.rollbackMemory(botId, first.hash)
+            val restored = resident.render(botId, "memory-session")
+            assertTrue(restored.contains("first"))
+            assertTrue(!restored.contains("second"))
+        } finally {
+            memory.deleteMemory(botId)
+            koin.get<AppDatabase>().close()
+        }
+    }
+
+    @Test
+    fun deletingBotAlsoDeletesItsInboxProjection() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        context.applicationInfo.nativeLibraryDir = context.filesDir.absolutePath
+        val application = startKoin { androidContext(context); modules(taiXuModule) }
+        val koin = application.koin
+        val bot = Bot("disposable-bot", "Disposable", "worker", "persona", "seed",
+            sessionId = "disposable-session", createdAt = 1, updatedAt = 1)
+        val inbox = koin.get<BotInboxRepository>()
+        try {
+            koin.get<PersonaBotRepository>().saveBot(bot)
+            inbox.admit(BotInboxItem(
+                id = "${bot.id}:system:seed",
+                botId = bot.id,
+                sourceKind = BotInboxSource.SYSTEM,
+                sourceId = "seed",
+                reason = "test",
+                createdAt = 1,
+            ))
+            assertEquals(1, inbox.countForBot(bot.id, BotInboxState.PENDING))
+
+            koin.get<BotOrchestrator>().deleteBot(bot.id)
+
+            assertEquals(0, inbox.countForBot(bot.id, BotInboxState.PENDING))
+            assertNull(koin.get<PersonaBotRepository>().getBot(bot.id))
+        } finally {
+            inbox.deleteForBot(bot.id)
             koin.get<AppDatabase>().close()
         }
     }

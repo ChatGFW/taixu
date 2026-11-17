@@ -6,6 +6,7 @@ import top.wkbin.taixu.core.common.logging.AppLogger
 import top.wkbin.taixu.core.database.HarnessSessionEntity
 import top.wkbin.taixu.core.database.HarnessSessionRepository
 import top.wkbin.taixu.core.database.repository.BotGroupSessionRepository
+import top.wkbin.taixu.core.database.repository.BotInboxRepository
 import top.wkbin.taixu.core.database.repository.GroupChatRepository
 import top.wkbin.taixu.core.database.repository.PersonaBotRepository
 import top.wkbin.taixu.core.model.ApprovalMode
@@ -41,6 +42,7 @@ class BotOrchestrator(
     private val logger: AppLogger,
     private val modelManager: BotModelManager,
     private val assignmentRepository: BotAssignmentRepository? = null,
+    private val inboxRepository: BotInboxRepository? = null,
 ) {
     private val groupSessionLocks = ConcurrentHashMap<String, Mutex>()
 
@@ -151,6 +153,14 @@ class BotOrchestrator(
         updated
     }
 
+    suspend fun saveMemoryDocument(botId: String, path: String, content: String, expectedRevision: String?) {
+        memoryManager.writeMemory(botId, path, content, "memory: 编辑 $path", expectedRevision)
+        residentMemory.invalidateBot(botId)
+    }
+
+    suspend fun rollbackMemory(botId: String, hash: String) =
+        memoryManager.rollbackToCommit(botId, hash).also { residentMemory.invalidateBot(botId) }
+
     suspend fun deleteBot(botId: String) {
         val bot = botRepository.getBot(botId) ?: return
         val adminGroups = groupRepository.countGroupsAsAdmin(botId)
@@ -170,6 +180,7 @@ class BotOrchestrator(
                     .onFailure { logger.w("[BotOrchestrator] 删除群维度会话失败: ${it.message}", it) }
             }
         botRepository.deleteBot(botId)
+        inboxRepository?.deleteForBot(botId)
         residentMemory.invalidateBot(botId)
         memoryManager.deleteMemory(botId)
         logger.i("[BotOrchestrator] 已删除 Bot: ${bot.name}")

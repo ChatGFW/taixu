@@ -36,6 +36,9 @@ import top.wkbin.taixu.R
 /** 与 res/animator/taixu_splash_*_anim.xml 的最长时长（420ms）一致。 */
 private const val SPLASH_PLAYBACK_GUARD_MS = 540L
 
+internal fun splashPlaybackGuardDelayMs(durationScale: Float): Long =
+    (SPLASH_PLAYBACK_GUARD_MS * durationScale.coerceAtLeast(1f)).toLong()
+
 /** 穿透退场时长，与旧系统闪屏退出节奏保持一致。 */
 private const val SPLASH_EXIT_DURATION_MS = 280
 
@@ -86,7 +89,7 @@ fun TaiXuSplash(
     // 兜底：极少数 ROM 不上报动画结束回调，按已知时长放行，仍不会提前切断。
     LaunchedEffect(icon, animatorsEnabled) {
         if (!animatorsEnabled) return@LaunchedEffect
-        delay(SPLASH_PLAYBACK_GUARD_MS)
+        delay(splashPlaybackGuardDelayMs(ValueAnimator.getDurationScale()))
         playbackFinished = true
     }
 

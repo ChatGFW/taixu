@@ -253,7 +253,7 @@ class BotDetailViewModel(
     fun rollback(hash: String) {
         val bot = _uiState.value.bot ?: return
         launchBusy {
-            val result = memoryManager.rollbackToCommit(bot.id, hash)
+            val result = orchestrator.rollbackMemory(bot.id, hash)
             refreshMemory(bot.id)
             "已恢复到 ${hash.take(8)}，恢复前快照 ${result.backupHash.take(8)} 已保留"
         }
@@ -270,7 +270,7 @@ class BotDetailViewModel(
 
     suspend fun saveMemoryDocument(botId: String, document: BotMemoryDocument, content: String) {
         check(boundBotId == botId && _uiState.value.bot?.id == botId) { "Bot 已切换，未保存" }
-        memoryManager.writeMemory(botId, document.path, content, "memory: 编辑 ${document.path}", document.revision)
+        orchestrator.saveMemoryDocument(botId, document.path, content, document.revision)
         refreshMemory(botId)
     }
 

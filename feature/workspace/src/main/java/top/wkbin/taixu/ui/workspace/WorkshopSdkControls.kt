@@ -61,7 +61,7 @@ private fun SdkDownloadControls(state: WorkshopSdkState, viewModel: WorkshopSdkV
                 items = state.releases.map { it.version },
                 selectedIndex = index,
                 onSelectedIndexChange = { version = state.releases[it].version },
-                summary = "${if (release.size > 0) "约 ${release.size / (1024 * 1024)} MiB" else "大小未知"} · ${if (release.sha256 != null) "SHA-256 校验" else "上游未提供摘要，HTTPS 直连"}",
+                summary = "${if (release.size > 0) "约 ${release.size / (1024 * 1024)} MiB" else "大小未知"} · ${if (release.sha256 != null) "SHA-256 校验" else "缺少 SHA-256，不可安装"}",
             )
         }
         Text(
@@ -74,7 +74,7 @@ private fun SdkDownloadControls(state: WorkshopSdkState, viewModel: WorkshopSdkV
                 Text(if (state.fetched) "刷新版本" else "获取在线版本")
             }
             if (release != null) {
-                RuntimeButton(onClick = { viewModel?.download(release) }, enabled = !state.busy && !installed) {
+                RuntimeButton(onClick = { viewModel?.download(release) }, enabled = !state.busy && !installed && release.sha256 != null) {
                     Text(if (installed) "已安装" else "下载所选版本")
                 }
             }

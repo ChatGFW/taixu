@@ -47,7 +47,7 @@ abstract class BotInboxDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     abstract suspend fun admit(row: BotInboxItemEntity): Long
 
-    @Query("UPDATE bot_inbox_items SET state = :state, observedAt = :observedAt, updatedAt = :now WHERE id = :id")
+    @Query("UPDATE bot_inbox_items SET state = :state, observedAt = COALESCE(observedAt, :observedAt), updatedAt = :now WHERE id = :id")
     abstract suspend fun decide(id: String, state: String, observedAt: Long?, now: Long): Int
 
     @Query(
