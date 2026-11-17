@@ -1,6 +1,7 @@
 package top.wkbin.taixu.ui.workspace
 
 import android.content.Context
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,6 +53,21 @@ internal class EditorSessionController(
     /** 冲突前待执行的保存回调（如「保存并退出」），覆盖保存成功后继续执行。 */
     private var pendingConflictOnSuccess: (() -> Unit)? = null
 
+    /**
+     * 在途读文件计数：关闭编辑器/快速切换文件会让旧请求提前 return，
+     * 若由它无条件复位 loading，加载态要么卡死要么被后发请求的收尾误清。
+     */
+    private val activeFileLoads = AtomicInteger()
+
+    private fun beginFileLoad() {
+        activeFileLoads.incrementAndGet()
+        loadingFiles.value = true
+    }
+
+    private fun endFileLoad() {
+        if (activeFileLoads.decrementAndGet() <= 0) loadingFiles.value = false
+    }
+
     private val _binaryFile = MutableStateFlow<WorkspaceFileInspection?>(null)
 
     /** 非空表示当前文件是二进制（APK/图片/压缩包）：编辑器拒绝载入，改由系统应用打开。 */
@@ -68,29 +84,31 @@ internal class EditorSessionController(
         pendingConflictOnSuccess = null
         if (draft.matches(projectName, relativePath)) return
         scope.launch {
-            loadingFiles.value = true
-            // 二进制文件先拦：按 UTF-8 读进来只会得到乱码，保存还会把原文件写坏。
-            val inspection = workspaceManager.inspectFile(projectName, relativePath).getOrNull()
-            if (selectedProject.value != projectName || _openedFilePath.value != relativePath) return@launch
-            if (inspection?.binary == true) {
-                _binaryFile.value = inspection
-                _fileContent.value = ""
-                _isDirty.value = false
-                loadingFiles.value = false
-                return@launch
+            beginFileLoad()
+            try {
+                // 二进制文件先拦：按 UTF-8 读进来只会得到乱码，保存还会把原文件写坏。
+                val inspection = workspaceManager.inspectFile(projectName, relativePath).getOrNull()
+                if (selectedProject.value != projectName || _openedFilePath.value != relativePath) return@launch
+                if (inspection?.binary == true) {
+                    _binaryFile.value = inspection
+                    _fileContent.value = ""
+                    _isDirty.value = false
+                    return@launch
+                }
+                val result = workspaceManager.readFile(projectName, relativePath)
+                if (selectedProject.value != projectName || _openedFilePath.value != relativePath) return@launch
+                if (result.isSuccess) {
+                    val content = result.getOrNull().orEmpty()
+                    draft.load(projectName, relativePath, content)
+                    _fileContent.value = content
+                    _isDirty.value = false
+                    _contentRevision.value++
+                } else {
+                    notify(result.errorOrNull()?.message ?: context.getString(R.string.workspace_open_file_failed), true)
+                }
+            } finally {
+                endFileLoad()
             }
-            val result = workspaceManager.readFile(projectName, relativePath)
-            if (selectedProject.value != projectName || _openedFilePath.value != relativePath) return@launch
-            if (result.isSuccess) {
-                val content = result.getOrNull().orEmpty()
-                draft.load(projectName, relativePath, content)
-                _fileContent.value = content
-                _isDirty.value = false
-                _contentRevision.value++
-            } else {
-                notify(result.errorOrNull()?.message ?: context.getString(R.string.workspace_open_file_failed), true)
-            }
-            loadingFiles.value = false
         }
     }
 
@@ -148,22 +166,22 @@ internal class EditorSessionController(
         _saveConflict.value = false
         if (!draft.matches(proj, path)) return
         scope.launch {
-            loadingFiles.value = true
-            val result = workspaceManager.readFile(proj, path)
-            if (selectedProject.value != proj || _openedFilePath.value != path) {
-                loadingFiles.value = false
-                return@launch
+            beginFileLoad()
+            try {
+                val result = workspaceManager.readFile(proj, path)
+                if (selectedProject.value != proj || _openedFilePath.value != path) return@launch
+                if (result.isSuccess) {
+                    val fresh = result.getOrNull().orEmpty()
+                    draft.load(proj, path, fresh)
+                    _fileContent.value = fresh
+                    _isDirty.value = false
+                    _contentRevision.value++
+                } else {
+                    notify(result.errorOrNull()?.message ?: context.getString(R.string.workspace_open_file_failed), true)
+                }
+            } finally {
+                endFileLoad()
             }
-            if (result.isSuccess) {
-                val fresh = result.getOrNull().orEmpty()
-                draft.load(proj, path, fresh)
-                _fileContent.value = fresh
-                _isDirty.value = false
-                _contentRevision.value++
-            } else {
-                notify(result.errorOrNull()?.message ?: context.getString(R.string.workspace_open_file_failed), true)
-            }
-            loadingFiles.value = false
         }
     }
 
