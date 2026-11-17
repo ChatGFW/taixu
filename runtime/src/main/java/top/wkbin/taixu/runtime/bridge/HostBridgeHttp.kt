@@ -9,6 +9,10 @@ import java.net.Socket
 /** Shared framing for the legacy bridge and the scoped plugin route. */
 internal object HostBridgeHttp {
     private const val MAX_BODY_BYTES = 4 * 1024 * 1024
+
+    /** 逐行解析请求头时必用的两个校验模式，提出来避免每个头都现编一次正则。 */
+    private val HEADER_NAME = Regex("[a-z0-9-]+")
+    private val CONTENT_LENGTH = Regex("[0-9]{1,10}")
     data class HttpRequest(
         val method: String,
         val path: String,
@@ -44,12 +48,12 @@ internal object HostBridgeHttp {
             val colon = header.indexOf(':')
             if (colon <= 0) return null
             val key = header.substring(0, colon).lowercase()
-            if (!key.matches(Regex("[a-z0-9-]+")) || key in headers) return null
+            if (!key.matches(HEADER_NAME) || key in headers) return null
             headers[key] = header.substring(colon + 1).trim()
         }
         if ("transfer-encoding" in headers) return null
         val length = headers["content-length"]?.let { value ->
-            if (!value.matches(Regex("[0-9]{1,10}"))) return null
+            if (!value.matches(CONTENT_LENGTH)) return null
             value.toIntOrNull() ?: return null
         } ?: 0
         val maximum = if (parts[1] == "/api/plugin/call") 4096 else MAX_BODY_BYTES
