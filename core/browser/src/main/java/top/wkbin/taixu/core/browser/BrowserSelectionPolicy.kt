@@ -37,16 +37,19 @@ object BrowserSelectionPolicy {
         families: Map<BrowserFamily, Boolean>,
         prefs: BrowserPreferences
     ): Selection? {
-        val t = url.trim().lowercase()
+val t = url.trim().lowercase()
         if (t.startsWith("about:") || t.startsWith("file:") || t.startsWith("data:")) {
-            return families[BrowserFamily.IN_APP]?.let {
-                Selection(BrowserFamily.IN_APP, "url-scheme-local", listOf(BrowserFamily.IN_APP))
+            // 注意不能写成 families[IN_APP]?.let：值为 false（已关闭）时非空，照样会被选中。
+            if (families[BrowserFamily.IN_APP] == true) {
+                return Selection(BrowserFamily.IN_APP, "url-scheme-local", listOf(BrowserFamily.IN_APP))
             }
+            return null
         }
         if (t.startsWith("http://127.0.0.1") || t.startsWith("http://localhost")) {
-            return families[BrowserFamily.IN_APP]?.let {
-                Selection(BrowserFamily.IN_APP, "url-host-loopback", listOf(BrowserFamily.IN_APP))
+            if (families[BrowserFamily.IN_APP] == true) {
+                return Selection(BrowserFamily.IN_APP, "url-host-loopback", listOf(BrowserFamily.IN_APP))
             }
+            return null
         }
         if (t.startsWith("http://") || t.startsWith("https://")) {
             val order = if (prefs.allowRemoteConnect)
