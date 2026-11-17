@@ -53,6 +53,13 @@ val MIGRATION_31_32 = object : Migration(31, 32) {
     }
 }
 
+/** 为技能档案追加资源目录列（可空，内置技能不写）。 */
+val MIGRATION_32_33 = object : Migration(32, 33) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE agent_skills ADD COLUMN resourcePath TEXT")
+    }
+}
+
 /** Privileged Android application inventory used by Settings and the Agent. */
 val MIGRATION_33_34 = object : Migration(33, 34) {
     override fun migrate(db: SupportSQLiteDatabase) {
