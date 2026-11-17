@@ -127,10 +127,14 @@ fun WorkflowScreen(
                 state = editorState!!,
                 activeRunState = activeState,
                 onRun = {
-                    if (editorState!!.isDirty) {
-                        viewModel?.saveEditor()
+                    // editorState 是委托状态：点击回调触发时编辑器可能已关闭，不能再强解包。
+                    val editor = editorState
+                    if (editor != null) {
+                        if (editor.isDirty) {
+                            viewModel?.saveEditor()
+                        }
+                        pendingRun = editor.definition
                     }
-                    pendingRun = editorState!!.definition
                 },
                 onCancelRun = { viewModel?.cancel() },
                 onSelectNode = { arg0 -> viewModel?.selectNode(arg0) },
