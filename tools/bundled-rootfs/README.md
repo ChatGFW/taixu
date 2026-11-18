@@ -62,7 +62,7 @@ bash tools/bundled-rootfs/build-ubuntu-rootfs.sh --verify-reproducible
 
 | 项 | 结果 |
 |---|---|
-| APK | 71.8 MB（debug、未混淆；release 基线为 24.4 MB，不含内置包） |
+| APK | 71.8 MB（debug、未混淆）；v1.12.0 release 携带内置包为 43.5 MB，同版本不含内置包的 v1.11.0 release 为 24.4 MB |
 | APK 内归档 | `assets/rootfs/rootfs-arm64.tar.xz`，ZIP 存储方式为 stored（`compress_type=0`），未二次压缩 |
 | 首装耗时 | 点击"一键初始化沙箱"到"沙箱已准备就绪"约 6 秒 |
 | marker | `rootfs-version=24.04.5`、`rootfs-digest=bundled:9ea6f5d765b3c09e`（确认走内置包，未下载 OCI 镜像） |

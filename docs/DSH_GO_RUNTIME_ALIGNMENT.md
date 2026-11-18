@@ -136,6 +136,6 @@ dsh-go 把发行版**打进 APK**，首装不需要网络；太墟 `README` 明�
 - 安装 marker 记录 `version=<发行版版本>`、`digest=bundled:<assetId>`，与 OCI digest 区分；
 - 验证：`architectureCheck` 通过；`BundledRootfsManifestTest` 4 项通过；`:app:compileDebugKotlin` 通过。`assets/rootfs/` 仍为空，行为与接入前一致。
 
-**真机首装（同日）**：把 `out/` 归档与清单放进 `app/src/main/assets/rootfs/`（归档 SHA-256 与清单一致），`app/build.gradle.kts` 增加 `androidResources.noCompress += "xz"`；`assembleDebug` 产物 71.8 MB，归档在 ZIP 内为 stored。设备 vivo V2419A / Android 17：点击"一键初始化沙箱"约 6 秒进入"沙箱已准备就绪"，marker 为 `rootfs-version=24.04.5` / `rootfs-digest=bundled:9ea6f5d765b3c09e`，安装占用 110 MB；guest 内 `uname -a` 返回 aarch64 Android 内核、`PRETTY_NAME="Ubuntu 24.04.5 LTS"`、uid=0、`/usr/bin` 下 355 个可执行文件。首启出现该机型的"16 KB 对齐"警告，来自既有 native 库，与内置包无关。
+**真机首装（同日）**：把 `out/` 归档与清单放进 `app/src/main/assets/rootfs/`（归档 SHA-256 与清单一致），`app/build.gradle.kts` 增加 `androidResources.noCompress += "xz"`；`assembleDebug` 产物 71.8 MB，归档在 ZIP 内为 stored。v1.12.0 release 同样以 stored 携带该归档，APK 43.5 MB（v1.11.0 不含内置包时为 24.4 MB）。设备 vivo V2419A / Android 17：点击"一键初始化沙箱"约 6 秒进入"沙箱已准备就绪"，marker 为 `rootfs-version=24.04.5` / `rootfs-digest=bundled:9ea6f5d765b3c09e`，安装占用 110 MB；guest 内 `uname -a` 返回 aarch64 Android 内核、`PRETTY_NAME="Ubuntu 24.04.5 LTS"`、uid=0、`/usr/bin` 下 355 个可执行文件。首启出现该机型的"16 KB 对齐"警告，来自既有 native 库，与内置包无关。
 
 剩余：内置包缺失/损坏回退 OCI、已有 rootfs 升级、离线层恢复三条真机路径按用户决定不再测试；内置包安装阶段已补独立进度文案（校验 / 解压 / 回退提示）；归档已加入 `.gitignore`，由 `tools/bundled-rootfs` 重建后放入制品，不入库。
