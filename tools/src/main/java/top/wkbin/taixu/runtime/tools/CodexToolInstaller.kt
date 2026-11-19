@@ -43,6 +43,7 @@ class CodexToolInstaller(
                         RemoteScriptSpec(
                             name = "codex",
                             url = "https://chatgpt.com/codex/install.sh",
+                            sha256 = CODEX_INSTALL_SCRIPT_SHA256,
                             retries = 0,
                         ),
                         installEnvironment,
@@ -55,6 +56,13 @@ class CodexToolInstaller(
                 // 脚本充当伪 CLI，导致下方 verify 必过、安装被记为 Completed/INSTALLED——
                 // 真实 CLI 从未落盘却被掩盖，网络恢复后也不会触发重装。
                 val reason = install.stderr.ifBlank { install.stdout }.trim()
+                if (install.stderr.contains(": FAILED")) {
+                    error(
+                        "Codex 安装脚本 SHA-256 校验失败：官方脚本可能已更新，" +
+                            "请人工复核 https://chatgpt.com/codex/install.sh 的差异后更新 " +
+                            "CODEX_INSTALL_SCRIPT_SHA256 再发版",
+                    )
+                }
                 error(
                     "Codex 远程安装脚本执行失败（exit=${install.exitCode}）：" +
                         reason.lineSequence().firstOrNull().orEmpty().ifBlank { "网络受限或脚本下载失败" },
@@ -126,5 +134,17 @@ class CodexToolInstaller(
         check(linuxRuntime.state.value is RuntimeState.Ready) {
             "Linux Runtime 未就绪，请先初始化 Linux"
         }
+    }
+
+    companion object {
+        /**
+         * https://chatgpt.com/codex/install.sh 是滚动地址（OpenAI 不定期更新脚本内容），
+         * 这里固定一份已复核脚本的 SHA-256（2026-11-20 两次抓取同哈希）。
+         * 脚本内置对 releases.openai.com 下载包的 digest 校验，二进制完整性由官方元数据保证；
+         * OpenAI 更新脚本后安装会因 sha256sum -c 失败而中止——这是有意为之，
+         * 防止未审计的引导脚本改动静默上线。升级流程：人工 diff 新旧脚本 → 更新此常量 → 发版。
+         */
+        internal const val CODEX_INSTALL_SCRIPT_SHA256 =
+            "5a8eea5c3716b555fd8e539db7e5b0e7470bcee5693191b4758a0de373624a70"
     }
 }
