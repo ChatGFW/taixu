@@ -85,7 +85,7 @@ class EmbeddedAdbContractTest {
         pollutedStates.forEach { state ->
             assertTrue(
                 "持有 client 时任何可见状态都必须视为可用，实际=$state",
-                EmbeddedAdbManager.isChannelLive(hasClient = true, state = state),
+                AdbChannelState.isLive(hasClient = true, state = state),
             )
         }
     }
@@ -100,7 +100,7 @@ class EmbeddedAdbContractTest {
         ).forEach { state ->
             assertFalse(
                 "无 client 时发现类状态不得判为可用，实际=$state",
-                EmbeddedAdbManager.isChannelLive(hasClient = false, state = state),
+                AdbChannelState.isLive(hasClient = false, state = state),
             )
         }
     }
@@ -108,19 +108,19 @@ class EmbeddedAdbContractTest {
     @Test
     fun explicitConnectedStateIsLiveEvenBeforeClientFieldIsObserved() {
         assertTrue(
-            EmbeddedAdbManager.isChannelLive(
+            AdbChannelState.isLive(
                 hasClient = false,
                 state = EmbeddedAdbManager.ConnectionState.Connected("127.0.0.1", 5555),
             ),
         )
         assertFalse(
-            EmbeddedAdbManager.isChannelLive(
+            AdbChannelState.isLive(
                 hasClient = false,
                 state = EmbeddedAdbManager.ConnectionState.Failed("无线 ADB 连接失败"),
             ),
         )
         assertFalse(
-            EmbeddedAdbManager.isChannelLive(
+            AdbChannelState.isLive(
                 hasClient = false,
                 state = EmbeddedAdbManager.ConnectionState.Disconnected,
             ),

@@ -92,25 +92,7 @@ class EmbeddedAdbManager(
     private val _discovery = MutableStateFlow(DiscoveryState())
     val discovery: StateFlow<DiscoveryState> = _discovery.asStateFlow()
 
-    /**
-     * 执行通道是否真的可用。
-     *
-     * 与 [state] 的区别：[state] 同时承载「连接」与「发现/配对进度」两类语义，会被
-     * mDNS 事件（startDiscoveryInternal / onDiscoveryError）改写；而 shell / logcat
-     * 能否执行只取决于 [client] 是否非空（[executeShell] 仅按 client 判重连）。
-     * 因此以 client 为准，避免 /api/health 报告的状态与实际执行通道不一致。
-     */
-    val isConnected: Boolean
-        get() = isChannelLive(client != null, _state.value)
-
-    /** 已连接时的端口；以真实 client 为准，与 [isConnected] 同口径。 */
-    val connectedPort: Int?
-        get() = if (client != null) clientPort else null
-
     private var client: Kadb? = null
-
-    /** 当前 client 对应的端口；仅在 [client] 非空时有效。 */
-    private var clientPort: Int? = null
 
     // 防止 resolveService 并发（NsdManager 不允许同时多个 resolve）
     private val resolving = AtomicBoolean(false)
@@ -173,11 +155,7 @@ class EmbeddedAdbManager(
         if (discoveryStarted.getAndSet(true)) return
         runCatching {
             if (!multicastLock.isHeld) multicastLock.acquire()
-            // 已连接时不能把可见状态改回 Discovering：_state 同时被 /api/health、
-            // 通知栏与设置页当作「连接状态」读，而发现可在连接后由任何消费者
-            // （通知栏 / 开发者页）随时重新启动，覆盖会让已建立的连接在 UI 与
-            // 桥接健康检查里显示为未连接，与实际执行通道不符。
-            if (!isConnected) _state.value = ConnectionState.Discovering
+            if (AdbChannelState.mayRewriteVisibleState(client != null, _state.value)) _state.value = ConnectionState.Discovering
             _discovery.value = DiscoveryState(running = true)
 
             pairingDiscoveryListener = buildDiscoveryListener(isPairing = true)
@@ -195,10 +173,7 @@ class EmbeddedAdbManager(
             )
         }.onFailure { error ->
             discoveryStarted.set(false)
-            // 同上：启动发现失败不能推翻一条已经建好的执行通道。
-            if (!isConnected) {
-                _state.value = ConnectionState.Failed(error.userMessage("无法启动 mDNS 自动发现"))
-            }
+            if (AdbChannelState.mayRewriteVisibleState(client != null, _state.value)) _state.value = ConnectionState.Failed(error.userMessage("无法启动 mDNS 自动发现"))
             Log.w(TAG, "startDiscovery failed", error)
         }
     }
@@ -310,8 +285,7 @@ class EmbeddedAdbManager(
 
     private fun onDiscoveryError(reason: String) {
         Log.w(TAG, "mDNS discovery error: $reason")
-        // 同理：已经拿到可用连接时，发现失败不应把连接状态推翻。
-        if (!isConnected) {
+        if (AdbChannelState.mayRewriteVisibleState(client != null, _state.value)) {
             _state.value = ConnectionState.Failed("mDNS 自动发现失败，请确认 Wi-Fi 与无线调试已开启")
         }
     }
@@ -414,7 +388,6 @@ class EmbeddedAdbManager(
                 val probe = connected.shell("echo ok")
                 check(probe.output.trim() == "ok") { "ADB 链路探活失败" }
                 client = connected
-                clientPort = endpoint.port
                 _state.value = ConnectionState.Connected(h, endpoint.port)
                 scope.launch {
                     preferences.setAdbWirelessPort(endpoint.port)
@@ -565,7 +538,6 @@ class EmbeddedAdbManager(
     private fun closeClient() {
         runCatching { client?.close() }
         client = null
-        clientPort = null
     }
 
     private fun Throwable.userMessage(prefix: String): String {
@@ -608,16 +580,5 @@ class EmbeddedAdbManager(
         val PACKAGE_NAME = Regex("^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+$")
         val LOGCAT_TAG = Regex("^[A-Za-z0-9_.-]{1,80}$")
         val PRIORITIES = setOf('V', 'D', 'I', 'W', 'E', 'F')
-
-        /**
-         * 判定执行通道是否真的可用。
-         *
-         * 只有 [hasClient]（已拿到可用 Kadb 连接）或状态明确为 [ConnectionState.Connected]
-         * 时才为真。不能用《状态!=Failed》或《发现已完成》之类弱条件：
-         * [ConnectionState] 还会被 mDNS 发现/配对流程写成 Discovering / Pairing，
-         * 那些值既不表示可用，也不表示不可用。
-         */
-        fun isChannelLive(hasClient: Boolean, state: ConnectionState): Boolean =
-            hasClient || state is ConnectionState.Connected
     }
 }

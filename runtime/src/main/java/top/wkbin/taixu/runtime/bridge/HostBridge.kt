@@ -213,7 +213,8 @@ class HostBridge(
 
     private suspend fun handleHealth(): HttpResponse {
         val info = privilegeManager.getPrivilegeInfo()
-        val adbConnected = embeddedAdbManager.isConnected
+        val adbState = embeddedAdbManager.state.value
+        val adbConnected = adbState is EmbeddedAdbManager.ConnectionState.Connected
         val body = buildJsonObject {
             put("status", "ok")
             put("bridge", "1.0")
@@ -224,7 +225,7 @@ class HostBridge(
             put("shizuku", info.shizukuAvailable)
             put("root", info.rootAvailable)
             put("adb", adbConnected)
-            put("adbPort", embeddedAdbManager.connectedPort ?: 0)
+            put("adbPort", (adbState as? EmbeddedAdbManager.ConnectionState.Connected)?.port ?: 0)
             put("shellSupported", info.shizukuAvailable || info.rootAvailable || adbConnected)
         }.toString()
         return HttpResponse(200, body)
@@ -232,7 +233,7 @@ class HostBridge(
 
     private suspend fun handleDoctor(): HttpResponse {
         val info = privilegeManager.getPrivilegeInfo()
-        val adb = embeddedAdbManager.isConnected
+        val adb = embeddedAdbManager.state.value is EmbeddedAdbManager.ConnectionState.Connected
         val attachments = AttachmentMigrator.inspect(context.filesDir)
         return HttpResponse(200, hostDoctorReport(info, adb, guiController != null, BRIDGE_PORT, attachments))
     }
