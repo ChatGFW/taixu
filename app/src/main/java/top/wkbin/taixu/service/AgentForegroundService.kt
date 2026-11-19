@@ -51,6 +51,8 @@ class AgentForegroundService : Service() {
     private var idleStop: Job? = null
     private val started = linkedMapOf<String, Long>()
     private val titles = mutableMapOf<String, String>()
+    /** 最近一次实际发布的通知内容指纹；2 秒轮询仅在内容变化时才真正 notify。 */
+    private val lastRendered = mutableMapOf<String, String>()
 
     override fun onCreate() {
         super.onCreate()
@@ -106,6 +108,7 @@ class AgentForegroundService : Service() {
                 notifications.settled(id, titles[id].orEmpty(), state, statuses[id]))
             started.remove(id)
             titles.remove(id)
+            lastRendered.remove(id)
         }
         active.forEach { id ->
             if (id !in started) {
@@ -140,18 +143,29 @@ class AgentForegroundService : Service() {
         val lines = started.keys.mapNotNull { id ->
             val state = states[id]?.takeIf { it in NOTIFIABLE_AGENT_STATES } ?: return@mapNotNull null
             val text = agentNotificationProgress(state, statuses[id], harnessLoop.messagesForSession(id).value)
-            val elapsed = ((System.currentTimeMillis() - started.getValue(id)) / 1000).coerceAtLeast(0)
-            val progress = "已用时 ${elapsed / 60}分${elapsed % 60}秒 · $text"
-            publish(id, AgentNotifications.SESSION_ID,
-                notifications.running(id, titles[id].orEmpty(), progress, started.getValue(id), state == SessionRunState.WAITING_APPROVAL))
+            val waiting = state == SessionRunState.WAITING_APPROVAL
+            // 已用时由通知头部的 chronometer 自走，无需为刷新秒数每 2 秒重发通知：
+            // 内容指纹未变化时跳过 notify，避免灌满系统通知与 logcat events 缓冲区。
+            val fingerprint = "${titles[id]}·$waiting·$text"
+            if (lastRendered[id] != fingerprint) {
+                lastRendered[id] = fingerprint
+                publish(id, AgentNotifications.SESSION_ID,
+                    notifications.running(id, titles[id].orEmpty(), text, started.getValue(id), waiting))
+            }
             "${titles[id]}：$text"
         }
         if (lines.isEmpty()) return
         val running = started.keys.count { states[it] == SessionRunState.RUNNING }
         val waiting = started.keys.count { states[it] == SessionRunState.WAITING_APPROVAL }
-        publish(null, AgentNotifications.SUMMARY_ID, notifications.running(null,
-            "太墟 · $running 个执行中 / $waiting 个等待批准", lines.take(6).joinToString("\n\n"),
-            started.values.minOrNull() ?: System.currentTimeMillis(), running == 0))
+        val summaryTitle = "太墟 · $running 个执行中 / $waiting 个等待批准"
+        val summaryText = lines.take(6).joinToString("\n\n")
+        val summaryFingerprint = "$summaryTitle·${running == 0}·$summaryText"
+        if (lastRendered[SUMMARY_RENDER_KEY] != summaryFingerprint) {
+            lastRendered[SUMMARY_RENDER_KEY] = summaryFingerprint
+            publish(null, AgentNotifications.SUMMARY_ID, notifications.running(null,
+                summaryTitle, summaryText,
+                started.values.minOrNull() ?: System.currentTimeMillis(), running == 0))
+        }
     }
 
     private fun publish(tag: String?, id: Int, notification: Notification) {
@@ -173,6 +187,7 @@ class AgentForegroundService : Service() {
         const val KEY_REPLY = "agent_reply"
         internal const val START_GRACE_MS = 5_000L
         private const val TAG = "AgentForegroundService"
+        private const val SUMMARY_RENDER_KEY = "\u0000summary"
 
         fun start(context: Context, sessionId: String? = null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(
