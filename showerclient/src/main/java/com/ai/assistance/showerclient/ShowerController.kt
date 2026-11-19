@@ -210,7 +210,7 @@ class ShowerController {
                 }
             }
             resetLocalDisplayState()
-            val id = service.createDisplayWithHome(targetWidth, targetHeight, dpi, bitrate)
+            val id = service.ensureDisplay(targetWidth, targetHeight, dpi, bitrate)
             if (id < 0) {
                 resetLocalDisplayState()
                 ShowerLog.e(TAG, "ensureDisplay: server reported invalid displayId=$id")

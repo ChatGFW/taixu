@@ -64,18 +64,9 @@ final class ShowerService extends IShowerService.Stub {
             sessions.put(session.displayId, session);
             wireInputHooks(session.displayId, session.input);
 
-            if (!session.hasSecondaryHome) {
-                launchBackdrop(session.displayId);
-            } else {
-                ServerLog.d(
-                        "skip backdrop: secondary home on display=" + session.displayId,
-                        null);
-                // 保险：显式拉起已解析的 secondary home
-                String comp = SecondaryHome.flattenComponent(context);
-                if (comp != null) {
-                    amStartOnDisplay(session.displayId, comp);
-                }
-            }
+            // 建屏落点与 Soft Home 共用 launchBackdrop：只有 Launcher3 的 secondary
+            // launcher 才用它，其余厂商 SECONDARY_HOME 常是空白页，直接落 TwinLauncher。
+            launchBackdrop(session.displayId, session.hasSecondaryHome);
             return session.displayId;
         } catch (Throwable t) {
             ServerLog.d("ensureDisplay failed: " + t.getMessage(), t);
@@ -83,15 +74,18 @@ final class ShowerService extends IShowerService.Stub {
         }
     }
 
-    private void launchBackdrop(int displayId) {
+    private void launchBackdrop(int displayId, boolean hasSecondaryHome) {
+        // 只有 Launcher3 精确命中的 secondary home 才可作为桌面；厂商自定义的
+        // SECONDARY_HOME 往往是空白页，强行拉起会让首次进屏停在空白桌面。
+        if (hasSecondaryHome) {
+            String secondary = SecondaryHome.flattenComponent(context);
+            if (secondary != null && amStartOnDisplay(displayId, secondary)) {
+                return;
+            }
+        }
         String pkg = firstTargetPackage();
         if (pkg == null || pkg.isEmpty()) {
             ServerLog.d("launchBackdrop skipped: no target package", null);
-            return;
-        }
-        // 动态 secondary（非 launcher3 精确命中但仍有 SECONDARY_HOME 时）再试一次
-        String secondary = SecondaryHome.flattenComponent(context);
-        if (secondary != null && amStartOnDisplay(displayId, secondary)) {
             return;
         }
         String launcher = pkg + "/top.wkbin.taixu.runtime.virtualdisplay.TwinLauncherActivity";
@@ -101,21 +95,10 @@ final class ShowerService extends IShowerService.Stub {
         }
     }
 
-    /** Soft Home 落点：系统 secondary 或 TwinLauncher。 */
+    /** Soft Home 落点：与建屏共用 launchBackdrop，保证首次进屏和按 Home 后落点一致。 */
     private void bringHome(int displayId) {
         DisplaySession session = sessions.get(displayId);
-        if (session != null && session.hasSecondaryHome) {
-            String comp = SecondaryHome.flattenComponent(context);
-            if (comp != null) {
-                amStartOnDisplay(displayId, comp);
-                return;
-            }
-        }
-        String pkg = firstTargetPackage();
-        if (pkg == null) return;
-        amStartOnDisplay(
-                displayId,
-                pkg + "/top.wkbin.taixu.runtime.virtualdisplay.TwinLauncherActivity");
+        launchBackdrop(displayId, session != null && session.hasSecondaryHome);
     }
 
     private static boolean amStartOnDisplay(int displayId, String component) {
