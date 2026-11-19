@@ -23,18 +23,19 @@ class ProcessShellLifecycleTest {
         assertEquals(streamCloses, process.stdin.closes.get())
     }
     @Test fun canceledCommandConfirmsTerminationBeforeReturning() = runBlocking {
-        val process = FakeSessionProcess()
+        // 前台命令跑在 PRoot tracer 里：SIGTERM 不生效，必须走到强杀并确认退出。
+        val process = FakeSessionProcess().apply { gracefulExit = false }
         val executor = executor(process)
         val running = launch { executor.execute(listOf("fake")) }
         awaitReader(process)
         running.cancelAndJoin()
         assertFalse(process.alive)
         assertEquals(1, process.forces.get())
-        assertEquals(1, process.waits.get())
+        assertEquals(2, process.waits.get())
         assertFalse(executor.hasPending())
     }
     @Test fun canceledTeardownFailureRemainsInBothExecutorAndEnvironment() = runBlocking {
-        val process = FakeSessionProcess().apply { forcedExit = false }
+        val process = FakeSessionProcess().apply { gracefulExit = false; forcedExit = false }
         val executor = executor(process)
         val owned = mutableListOf<suspend () -> Unit>()
         val running = launch(binding(owned)) { executor.execute(listOf("fake")) }
@@ -52,7 +53,7 @@ class ProcessShellLifecycleTest {
         assertEquals(2, process.forces.get())
     }
     @Test fun teardownFailureReapsProcessTreeBeforeRetainingResources() = runBlocking {
-        val process = FakeSessionProcess().apply { forcedExit = false }
+        val process = FakeSessionProcess().apply { gracefulExit = false; forcedExit = false }
         val reaper = FakeReaper()
         val executor = ProcessShellExecutor({ emptyMap() }, reaper = reaper) { _, _, _ -> process }
         val running = launch { executor.execute(listOf("fake")) }
@@ -76,7 +77,7 @@ class ProcessShellLifecycleTest {
         assertFalse(executor.hasPending())
     }
     @Test fun timeoutCannotReportCompletionWhileProcessIsStillRunning() = runBlocking {
-        val process = FakeSessionProcess().apply { forcedExit = false }
+        val process = FakeSessionProcess().apply { gracefulExit = false; forcedExit = false }
         val executor = executor(process)
         val failure = runCatching { executor.execute(listOf("fake"), timeoutMs = 20) }.exceptionOrNull()
         assertNotNull(failure)
@@ -87,8 +88,8 @@ class ProcessShellLifecycleTest {
         assertFalse(executor.hasPending())
     }
     @Test fun bulkRetryAttemptsEveryFailedForegroundProcess() = runBlocking {
-        val first = FakeSessionProcess().apply { forcedExit = false }
-        val second = FakeSessionProcess().apply { forcedExit = false }
+        val first = FakeSessionProcess().apply { gracefulExit = false; forcedExit = false }
+        val second = FakeSessionProcess().apply { gracefulExit = false; forcedExit = false }
         val processes = java.util.concurrent.ConcurrentLinkedQueue(listOf(first, second))
         val executor = ProcessShellExecutor({ emptyMap() }) { _, _, _ -> processes.remove() }
         val runs = List(2) { launch { executor.execute(listOf("fake")) } }

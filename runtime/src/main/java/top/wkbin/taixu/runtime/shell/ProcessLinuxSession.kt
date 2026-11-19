@@ -166,6 +166,13 @@ class ProcessLinuxSession internal constructor(
         val group = childPid?.let(reaper::processGroupOf)
         if (process.isAlive) process.destroy()
         var exited = process.waitFor(PROCESS_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        if (!exited && childPid != null) {
+            // PRoot tracer 对 SIGTERM 没有反应。SIGQUIT 会让 tracer 先收掉自己 trace 的全部进程
+            // 再退出，所以必须排在 SIGKILL 之前：一旦强杀 tracer，tracee 就被 reparent 到 init，
+            // 只能靠上面那份后代快照逐个补刀。
+            reaper.signalQuit(childPid)
+            exited = process.waitFor(PROCESS_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        }
         if (!exited) {
             group?.let { reaper.signalGroup(it, force = false) }
             process.destroyForcibly()

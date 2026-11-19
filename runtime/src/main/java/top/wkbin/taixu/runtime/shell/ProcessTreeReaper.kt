@@ -38,6 +38,14 @@ internal interface ProcessTreeReaper {
     /** 向进程组投递信号（内部取负 pid）；返回是否成功投递。 */
     fun signalGroup(processGroup: Long, force: Boolean): Boolean = false
 
+    /**
+     * 向单个进程投递 SIGQUIT；返回是否成功投递。
+     *
+     * PRoot tracer 对 SIGTERM 没有反应，但收到 SIGQUIT 时会先收掉自己 trace 的全部进程再退出。
+     * 因此它必须排在 SIGKILL 之前：直接强杀 tracer，tracee 会被 reparent 到 init，谁都收不回来。
+     */
+    fun signalQuit(pid: Long): Boolean = false
+
     /** 递归收掉 [rootPid] 的后代并 SIGKILL 根本身，返回成功收掉的进程数。 */
     fun reap(rootPid: Long): Int
 
@@ -68,6 +76,12 @@ internal object SystemProcessTreeReaper : ProcessTreeReaper {
     override fun signalGroup(processGroup: Long, force: Boolean): Boolean = runCatching {
         if (processGroup <= 0 || processGroup > Int.MAX_VALUE) return@runCatching false
         Os.kill(-processGroup.toInt(), if (force) OsConstants.SIGKILL else OsConstants.SIGTERM)
+        true
+    }.getOrDefault(false)
+
+    override fun signalQuit(pid: Long): Boolean = runCatching {
+        if (pid <= 0 || pid > Int.MAX_VALUE) return@runCatching false
+        Os.kill(pid.toInt(), OsConstants.SIGQUIT)
         true
     }.getOrDefault(false)
 

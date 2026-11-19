@@ -67,8 +67,21 @@ class ProcessLinuxSessionLifecycleTest {
         assertEquals(1, f.cleanups)
     }
 
-    @Test fun forcedTimeoutKeepsCleanupPendingUntilProcessReallyExits() = scenario { f ->
+    @Test fun ignoredSigtermGetsSigquitBeforeForcedKill() = scenario(childPid = 4242L) { f ->
+        // PRoot tracer 不响应 SIGTERM：必须先 SIGQUIT，让它自己收掉 tracee，再允许强杀。
         f.process.gracefulExit = false
+        f.process.beforeForce = { assertEquals(listOf(4242L), f.reaper.quits) }
+        f.session.close()
+        assertEquals(listOf(4242L), f.reaper.quits)
+        assertEquals(1, f.process.forces.get())
+    }
+
+    @Test fun gracefulExitNeverSendsSigquit() = scenario(childPid = 4242L) { f ->
+        f.session.close()
+        assertTrue(f.reaper.quits.isEmpty())
+    }
+
+    @Test fun forcedTimeoutKeepsCleanupPendingUntilProcessReallyExits() = scenario { f ->        f.process.gracefulExit = false
         f.process.forcedExit = false
         assertTrue(failure { f.session.close() }.message!!.contains("仍未退出"))
         assertTrue(f.process.alive)
@@ -270,6 +283,7 @@ class ProcessLinuxSessionLifecycleTest {
         val reaped = mutableListOf<Long>()
         val detached = mutableListOf<List<Long>>()
         val groupSignals = mutableListOf<Pair<Long, Boolean>>()
+        val quits = mutableListOf<Long>()
         var descendants: List<Long> = emptyList()
         var group: Long? = null
         override fun forkTid(): Int? = null
@@ -280,6 +294,7 @@ class ProcessLinuxSessionLifecycleTest {
             groupSignals += processGroup to force
             return true
         }
+        override fun signalQuit(pid: Long): Boolean { quits += pid; return true }
         override fun reap(rootPid: Long): Int { reaped += rootPid; return 1 }
         override fun reapDetached(descendants: List<Long>): Int { detached += descendants; return descendants.size }
     }

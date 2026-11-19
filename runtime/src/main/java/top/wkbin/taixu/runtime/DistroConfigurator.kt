@@ -331,7 +331,9 @@ class DistroConfigurator(
         } catch (_: Exception) {
             // 删除失败不阻塞后续写入尝试（writeText 会给出最终错误）
         }
-        resolvConf.writeText("nameserver 1.1.1.1\nnameserver 8.8.8.8\n")
+        // single-request-reopen：glibc 把 A/AAAA 分到两个 socket，上游拒绝 AAAA 不再连累 A
+        // （PRoot 里 Node 偶发解析超时的根因）。musl 忽略该选项，无副作用。
+        resolvConf.writeText("nameserver 1.1.1.1\nnameserver 8.8.8.8\noptions single-request-reopen\n")
     }
 
     fun configureEnvironment(distroId: String = "ubuntu") {
