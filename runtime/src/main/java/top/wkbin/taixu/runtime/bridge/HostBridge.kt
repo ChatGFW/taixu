@@ -298,32 +298,17 @@ class HostBridge(
             }.toString())
         }
 
-        val pkg = obj["package"]?.jsonPrimitive?.content?.trim().orEmpty()
-        val tag = obj["tag"]?.jsonPrimitive?.content?.trim().orEmpty()
-        val priority = obj["priority"]?.jsonPrimitive?.content?.trim()?.uppercase()?.firstOrNull() ?: 'V'
-        val keyword = obj["keyword"]?.jsonPrimitive?.content?.trim().orEmpty()
-        val lines = obj["lines"]?.jsonPrimitive?.content?.toIntOrNull() ?: 200
-
-        val result = embeddedAdbManager.captureLogcat(
-            EmbeddedAdbManager.LogcatRequest(
-                packageName = pkg,
-                tag = tag,
-                priority = priority,
-                keyword = keyword,
-                lines = lines,
-            ),
-            explicitPort = null,
+        val request = EmbeddedAdbManager.LogcatRequest(
+            packageName = obj["package"]?.jsonPrimitive?.content?.trim().orEmpty(),
+            tag = obj["tag"]?.jsonPrimitive?.content?.trim().orEmpty(),
+            priority = obj["priority"]?.jsonPrimitive?.content?.trim()?.uppercase()?.firstOrNull() ?: 'V',
+            keyword = obj["keyword"]?.jsonPrimitive?.content?.trim().orEmpty(),
+            lines = obj["lines"]?.jsonPrimitive?.content?.toIntOrNull() ?: 200,
         )
-
-        val exitCode = result.exitCode ?: if (result.success) 0 else 1
-        return HttpResponse(200, buildJsonObject {
-            put("success", result.success)
-            put("exitCode", exitCode)
-            if (!result.success) {
-                HostFailure.ofShellExit(exitCode, result.output)?.let { put("failure", it.wire) }
-            }
-            put("output", result.output)
-        }.toString())
+        // 通道选择（含 ADB 不可用时回退特权、PRoot 不误回退）在 LogcatChannelSelector 内，
+        // 本类只负责解析请求与包装响应，避免超出架构棘轮的文件行数上限。
+        val selected = LogcatChannelSelector.capture(embeddedAdbManager, privilegeManager, request)
+        return HttpResponse(200, HostLogcatJson.of(selected.outcome, selected.channel))
     }
 
     private fun handleOpen(body: String): HttpResponse {
