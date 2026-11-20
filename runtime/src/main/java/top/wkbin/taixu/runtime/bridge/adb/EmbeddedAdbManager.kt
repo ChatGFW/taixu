@@ -25,7 +25,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okio.Path.Companion.toPath
-import top.wkbin.taixu.core.common.shell.ShellQuote
 import top.wkbin.taixu.core.datastore.RuntimePreferences
 import top.wkbin.taixu.runtime.RuntimePathManager
 
@@ -481,25 +480,11 @@ class EmbeddedAdbManager(
         require(request.tag.isBlank() || LOGCAT_TAG.matches(request.tag)) { "Logcat Tag 格式不合法" }
         require(request.priority.uppercaseChar() in PRIORITIES) { "日志优先级无效" }
         val lines = request.lines.coerceIn(1, MAX_LOG_LINES)
-        val tagArgs = if (request.tag.isBlank()) {
-            ShellQuote.of("*:${request.priority.uppercaseChar()}")
-        } else {
-            "${ShellQuote.of("${request.tag}:${request.priority.uppercaseChar()}")} ${ShellQuote.of("*:S")}"
-        }
-        val logcat = "/system/bin/logcat -d -v threadtime -t $lines"
-        val command = if (request.packageName.isBlank()) {
-            "$logcat $tagArgs"
-        } else {
-            "pid=\$(/system/bin/pidof ${ShellQuote.of(request.packageName)} | /system/bin/cut -d' ' -f1); " +
-                "if [ -z \"\$pid\" ]; then echo '目标应用未运行：${request.packageName}'; exit 3; fi; " +
-                "$logcat --pid=\"\$pid\" $tagArgs"
-        }
-        val outcome = executeShell(command, explicitPort)
-        if (!outcome.success || request.keyword.isBlank()) return outcome
-        val filtered = outcome.output.lineSequence()
-            .filter { it.contains(request.keyword, ignoreCase = true) }
-            .joinToString("\n")
-        return outcome.copy(output = filtered)
+        val outcome = executeShell(LogcatCommand.build(request, lines), explicitPort)
+        // 关键词只在命令成功时过滤：失败输出里带着「目标应用未运行」「Permission denied」
+        // 这类分类依据，滤掉会被上层误判成 internal。
+        if (!outcome.success) return outcome
+        return outcome.copy(output = LogcatCommand.filter(outcome.output, request.keyword))
     }
 
     suspend fun clearLogcat(): ShellOutcome = executeShell("/system/bin/logcat -c")
