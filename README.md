@@ -202,7 +202,7 @@ Web 包从 **设置 → 应用功能插件 → 外部 Web 插件** 导入。默�
 ### 标准 APK 构建要求
 
 - **JDK 17**（项目与 CI 基线，推荐 Android Studio JBR）
-- **Android SDK**：compileSdk 37.1 / targetSdk 37 / minSdk 29
+- **Android SDK**：compileSdk 37.2 / targetSdk 37 / minSdk 29
 - **Gradle Wrapper**：9.8.1
 - **Android Gradle Plugin**：9.4.1
 - **Kotlin**：2.4.21；Compose BOM：2026.09.00

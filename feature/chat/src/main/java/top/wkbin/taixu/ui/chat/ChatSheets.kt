@@ -123,13 +123,13 @@ internal fun SkillsAndMcpSheet(
             }
 
             // 分段标签页
-            top.yukonga.miuix.kmp.basic.TabRow(
-                tabs = listOf(
+            top.wkbin.taixu.ui.components.RuntimeSegmentedControl(
+                options = listOf(
                     stringResource(R.string.chat_skills_count, activeSkillsCount, allSkills.size),
                     stringResource(R.string.chat_mcp_count, activeMcpCount, mcpServers.size),
                 ),
-                selectedTabIndex = selectedTab,
-                onTabSelected = { selectedTab = it },
+                selectedIndex = selectedTab,
+                onSelect = { selectedTab = it },
             )
 
             // 列表内容展示

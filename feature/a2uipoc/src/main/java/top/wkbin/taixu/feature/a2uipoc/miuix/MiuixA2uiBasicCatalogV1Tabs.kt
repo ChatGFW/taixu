@@ -29,7 +29,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import top.wkbin.taixu.ui.miuix.Tab
+import top.wkbin.taixu.ui.components.RuntimeSegmentedControl
 import top.wkbin.taixu.feature.a2uipoc.miuix.MiuixA2uiDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableIntStateOf
@@ -54,10 +54,10 @@ internal object MiuixA2uiBasicCatalogV1Tabs : A2uiBasicCatalogV1.Tabs {
         }
 
         Column(modifier = modifier.a2uiAccessibility(accessibility)) {
-            top.yukonga.miuix.kmp.basic.TabRow(
-                tabs = tabs.map { it.title },
-                selectedTabIndex = coercedSelectedTabIndex,
-                onTabSelected = { selectedTabIndex = it },
+            RuntimeSegmentedControl(
+                options = tabs.map { it.title },
+                selectedIndex = coercedSelectedTabIndex,
+                onSelect = { selectedTabIndex = it },
             )
 
             val activeTab = tabs[coercedSelectedTabIndex]

@@ -12,7 +12,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 /**
  * 滚动视口的水平保护（缺口 / 侧边栏），**故意不加 top**。
  * miuix Scaffold 把顶栏叠在内容上；若这里再垫 top，列表永远进不了顶栏后方，
- * [RuntimeBlurredBar] 只能采到空白底色，毛玻璃看起来像实心条。
+ * 玻璃顶栏只能采到空白底色，毛玻璃看起来像实心条。
  */
 @Composable
 fun runtimeScrollViewport(scaffoldPadding: PaddingValues): Modifier {

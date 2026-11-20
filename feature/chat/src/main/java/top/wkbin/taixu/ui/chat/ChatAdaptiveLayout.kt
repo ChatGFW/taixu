@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -44,6 +45,9 @@ import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.runtime.virtualdisplay.TwinPhonePresence
 import top.wkbin.taixu.runtime.virtualdisplay.VirtualDisplayCoordinator
 import top.wkbin.taixu.ui.components.LocalRuntimeWidthClass
+import top.wkbin.taixu.ui.components.LocalRuntimeChromeBackdrop
+import top.wkbin.taixu.ui.components.rememberRuntimeBackdrop
+import top.wkbin.taixu.ui.components.runtimeBackdropSource
 import top.wkbin.taixu.ui.components.RuntimeAdaptiveMotion
 import top.wkbin.taixu.ui.components.RuntimeFloatingToolbar
 import top.wkbin.taixu.ui.components.RuntimeIcon
@@ -273,9 +277,11 @@ internal fun ChatAdaptiveLayout(
             ?: presenceAspect.takeIf { it > 0.05f }
             ?: (9f / 19.5f)
         // 对话层先画；分身层后叠（聊天小窗 / 手机大窗）。
+        val toolbarBackdrop = if (!phonePage && !coverChrome) rememberRuntimeBackdrop() else null
         if (!phonePage) {
             Box(
                 Modifier.fillMaxSize()
+                    .runtimeBackdropSource(toolbarBackdrop)
                     .then(if (coverChrome) Modifier.clearAndSetSemantics {} else Modifier),
             ) {
                 val innerWidth = screenWidth - 24.dp - ResizeHandleWidth
@@ -366,7 +372,9 @@ internal fun ChatAdaptiveLayout(
                     .fillMaxWidth()
                     .then(if (browserPage) Modifier.clearAndSetSemantics {} else Modifier),
             ) {
-                topBar(openBrowser, browserActivityTick > lastSeenBrowserTick, toggle, surfaceSwitch)
+                CompositionLocalProvider(LocalRuntimeChromeBackdrop provides toolbarBackdrop) {
+                    topBar(openBrowser, browserActivityTick > lastSeenBrowserTick, toggle, surfaceSwitch)
+                }
             }
         }
     }

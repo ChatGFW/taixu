@@ -638,7 +638,7 @@ private fun FloatingChatPanel(
                         },
                     contentAlignment = Alignment.Center,
                 ) {
-                    RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(14.dp), tint = if (inputText.isNotBlank()) RuntimeTheme.colorScheme.onPrimary
+                    RuntimeIcon(RuntimeIconName.Send, Modifier.size(14.dp), tint = if (inputText.isNotBlank()) RuntimeTheme.colorScheme.onPrimary
                         else RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
                 }
             }

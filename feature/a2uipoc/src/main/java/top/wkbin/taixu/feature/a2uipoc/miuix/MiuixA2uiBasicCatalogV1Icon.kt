@@ -28,7 +28,7 @@ import androidx.compose.foundation.layout.size
 import top.yukonga.miuix.kmp.basic.Icon
 import top.wkbin.taixu.feature.a2uipoc.miuix.MiuixA2uiDefaults
 import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.*
+import top.yukonga.miuix.kmp.icon.glass.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
@@ -127,64 +127,64 @@ private fun rememberVectorFromPath(pathData: String): ImageVector? =
 private val DefaultSvgFill = SolidColor(Color.Black)
 
 private fun miuixIconFromName(name: String): ImageVector? = when (name) {
-    "accountCircle" -> MiuixIcons.ContactsCircle
-    "add" -> MiuixIcons.Add
-    "arrowBack" -> MiuixIcons.Back
-    "arrowForward" -> MiuixIcons.Forward
-    "attachFile" -> MiuixIcons.Link
-    "calendarToday" -> MiuixIcons.Months
-    "call" -> MiuixIcons.Phone
-    "camera" -> MiuixIcons.Scan
-    "check" -> MiuixIcons.Ok
-    "close" -> MiuixIcons.Close
-    "delete" -> MiuixIcons.Delete
-    "download" -> MiuixIcons.Download
-    "edit" -> MiuixIcons.Edit
-    "event" -> MiuixIcons.Alarm
-    "error" -> MiuixIcons.Report
-    "fastForward" -> MiuixIcons.Forward
-    "favorite" -> MiuixIcons.FavoritesFill
-    "favoriteOff" -> MiuixIcons.Favorites
-    "folder" -> MiuixIcons.Folder
-    "help" -> MiuixIcons.Help
-    "home" -> MiuixIcons.Home
-    "info" -> MiuixIcons.Info
-    "locationOn" -> MiuixIcons.Location
-    "lock" -> MiuixIcons.Lock
-    "lockOpen" -> MiuixIcons.Unlock
-    "mail" -> MiuixIcons.Email
-    "menu" -> MiuixIcons.Sidebar
-    "moreVert" -> MiuixIcons.More
-    "moreHoriz" -> MiuixIcons.More
-    "notificationsOff" -> MiuixIcons.VolumeOff
-    "notifications" -> MiuixIcons.Alarm
-    "pause" -> MiuixIcons.Pause
-    "payment" -> MiuixIcons.BankCards
-    "person" -> MiuixIcons.Contacts
-    "phone" -> MiuixIcons.Phone
-    "photo" -> MiuixIcons.Image
-    "play" -> MiuixIcons.Play
-    "print" -> MiuixIcons.File
-    "refresh" -> MiuixIcons.Refresh
-    "rewind" -> MiuixIcons.Back
-    "search" -> MiuixIcons.Search
-    "send" -> MiuixIcons.Send
-    "settings" -> MiuixIcons.Settings
-    "share" -> MiuixIcons.Share
-    "shoppingCart" -> MiuixIcons.Store
-    "skipNext" -> MiuixIcons.Forward
-    "skipPrevious" -> MiuixIcons.Back
-    "star" -> MiuixIcons.FavoritesFill
-    "starHalf" -> MiuixIcons.Favorites
-    "starOff" -> MiuixIcons.Favorites
-    "stop" -> MiuixIcons.Pause
-    "upload" -> MiuixIcons.UploadCloud
-    "visibility" -> MiuixIcons.Show
-    "visibilityOff" -> MiuixIcons.Hide
-    "volumeDown" -> MiuixIcons.VolumeUp
-    "volumeMute" -> MiuixIcons.VolumeOff
-    "volumeOff" -> MiuixIcons.VolumeOff
-    "volumeUp" -> MiuixIcons.VolumeUp
-    "warning" -> MiuixIcons.Report
+"accountCircle" -> MiuixIcons.Glass.ContactsCircle
+    "add" -> MiuixIcons.Glass.Add
+    "arrowBack" -> MiuixIcons.Glass.Back
+    "arrowForward" -> MiuixIcons.Glass.ChevronForward
+    "attachFile" -> MiuixIcons.Glass.Link
+    "calendarToday" -> MiuixIcons.Glass.Months
+    "call" -> MiuixIcons.Glass.Phone
+    "camera" -> MiuixIcons.Glass.CameraOutline
+    "check" -> MiuixIcons.Glass.Ok
+    "close" -> MiuixIcons.Glass.Close
+    "delete" -> MiuixIcons.Glass.Delete
+    "download" -> MiuixIcons.Glass.Download
+    "edit" -> MiuixIcons.Glass.Edit
+    "event" -> MiuixIcons.Glass.Alarm
+    "error" -> MiuixIcons.Glass.Report
+    "fastForward" -> MiuixIcons.Glass.Forward
+    "favorite" -> MiuixIcons.Glass.StarFill
+    "favoriteOff" -> MiuixIcons.Glass.StarOutline
+    "folder" -> MiuixIcons.Glass.FolderOutline
+    "help" -> MiuixIcons.Glass.Help
+    "home" -> MiuixIcons.Glass.HomeOutline
+    "info" -> MiuixIcons.Glass.Info
+    "locationOn" -> MiuixIcons.Glass.Location
+    "lock" -> MiuixIcons.Glass.LockOutline
+    "lockOpen" -> MiuixIcons.Glass.UnlockOutline
+    "mail" -> MiuixIcons.Glass.Email
+    "menu" -> MiuixIcons.Glass.Sidebar
+    "moreVert" -> MiuixIcons.Glass.More
+    "moreHoriz" -> MiuixIcons.Glass.More
+    "notificationsOff" -> MiuixIcons.Glass.NotificationMuted
+    "notifications" -> MiuixIcons.Glass.NotificationOutline
+    "pause" -> MiuixIcons.Glass.Pause
+    "payment" -> MiuixIcons.Glass.BankCards
+    "person" -> MiuixIcons.Glass.Contacts
+    "phone" -> MiuixIcons.Glass.Phone
+    "photo" -> MiuixIcons.Glass.ImageOutline
+    "play" -> MiuixIcons.Glass.Play
+    "print" -> MiuixIcons.Glass.PrintOutline
+    "refresh" -> MiuixIcons.Glass.Refresh
+    "rewind" -> MiuixIcons.Glass.Back
+    "search" -> MiuixIcons.Glass.Search
+    "send" -> MiuixIcons.Glass.Send
+    "settings" -> MiuixIcons.Glass.SettingsOutline
+    "share" -> MiuixIcons.Glass.Share
+    "shoppingCart" -> MiuixIcons.Glass.Store
+    "skipNext" -> MiuixIcons.Glass.Forward
+    "skipPrevious" -> MiuixIcons.Glass.Back
+    "star" -> MiuixIcons.Glass.StarFill
+    "starHalf" -> MiuixIcons.Glass.StarOutline
+    "starOff" -> MiuixIcons.Glass.StarOutline
+    "stop" -> MiuixIcons.Glass.Pause
+    "upload" -> MiuixIcons.Glass.UploadCloud
+    "visibility" -> MiuixIcons.Glass.Show
+    "visibilityOff" -> MiuixIcons.Glass.Hide
+    "volumeDown" -> MiuixIcons.Glass.VolumeUp
+    "volumeMute" -> MiuixIcons.Glass.VolumeOff
+    "volumeOff" -> MiuixIcons.Glass.VolumeOff
+    "volumeUp" -> MiuixIcons.Glass.VolumeUp
+    "warning" -> MiuixIcons.Glass.Report
     else -> null
 }

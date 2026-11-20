@@ -84,13 +84,13 @@ internal fun OnboardingModelImportDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                top.yukonga.miuix.kmp.basic.TabRow(
-                tabs = listOf(
+                top.wkbin.taixu.ui.components.RuntimeSegmentedControl(
+                options = listOf(
                     "剪贴板粘贴",
                     "选择本地文件",
                 ),
-                selectedTabIndex = selectedTab,
-                onTabSelected = { selectedTab = it },
+                selectedIndex = selectedTab,
+                onSelect = { selectedTab = it },
             )
 
                 if (selectedTab == 0) {

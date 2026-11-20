@@ -22,7 +22,6 @@ import top.wkbin.taixu.ui.components.*
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.theme.chatBackdropSurface
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.icon.basic.ArrowRight
 @Composable
 internal fun EmptyChatGuidance(
     workspaceProject: WorkspaceProject? = null,
@@ -159,7 +158,7 @@ internal fun EmptyChatGuidance(
                                 overflow = TextOverflow.Ellipsis,
                             )
                             top.yukonga.miuix.kmp.basic.Icon(
-                                imageVector = top.yukonga.miuix.kmp.icon.MiuixIcons.Basic.ArrowRight,
+                                imageVector = top.wkbin.taixu.ui.components.runtimeIconImageVector(RuntimeIconName.ChevronRight),
                                 contentDescription = null,
                                 modifier = Modifier.padding(start = 8.dp).size(width = 10.dp, height = 16.dp),
                                 tint = top.yukonga.miuix.kmp.theme.MiuixTheme.colorScheme.onSurfaceVariantActions,

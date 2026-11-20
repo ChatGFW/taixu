@@ -27,12 +27,11 @@ import androidx.a2ui.compose.ui.A2uiComponent
 import androidx.a2ui.compose.ui.catalog.A2uiBasicCatalogV1
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import top.yukonga.miuix.kmp.window.WindowDialog
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Surface
+import top.wkbin.taixu.ui.miuix.RuntimeDialog
 import top.wkbin.taixu.feature.a2uipoc.miuix.MiuixA2uiDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -122,13 +121,8 @@ internal object MiuixA2uiBasicCatalogV1Modal : A2uiBasicCatalogV1.Modal {
         accessibility: A2uiBasicCatalogV1.AccessibilityAttributes?,
         onDismissRequest: () -> Unit,
     ) {
-        WindowDialog(show = true, onDismissRequest = onDismissRequest) {
-            Surface(
-                modifier = Modifier.a2uiAccessibility(accessibility),
-                shape = RuntimeTheme.shapes.extraLarge,
-                tonalElevation = 6.dp,
-                color = RuntimeTheme.colorScheme.surfaceContainerHigh,
-            ) {
+        RuntimeDialog(onDismissRequest = onDismissRequest) {
+            Box(Modifier.a2uiAccessibility(accessibility)) {
                 ProvideActionInterceptor(
                     onIntercept = {
                         onDismissRequest()

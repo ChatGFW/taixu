@@ -372,7 +372,7 @@ fun ChatScreen(
     Scaffold(
         containerColor = RuntimeTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0), captureBackdrop = true,
     ) { padding ->
         ChatPageSurface(Modifier.fillMaxSize().padding(padding)) {
             val knownMentionNames = remember(allSkills, mcpServers) {
@@ -474,8 +474,7 @@ fun ChatScreen(
                 bottomInsets = bottomInsets, topBar = chatTopBar, chatContent = chatContent,
             )
         }
-    }
-
+    // 弹层由 Scaffold 在聊天背景层之外绘制。
     // 编辑并重新发送对话框
     editTargetMessage?.let { target ->
         EditAndResendDialog(
@@ -613,6 +612,7 @@ fun ChatScreen(
     branchFromMessageId?.let { messageId ->
         CreateBranchDialog(messageId = messageId, onDismiss = { branchFromMessageId = null },
             onCreate = { id, name -> viewModel?.createBranch(id, name); branchFromMessageId = null })
+    }
     }
     } // CompositionLocalProvider(LocalSandboxHostRoots)
 }

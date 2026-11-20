@@ -1,11 +1,9 @@
 package top.wkbin.taixu.ui.components
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -50,36 +48,7 @@ val CapsuleShape: Shape = CircleShape
 // 1. RuntimeSegmentedControl（药丸分段选择器）
 // ═══════════════════════════════════════════════════════════════════════════
 
-/**
- * 太墟 · 药丸分段选择器 (Segmented Control)：Material 3 表面 + 弹簧滑块指示。
- */
-@Composable
-fun <T> RuntimeSegmentedControl(
-    items: List<T>,
-    selectedIndex: Int,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    itemContent: @Composable (item: T, isSelected: Boolean) -> Unit,
-) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-        items.forEachIndexed { index, item ->
-            val selected = index == selectedIndex
-            top.yukonga.miuix.kmp.basic.Button(
-                onClick = { onSelect(index) },
-                modifier = Modifier.weight(1f),
-                enabled = enabled,
-                colors = if (selected) top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColorsPrimary()
-                    else top.yukonga.miuix.kmp.basic.ButtonDefaults.buttonColors(),
-                insideMargin = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-            ) { itemContent(item, selected) }
-        }
-    }
-}
-
-/**
- * 字符型选项分段选择器重载（最常见的文本分段）。
- */
+/** 标签式分段选择器，使用当前工具栏背景或玻璃组件的静态材质。 */
 @Composable
 fun RuntimeSegmentedControl(
     options: List<String>,
@@ -88,12 +57,31 @@ fun RuntimeSegmentedControl(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    top.yukonga.miuix.kmp.basic.TabRow(
-        tabs = options,
-        selectedTabIndex = selectedIndex,
-        onTabSelected = { if (enabled) onSelect(it) },
-        modifier = modifier,
-    )
+    val backdrop = LocalRuntimeChromeBackdrop.current
+    if (enabled && backdrop != null) {
+        top.yukonga.miuix.kmp.glass.GlassSegmentedTabRow(
+            tabs = options,
+            selectedIndex = selectedIndex,
+            onSelect = onSelect,
+            backdrop = backdrop,
+            modifier = modifier,
+        )
+    } else if (enabled) {
+        top.yukonga.miuix.kmp.glass.GlassTabRow(
+            tabs = options,
+            selectedIndex = selectedIndex,
+            onSelect = onSelect,
+            backdrop = null,
+            modifier = modifier,
+        )
+    } else {
+        top.yukonga.miuix.kmp.basic.TabRow(
+            tabs = options,
+            selectedTabIndex = selectedIndex,
+            onTabSelected = {},
+            modifier = modifier,
+        )
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -369,10 +357,11 @@ private fun SheetHeaderAction(
     primary: Boolean = false,
 ) {
     val colors = RuntimeTheme.colorScheme
-    top.yukonga.miuix.kmp.basic.IconButton(
+    top.yukonga.miuix.kmp.glass.GlassIconButton(
         onClick = onClick,
-        modifier = modifier.size(40.dp).semantics { contentDescription = label },
-        backgroundColor = if (primary) colors.primary else colors.surfaceContainerHigh,
+        modifier = modifier.semantics { contentDescription = label },
+        size = 40.dp,
+        fill = if (primary) colors.primary else colors.surfaceContainerHigh,
     ) {
         RuntimeIcon(icon, Modifier.size(20.dp), if (primary) colors.onPrimary else colors.onSurface)
     }

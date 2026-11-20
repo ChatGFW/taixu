@@ -6,13 +6,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
+import top.wkbin.taixu.ui.components.runtimeOverlayBackdrop
+import top.yukonga.miuix.kmp.glass.GlassPopup
+import top.yukonga.miuix.kmp.glass.GlassPopupDefaults
 import top.yukonga.miuix.kmp.theme.LocalContentColor
+import top.yukonga.miuix.kmp.utils.MiuixPopupUtils.Companion.PopupLayout
 import top.yukonga.miuix.kmp.window.WindowListPopup
 
 data class MenuItemColors(val textColor: Color, val disabledTextColor: Color)
@@ -34,9 +41,40 @@ fun DropdownMenu(
     shape: Shape = RuntimeTheme.shapes.large,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    WindowListPopup(show = expanded, onDismissRequest = onDismissRequest,
-        popupModifier = modifier.offset(offset.x, offset.y)) {
-        top.yukonga.miuix.kmp.basic.ListPopupColumn { Column(content = content) }
+    val backdrop = runtimeOverlayBackdrop()
+    val popupModifier = modifier.offset(offset.x, offset.y)
+    if (backdrop == null) {
+        WindowListPopup(show = expanded, onDismissRequest = onDismissRequest, popupModifier = popupModifier) {
+            top.yukonga.miuix.kmp.basic.ListPopupColumn { Column(content = content) }
+        }
+        return
+    }
+
+    var anchorBounds by remember { mutableStateOf(Rect.Zero) }
+    val visible = remember { mutableStateOf(false) }
+    val cornerRadius = shape.uniformRadius() ?: GlassPopupDefaults.CornerRadius
+    Box(Modifier.onGloballyPositioned { anchor ->
+        anchorBounds = anchor.parentLayoutCoordinates?.boundsInWindow() ?: Rect.Zero
+    })
+    val show = expanded && !anchorBounds.isEmpty
+    SideEffect { visible.value = show }
+    PopupLayout(
+        visible = visible,
+        enableWindowDim = false,
+        enableBackHandler = false,
+        renderInRootScaffold = false,
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            GlassPopup(
+                show = show,
+                onDismissRequest = onDismissRequest,
+                anchorBounds = anchorBounds,
+                backdrop = backdrop,
+                modifier = popupModifier,
+                cornerRadius = cornerRadius,
+                content = content,
+            )
+        }
     }
 }
 

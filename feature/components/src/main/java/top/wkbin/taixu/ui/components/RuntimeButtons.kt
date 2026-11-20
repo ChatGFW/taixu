@@ -4,6 +4,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import top.yukonga.miuix.kmp.glass.GlassIconButton
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.contentDescription
@@ -117,6 +121,8 @@ fun RuntimeTextButton(
     )
 }
 
+internal val LocalRuntimeGlassTopBar = staticCompositionLocalOf { false }
+
 @Composable
 fun RuntimeIconButton(
     onClick: () -> Unit,
@@ -128,12 +134,16 @@ fun RuntimeIconButton(
     val accessibilityLabel = contentDescription
     // 无障碍标签挂到按钮节点；有文案时再套 miuix TooltipBox（长按 / 悬停）。
     RuntimeTooltip(text = accessibilityLabel, enabled = enabled) {
-        IconButton(
-            onClick = onClick,
-            modifier = modifier.semantics { accessibilityLabel?.let { this.contentDescription = it } },
-            enabled = enabled,
-            content = content,
-        )
+        val buttonModifier = modifier.semantics { accessibilityLabel?.let { this.contentDescription = it } }
+        if (enabled && LocalRuntimeGlassTopBar.current) {
+            GlassIconButton(
+                onClick = onClick,
+                modifier = buttonModifier.semantics { role = Role.Button },
+                content = content,
+            )
+        } else {
+            IconButton(onClick = onClick, modifier = buttonModifier, enabled = enabled, content = content)
+        }
     }
 }
 

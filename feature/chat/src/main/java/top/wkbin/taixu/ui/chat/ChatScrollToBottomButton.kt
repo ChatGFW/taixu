@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
 import top.wkbin.taixu.feature.chat.R
 import top.wkbin.taixu.ui.components.RuntimeIcon
 import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.yukonga.miuix.kmp.basic.IconButton
+import top.wkbin.taixu.ui.components.RuntimeFloatingActionButton
 
 /**
  * 判断列表是否已离开底部：最后一个可见项不是末项，或末项底边超出视口底端超过 [tolerancePx]。
@@ -96,10 +96,11 @@ internal fun ChatScrollToBottomButton(listState: LazyListState, modifier: Modifi
     if (visible) {
         val description = stringResource(R.string.chat_scroll_to_bottom)
         val colors = RuntimeTheme.colorScheme
-        IconButton(
+        RuntimeFloatingActionButton(
             onClick = { scope.launch { listState.safeScrollToAbsoluteBottom() } },
             modifier = modifier.size(40.dp).semantics { contentDescription = description },
-            backgroundColor = colors.surfaceContainerHigh,
+            containerColor = colors.surfaceContainerHigh,
+            contentColor = colors.onSurface,
         ) {
             RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(20.dp).rotate(180f), colors.onSurface)
         }

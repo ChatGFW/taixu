@@ -50,7 +50,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.wkbin.taixu.feature.components.R
 import top.wkbin.taixu.ui.miuix.*
-import top.yukonga.miuix.kmp.basic.NavigationBarItem
+import top.yukonga.miuix.kmp.glass.GlassNavigationBar
+import top.yukonga.miuix.kmp.glass.GlassNavigationItem
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.squircle.squircleBackground
@@ -63,9 +64,7 @@ enum class MainDestination(val labelRes: Int, val subtitleRes: Int, val icon: Ru
     Settings(R.string.components_nav_settings, R.string.components_nav_subtitle_settings, RuntimeIconName.NavSettings),
 }
 
-/**
- * 太墟 · 核心底部中枢导航栏（Material 3 NavigationBar）。
- */
+/** 太墟底部中枢导航栏。 */
 @Composable
 fun RuntimeBottomBar(
     selected: MainDestination,
@@ -73,19 +72,19 @@ fun RuntimeBottomBar(
     modifier: Modifier = Modifier,
 ) {
     val haptic = LocalHapticFeedback.current
-    top.yukonga.miuix.kmp.basic.NavigationBar(modifier = modifier) {
-        MainDestination.entries.forEach { destination ->
-            NavigationBarItem(
-                selected = destination == selected,
-                onClick = {
-                    if (destination != selected) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onNavigate(destination)
-                },
-                icon = runtimeIconImageVector(destination.icon),
-                label = stringResource(destination.labelRes),
-            )
-        }
-    }
+    GlassNavigationBar(
+        items = MainDestination.entries.map {
+            GlassNavigationItem(icon = runtimeIconImageVector(it.icon), label = stringResource(it.labelRes))
+        },
+        selectedIndex = selected.ordinal,
+        onSelect = { index ->
+            val destination = MainDestination.entries[index]
+            if (destination != selected) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onNavigate(destination)
+        },
+        backdrop = LocalRuntimeChromeBackdrop.current,
+        modifier = modifier,
+    )
 }
 
 /**
@@ -553,7 +552,7 @@ fun ScrollFadeOverlay(
 }
 
 /**
- * 实心圆形操作钮：对齐 miuix [IconButton] 的 40dp，不再使用库默认 60dp FAB。
+ * 玻璃圆形操作钮，对齐 miuix [IconButton] 的 40dp。
  * 新增入口优先放顶栏 actions；仅在确实需要浮层动作时调用本组件。
  */
 @Composable

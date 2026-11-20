@@ -4,7 +4,7 @@
 
 ## 1. 构建环境要求 (Prerequisites)
 
-- **Android SDK**：主工程需要 Android SDK Platform 37.1（A2UI alpha 依赖要求）；targetSdk 仍为 37。已接受 SDK 许可证时，Gradle 可自动安装缺失的平台。
+- **Android SDK**：主工程需要 Android SDK Platform 37.2（Miuix 依赖要求）；targetSdk 仍为 37。已接受 SDK 许可证时，Gradle 可自动安装缺失的平台。
 
 - **Shell 语法校验**：部分 JVM 测试通过 `sh -n` 校验生成的 Linux 脚本。Windows 安装 Git for Windows 后，若 `sh` 不在 PATH，可仅为本次终端追加：
   ```powershell

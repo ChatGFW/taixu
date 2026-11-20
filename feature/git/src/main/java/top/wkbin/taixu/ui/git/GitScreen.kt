@@ -182,8 +182,8 @@ fun GitScreen(
                     }
                 }
 
-                top.yukonga.miuix.kmp.basic.TabRow(
-                tabs = listOf(
+                top.wkbin.taixu.ui.components.RuntimeSegmentedControl(
+                options = listOf(
                     if (state.overview == null || state.overview!!.localBranches.isEmpty()) {
                                     stringResource(R.string.fgit_tab_branches)
                                 } else {
@@ -201,8 +201,8 @@ fun GitScreen(
                                     stringResource(R.string.fgit_tab_tags_count, state.tags.size)
                                 },
                 ),
-                selectedTabIndex = selectedTab,
-                onTabSelected = { selectedTab = it },
+                selectedIndex = selectedTab,
+                onSelect = { selectedTab = it },
             )
 
                 when (selectedTab) {

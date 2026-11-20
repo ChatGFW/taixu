@@ -15,8 +15,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.TopAppBarScrollBehavior
-import top.yukonga.miuix.kmp.basic.FloatingToolbar
-import top.yukonga.miuix.kmp.basic.FloatingToolbarDefaults
+import top.yukonga.miuix.kmp.glass.GlassFloatingToolbar
+import top.yukonga.miuix.kmp.glass.GlassFloatingToolbarDefaults
 import top.yukonga.miuix.kmp.basic.InputField
 import top.yukonga.miuix.kmp.basic.NumberPicker
 import top.yukonga.miuix.kmp.basic.NumberPickerDefaults
@@ -51,25 +51,19 @@ fun RuntimePullToRefresh(
     )
 }
 
-/**
- * miuix 浮动工具条外壳（聊天顶栏胶囊等）。
- *
- * 禁止在这里套 [RuntimeBlurredBar]：聊天胶囊画在 Scaffold 的
- * `layerBackdrop` 内容树内，对同一 backdrop 再 `textureBlur` 会在
- * RenderThread 上 SIGSEGV（采样自身录制层）。毛玻璃只留给 Scaffold topBar 槽。
- */
+/** 浮动工具条只采样宿主提供的独立背景层。 */
 @Composable
 fun RuntimeFloatingToolbar(
     modifier: Modifier = Modifier,
     color: Color = RuntimeTheme.colorScheme.surfaceContainer,
-    cornerRadius: Dp = FloatingToolbarDefaults.CornerRadius,
+    cornerRadius: Dp = GlassFloatingToolbarDefaults.CornerRadius,
     content: @Composable () -> Unit,
 ) {
-    FloatingToolbar(
+    GlassFloatingToolbar(
         modifier = modifier,
-        color = color,
+        backdrop = LocalRuntimeChromeBackdrop.current,
+        fill = color,
         cornerRadius = cornerRadius,
-        shadowElevation = 6.dp,
         outSidePadding = PaddingValues(0.dp),
         content = content,
     )

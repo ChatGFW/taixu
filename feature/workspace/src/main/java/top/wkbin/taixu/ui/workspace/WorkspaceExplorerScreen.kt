@@ -156,7 +156,7 @@ fun WorkspaceExplorerScreen(
                 actions = {
                     val newLabel = stringResource(R.string.workspace_cd_new)
                     Box(Modifier.semantics { contentDescription = newLabel }) {
-                        top.yukonga.miuix.kmp.menu.WindowIconDropdownMenu(
+                        top.wkbin.taixu.ui.components.RuntimeIconMenu(
                             entries = listOf(
                                 top.yukonga.miuix.kmp.basic.DropdownEntry(
                                     items = listOf(

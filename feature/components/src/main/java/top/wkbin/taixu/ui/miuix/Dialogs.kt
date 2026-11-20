@@ -17,6 +17,10 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import kotlinx.coroutines.delay
+import top.wkbin.taixu.ui.components.LocalRuntimeBackdrop
+import top.wkbin.taixu.ui.components.runtimeOverlayBackdrop
+import top.yukonga.miuix.kmp.glass.GlassBottomSheet
+import top.yukonga.miuix.kmp.glass.GlassDialog
 import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.window.WindowBottomSheet
@@ -48,7 +52,7 @@ fun AlertDialog(
     val windowHeight = LocalWindowInfo.current.containerDpSize.height
     val imeHeight = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
     val maxHeight = ((windowHeight - imeHeight) * 0.8f).coerceAtLeast(240.dp)
-    WindowDialog(show = true, onDismissRequest = onDismissRequest, modifier = modifier) {
+    val body: @Composable () -> Unit = {
         CompositionLocalProvider(LocalRaisedSurface provides true) {
         Column(Modifier.heightIn(max = maxHeight)) {
             if (icon != null) {
@@ -71,6 +75,30 @@ fun AlertDialog(
             )
         }
         }
+    }
+    RuntimeDialog(onDismissRequest = onDismissRequest, modifier = modifier, content = body)
+}
+
+/** Shared container for dialogs that supply their own content and actions. */
+@Composable
+fun RuntimeDialog(
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val backdrop = runtimeOverlayBackdrop()
+    if (backdrop != null) {
+        GlassDialog(
+            show = true,
+            backdrop = backdrop,
+            renderInRootScaffold = false,
+            onDismissRequest = onDismissRequest,
+            modifier = modifier,
+        ) {
+            CompositionLocalProvider(LocalRuntimeBackdrop provides null, content = content)
+        }
+    } else {
+        WindowDialog(show = true, onDismissRequest = onDismissRequest, modifier = modifier, content = content)
     }
 }
 
@@ -141,15 +169,12 @@ fun ModalBottomSheet(
     // Compose WindowInsets 在 Scaffold 消费后常为 0；独立 sheet 窗口里同样不可靠。
     // 用 Activity 根窗口原始 inset 兜底，保证「新增自定义技能」等高表单不贴导航栏。
     val bottomInset = rememberSheetBottomInset(contentWindowInsets)
-    WindowBottomSheet(
-        show = sheetState.isVisible && !closing,
-        modifier = modifier,
-        allowDismiss = sheetState.canDismiss(),
-        onDismissRequest = { if (sheetState.canDismiss()) closing = true },
-        onDismissFinished = { if (closing) latestDismiss() },
-        insideMargin = androidx.compose.ui.unit.DpSize(0.dp, 0.dp),
-    ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor, LocalRaisedSurface provides true) {
+    val body: @Composable () -> Unit = {
+        CompositionLocalProvider(
+            LocalContentColor provides contentColor,
+            LocalRaisedSurface provides true,
+            LocalRuntimeBackdrop provides null,
+        ) {
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -158,6 +183,36 @@ fun ModalBottomSheet(
                 content = content,
             )
         }
+    }
+    val show = sheetState.isVisible && !closing
+    val dismiss = { if (sheetState.canDismiss()) closing = true }
+    val dismissFinished = { if (closing) latestDismiss() }
+    val insideMargin = androidx.compose.ui.unit.DpSize.Zero
+    val backdrop = runtimeOverlayBackdrop()
+    if (backdrop != null) {
+        GlassBottomSheet(
+            show = show,
+            backdrop = backdrop,
+            renderInRootScaffold = false,
+            modifier = modifier,
+            allowDismiss = sheetState.canDismiss(),
+            onDismissRequest = dismiss,
+            onDismissFinished = dismissFinished,
+            insideMargin = insideMargin,
+            containerColor = containerColor,
+            dimColor = scrimColor,
+            content = body,
+        )
+    } else {
+        WindowBottomSheet(
+            show = show,
+            modifier = modifier,
+            allowDismiss = sheetState.canDismiss(),
+            onDismissRequest = dismiss,
+            onDismissFinished = dismissFinished,
+            insideMargin = insideMargin,
+            content = body,
+        )
     }
 }
 

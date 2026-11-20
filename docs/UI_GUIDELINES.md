@@ -12,7 +12,7 @@ Compose / miuix 相关的全部约定与踩坑约束。改 `feature/*/src/main/j
 
 - 所有 UI 走 miuix（或其 `feature/components` / `feature/miuix` 包装）。禁止引入 `androidx.compose.material3`。**优先直接用库原件**（见 [组件库](https://compose-miuix-ui.github.io/miuix/zh_CN/components/)）：搜索用 `InputField` / `SearchBar`；顶栏更多用 `WindowIconDropdownMenu`；设置下拉用 `WindowDropdownPreference` / `WindowSpinnerPreference`；角标用 `Badge`；底栏抽屉用 `WindowBottomSheet`；弹窗用 `WindowDialog` / `RuntimeAlertDialog`。仅在需要太墟语义别名或跨页一致性时保留 `Runtime*` 薄包装，禁止再手搓 Material 式 `ExposedDropdownMenu` / 自绘搜索胶囊 / 自绘更多菜单。
 - 容器用 `RuntimeCard`；按钮用 `RuntimeButton` / `RuntimeFilledTonalButton` / `RuntimeOutlinedButton` / `RuntimeTextButton` / `RuntimeIconButton`；开关与进度用 `RuntimeSwitch` / `Runtime*ProgressIndicator`。
-- 返回图标走 `RuntimeIconName.Back` → `MiuixIcons.Back`（见 `RuntimeMiuixIcons`）。工具栏 / 输入区 / 侧栏圆形操作对齐 miuix `IconButton`：**40dp** 底 + 约 **20dp** 图标；禁止 Material 48dp touch-target 或库默认 **60dp FAB** 撑大实心底；新建入口优先顶栏 `actions` / `WindowIconDropdownMenu`。
+- 返回图标走 `RuntimeIconName.Back` → `MiuixIcons.Glass.Back`（见 `RuntimeMiuixIcons`）。工具栏 / 输入区 / 侧栏圆形操作对齐 miuix `IconButton`：**40dp** 底 + 约 **20dp** 图标；禁止 Material 48dp touch-target 或库默认 **60dp FAB** 撑大实心底；新建入口优先顶栏 `actions` / `RuntimeIconMenu`。
 - **自定义形状用 squircle modifier**（`top.yukonga.miuix.kmp.squircle.*`）。非 miuix 组件的手搓形状**不要**用 `RoundedCornerShape` 做 clip/background。按性能选：
   - 非点击纯色背景 → `squircleBackground`（无 offscreen layer，**不要再 clip**）
   - 图片 / 必须裁剪 → `squircleClip`（一个 offscreen layer）
@@ -31,13 +31,12 @@ Compose / miuix 相关的全部约定与踩坑约束。改 `feature/*/src/main/j
 
 ---
 
-## 顶栏毛玻璃
+## OS4 玻璃材质
 
-- **默认已接入**：[`Scaffold`](../feature/components/src/main/java/top/wkbin/taixu/ui/miuix/Surfaces.kt) 会创建 backdrop、用 [`RuntimeBlurredBar`](../feature/components/src/main/java/top/wkbin/taixu/ui/components/RuntimeBlurredBar.kt) 包裹 `topBar`，并在内容根挂 `.runtimeBackdropSource`。[`RuntimeTopBar`](../feature/components/src/main/java/top/wkbin/taixu/ui/components/RuntimeSmallTopBar.kt)（大/小标题）默认读 `LocalRuntimeBackdrop`，有 backdrop 时 bar 色 Transparent，否则 surface。API&lt;33 无 shader 时 backdrop 为 null，退化为实色顶栏。
+- [`Scaffold`](../feature/components/src/main/java/top/wkbin/taixu/ui/miuix/Surfaces.kt) 在内容根挂 `.runtimeBackdropSource`，并在 `topBar` 槽提供 [`LocalRuntimeChromeBackdrop`](../feature/components/src/main/java/top/wkbin/taixu/ui/components/RuntimeBackdrop.kt)。[`RuntimeTopBar`](../feature/components/src/main/java/top/wkbin/taixu/ui/components/RuntimeSmallTopBar.kt) 用 `GlassTopAppBar` 绘制渐进模糊及其降级渐变。聊天浮动工具条由聊天布局单独提供背景层。
 - **内容必须能滚进顶栏后方**：用 [`runtimeScrollViewport`](../feature/components/src/main/java/top/wkbin/taixu/ui/components/RuntimeScrollInsets.kt)（只垫左右）+ [`runtimeScrollContentPadding`](../feature/components/src/main/java/top/wkbin/taixu/ui/components/RuntimeScrollInsets.kt)（把 Scaffold 顶/底并进 LazyColumn / 滚动子树）。禁止对滚动根再 `Modifier.padding(scaffoldPadding)` 整包顶距，否则毛玻璃采不到列表。
-- 手写页优先走 `Scaffold` + `RuntimeTopBar` / `RuntimeSettingsScaffold`，**不要**再各自包一层 `RuntimeBlurredBar`（会双磨砂）。
-- **`textureBlur` 只能用在 `layerBackdrop` 内容树之外**（通常是 Scaffold 的 `topBar` 槽）。聊天胶囊等画在内容区里的控件禁止对同一 backdrop 再磨砂，否则 RenderThread SIGSEGV。无顶栏的 Scaffold（如聊天根页）不会创建 backdrop。
-- 不用 `Scaffold` 的顶栏（少数 Column 布局）需自备：`rememberRuntimeBackdrop()` + `RuntimeBlurredBar` + `CompositionLocalProvider(LocalRuntimeBackdrop provides …)` + 内容 `.runtimeBackdropSource`。
+- **玻璃控件必须位于所采样的背景层之外**。顶栏和内容各占一个槽，聊天工具条和其背景是同级节点。内容树里的分段控件使用玻璃组件的静态材质。
+- 菜单、下拉选择、对话框和底部抽屉可复用同一窗口内 Scaffold 的背景，在独立的 Overlay 层绘制。无可用背景层时，继续使用原生窗口弹层。
 - 搜索页若有顶栏动画，动画背景色与 bar 色同一源，避免实色盖住毛玻璃。
 
 ---
@@ -46,7 +45,7 @@ Compose / miuix 相关的全部约定与踩坑约束。改 `feature/*/src/main/j
 
 - 断点只读 `LocalRuntimeWidthClass` / `rememberRuntimeWidthClass()` / `widthClassOf()`（600dp / 840dp）。**严禁**再散落 `maxWidth >= xxx.dp`。
 - **内容居中**：`runtimeContentPadding` / `runtimeContentGutter` 把内容限到 `RuntimeContentMaxWidth = 840.dp`。**LazyColumn / LazyGrid 保持全宽**（两侧无滚动死区），只把 gutter 写进 `contentPadding`。**不要**用 layout modifier 压缩 LazyColumn 节点宽度。
-- 宽屏导航：中间态 / 展开态走 `RuntimeAdaptiveNavigationScaffold` + `RuntimeNavigationRail`；rail 吸收起始侧 inset，内容区按脚手架既有 `consumeWindowInsets` / 末端 systemBars∪displayCutout 处理。
+- 宽屏导航走 `RuntimeAdaptiveNavigationScaffold` + `RuntimeNavigationRail`。`GlassNavigationRail` 承载可滚动入口，底部设置入口保持固定。rail 吸收起始侧 inset，内容区按既有 `consumeWindowInsets` 和末端 systemBars∪displayCutout 处理。
 - 大标题列表在宽屏仍走 `RuntimeSettingsScaffold` / `RuntimeTopBar`；关于页等有 hero 视差的屏幕若固定 SmallTopAppBar，**不要**再套会复制大标题的大标题壳。
 - **横屏缺口**：miuix `Scaffold` 不自动 padding 内容。二级页手写 LazyColumn 时，在 `fillMaxSize()` 后补水平 `displayCutout ∪ navigationBars`（竖屏为 0）；顶栏由自身 inset 处理。`RuntimeSettingsScaffold` 已消费 scaffold 起止 padding；新写二级页勿漏水平缺口。主聊天 / 自适应外壳内容已居中在缺口内侧的，无需重复。
 

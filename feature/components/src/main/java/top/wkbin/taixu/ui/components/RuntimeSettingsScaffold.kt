@@ -39,7 +39,7 @@ fun RuntimeSettingsScaffold(
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val listState = rememberLazyListState()
-    // Scaffold owns the frosted backdrop; TopBar reads LocalRuntimeBackdrop for a transparent fill.
+    // Scaffold provides the scroll content as the glass top bar's backdrop.
     Scaffold(
         modifier = modifier,
         containerColor = RuntimeTheme.colorScheme.surface,

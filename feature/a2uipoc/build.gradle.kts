@@ -8,7 +8,7 @@ android {
 }
 
 dependencies {
-    implementation(libs.miuix.icons)
+    implementation(libs.miuix.glass.icons)
     // A2uiSurfaceContract / A2uiSurfaceBus：render_surface 工具的协议契约与界面载荷总线
     implementation(project(":harness"))
     implementation(project(":feature:theme"))

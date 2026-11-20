@@ -168,7 +168,7 @@ The platform remains in development: arbitrary PROCESS service pages, dynamic AP
 ### Requirements
 
 - **JDK 17**: Project and CI baseline; Android Studio JBR is also used for local builds.
-- **Android SDK**: compileSdk 37.1 / targetSdk 37 / minSdk 29.
+- **Android SDK**: compileSdk 37.2 / targetSdk 37 / minSdk 29.
 - **Gradle Wrapper**: 9.8.1.
 - **Android Gradle Plugin**: 9.4.1.
 - **Kotlin**: 2.4.21; **Compose BOM**: 2026.09.00.

@@ -84,13 +84,13 @@ fun NetworkTimelineSheet(
                 if (detailId != null) {
                     NetworkDetailBody(detail = detail)
                 } else {
-                    top.yukonga.miuix.kmp.basic.TabRow(
-                tabs = listOf(
+                    top.wkbin.taixu.ui.components.RuntimeSegmentedControl(
+                options = listOf(
                     "请求 (${requests.size})",
                     "Hook 命中 (${hookHits.size})",
                 ),
-                selectedTabIndex = selectedTab,
-                onTabSelected = { selectedTab = it },
+                selectedIndex = selectedTab,
+                onSelect = { selectedTab = it },
             )
                     if (selectedTab == 0) {
                         RequestList(requests) { id ->

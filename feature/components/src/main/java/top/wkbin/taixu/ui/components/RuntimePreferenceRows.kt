@@ -9,22 +9,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.ui.miuix.Checkbox
 import top.wkbin.taixu.ui.miuix.RadioButton
@@ -32,14 +24,7 @@ import top.wkbin.taixu.ui.miuix.Slider
 import top.wkbin.taixu.ui.miuix.Switch
 import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.BasicComponentDefaults
-import top.yukonga.miuix.kmp.basic.DropdownEntry
-import top.yukonga.miuix.kmp.basic.DropdownItem
-import top.yukonga.miuix.kmp.basic.DropdownArrowEndAction
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.basic.ArrowRight
-import top.yukonga.miuix.kmp.popup.OverlayDropdownPopup
-import top.yukonga.miuix.kmp.popup.WindowDropdownPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
@@ -47,7 +32,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
  * 这里的包装统一改为单行省略，其余布局与交互语义保持与 miuix 原组件一致。
  */
 @Composable
-private fun PreferenceTexts(title: String, summary: String?, enabled: Boolean) {
+internal fun PreferenceTexts(title: String, summary: String?, enabled: Boolean) {
     Text(
         title,
         fontSize = MiuixTheme.textStyles.headline1.fontSize,
@@ -124,13 +109,11 @@ fun RuntimeArrowPreference(
                 content = endActions,
             )
             val tint = if (enabled) MiuixTheme.colorScheme.onSurfaceVariantActions else MiuixTheme.colorScheme.disabledOnSecondaryVariant
-            val layoutDirection = LocalLayoutDirection.current
             Image(
                 modifier = Modifier
                     .size(width = 10.dp, height = 16.dp)
-                    .graphicsLayer { scaleX = if (layoutDirection == LayoutDirection.Rtl) -1f else 1f }
                     .align(Alignment.CenterVertically),
-                imageVector = MiuixIcons.Basic.ArrowRight,
+                imageVector = runtimeIconImageVector(RuntimeIconName.ChevronRight),
                 contentDescription = null,
                 colorFilter = ColorFilter.tint(tint),
             )
@@ -141,7 +124,6 @@ fun RuntimeArrowPreference(
         PreferenceTexts(title, summary, enabled)
     }
 }
-
 @Composable
 fun RuntimeSwitchPreference(
     title: String,
@@ -168,7 +150,6 @@ fun RuntimeSwitchPreference(
         PreferenceTexts(title, summary, enabled)
     }
 }
-
 @Composable
 fun RuntimeRadioPreference(
     title: String,
@@ -256,139 +237,5 @@ fun RuntimeSliderPreference(
         enabled = enabled,
     ) {
         PreferenceTexts(title, summary, enabled)
-    }
-}
-
-@Composable
-fun RuntimeWindowDropdownPreference(
-    items: List<String>,
-    selectedIndex: Int,
-    title: String,
-    onSelectedIndexChange: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-    summary: String? = null,
-    enabled: Boolean = true,
-    showValue: Boolean = true,
-    startAction: @Composable (() -> Unit)? = null,
-    insideMargin: PaddingValues = BasicComponentDefaults.InsideMargin,
-) = DropdownPreference(
-    items = items, selectedIndex = selectedIndex, title = title,
-    onSelectedIndexChange = onSelectedIndexChange, modifier = modifier, summary = summary,
-    enabled = enabled, showValue = showValue, startAction = startAction,
-    insideMargin = insideMargin, overlay = false,
-)
-
-@Composable
-fun RuntimeOverlayDropdownPreference(
-    items: List<String>,
-    selectedIndex: Int,
-    title: String,
-    onSelectedIndexChange: (Int) -> Unit,
-    modifier: Modifier = Modifier,
-    summary: String? = null,
-    enabled: Boolean = true,
-    showValue: Boolean = true,
-    startAction: @Composable (() -> Unit)? = null,
-    insideMargin: PaddingValues = BasicComponentDefaults.InsideMargin,
-) = DropdownPreference(
-    items = items, selectedIndex = selectedIndex, title = title,
-    onSelectedIndexChange = onSelectedIndexChange, modifier = modifier, summary = summary,
-    enabled = enabled, showValue = showValue, startAction = startAction,
-    insideMargin = insideMargin, overlay = true,
-)
-
-@Composable
-private fun DropdownPreference(
-    items: List<String>,
-    selectedIndex: Int,
-    title: String,
-    onSelectedIndexChange: (Int) -> Unit,
-    modifier: Modifier,
-    summary: String?,
-    enabled: Boolean,
-    showValue: Boolean,
-    startAction: @Composable (() -> Unit)?,
-    insideMargin: PaddingValues,
-    overlay: Boolean,
-) {
-    val currentOnSelectedIndexChange by rememberUpdatedState(onSelectedIndexChange)
-    var expanded by remember { mutableStateOf(false) }
-    var holdDown by remember { mutableStateOf(false) }
-    val hapticFeedback = LocalHapticFeedback.current
-    val actualEnabled = enabled && items.isNotEmpty()
-    val actionColor = if (actualEnabled) {
-        MiuixTheme.colorScheme.onSurfaceVariantActions
-    } else {
-        MiuixTheme.colorScheme.disabledOnSecondaryVariant
-    }
-    val entry = remember(items, selectedIndex) {
-        DropdownEntry(items = items.mapIndexed { index, text ->
-            DropdownItem(
-                text = text,
-                selected = index == selectedIndex,
-                onClick = { currentOnSelectedIndexChange(index) },
-            )
-        })
-    }
-    BasicComponent(
-        modifier = modifier,
-        insideMargin = insideMargin,
-        startAction = startAction,
-        endActions = {
-            if (showValue && items.isNotEmpty()) {
-                val text = items.getOrNull(selectedIndex)
-                if (!text.isNullOrEmpty()) {
-                    Text(
-                        text,
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .align(Alignment.CenterVertically)
-                            .weight(1f, fill = false),
-                        fontSize = MiuixTheme.textStyles.body2.fontSize,
-                        color = actionColor,
-                        textAlign = TextAlign.End,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            DropdownArrowEndAction(actionColor = actionColor)
-            if (items.isNotEmpty()) {
-                if (overlay) {
-                    OverlayDropdownPopup(
-                        entry = entry,
-                        show = expanded,
-                        onDismiss = { expanded = false },
-                        onDismissFinished = { holdDown = false },
-                        maxHeight = null,
-                        dropdownColors = top.yukonga.miuix.kmp.basic.DropdownDefaults.dropdownColors(),
-                        renderInRootScaffold = true,
-                    )
-                } else {
-                    WindowDropdownPopup(
-                        entry = entry,
-                        show = expanded,
-                        onDismiss = { expanded = false },
-                        onDismissFinished = { holdDown = false },
-                        maxHeight = null,
-                        dropdownColors = top.yukonga.miuix.kmp.basic.DropdownDefaults.dropdownColors(),
-                    )
-                }
-            }
-        },
-        onClick = {
-            if (actualEnabled) {
-                expanded = !expanded
-                if (expanded) {
-                    holdDown = true
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.ContextClick)
-                }
-            }
-        },
-        role = Role.DropdownList,
-        holdDownState = holdDown,
-        enabled = actualEnabled,
-    ) {
-        PreferenceTexts(title, summary, actualEnabled)
     }
 }

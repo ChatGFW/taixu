@@ -44,7 +44,7 @@ internal fun ComposerSendButton(
         contentColor = contentColor,
         contentDescription = stringResource(R.string.chat_send),
     ) {
-        RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(20.dp))
+        RuntimeIcon(RuntimeIconName.Send, Modifier.size(20.dp))
     }
 }
 

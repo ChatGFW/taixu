@@ -2,6 +2,7 @@ package top.wkbin.taixu.ui.miuix
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.draw.clip
@@ -12,9 +13,14 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.ui.components.LocalRuntimeBackdrop
-import top.wkbin.taixu.ui.components.RuntimeBlurredBar
+import top.wkbin.taixu.ui.components.LocalRuntimeBackdropView
+import top.wkbin.taixu.ui.components.LocalRuntimeChromeBackdrop
+import androidx.compose.ui.platform.LocalView
 import top.wkbin.taixu.ui.components.rememberRuntimeBackdrop
 import top.wkbin.taixu.ui.components.runtimeBackdropSource
+import top.yukonga.miuix.kmp.glass.GlassFloatingActionButton
+import top.yukonga.miuix.kmp.material.GlassShape
+import top.yukonga.miuix.kmp.material.GlassShadows
 import top.yukonga.miuix.kmp.theme.LocalContentColor
 import top.yukonga.miuix.kmp.basic.Surface as MiuixSurface
 
@@ -95,7 +101,7 @@ fun VerticalDivider(
 ) = top.yukonga.miuix.kmp.basic.VerticalDivider(modifier = modifier, thickness = thickness, color = color)
 
 /**
- * 与默认参数共用同一引用，便于识别「未提供顶栏」从而跳过零尺寸 textureBlur。
+ * 与默认参数共用同一引用，便于未提供顶栏时跳过页面 backdrop 录制。
  * STUDIO 等全屏模式必须传此引用（或省略 topBar），不能传「内部为空」的新 lambda。
  */
 val EmptyScaffoldTopBar: @Composable () -> Unit = {}
@@ -110,23 +116,27 @@ fun Scaffold(
     containerColor: Color = RuntimeTheme.colorScheme.background,
     contentColor: Color = RuntimeTheme.colorScheme.onBackground,
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
+    captureBackdrop: Boolean = topBar !== EmptyScaffoldTopBar,
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    // 无顶栏时不建 backdrop：避免空 topBar 上 textureBlur 在部分 GPU 上 RenderThread SIGSEGV，
-    // 也避免聊天等把胶囊画在 layerBackdrop 内容树内再采样自身。
-    val useFrostedTopBar = topBar !== EmptyScaffoldTopBar
-    val backdrop = if (useFrostedTopBar) rememberRuntimeBackdrop() else null
+    val backdrop = if (captureBackdrop) rememberRuntimeBackdrop() else null
     CompositionLocalProvider(
         LocalContentColor provides contentColor,
         LocalRuntimeBackdrop provides backdrop,
+        LocalRuntimeBackdropView provides LocalView.current,
+        LocalRuntimeChromeBackdrop provides null,
     ) {
         top.yukonga.miuix.kmp.basic.Scaffold(
             modifier = modifier,
             topBar = {
-                if (useFrostedTopBar) RuntimeBlurredBar(backdrop) { topBar() } else topBar()
+                CompositionLocalProvider(LocalRuntimeChromeBackdrop provides backdrop, content = topBar)
             },
-            bottomBar = bottomBar,
-            floatingActionButton = floatingActionButton,
+            bottomBar = {
+                CompositionLocalProvider(LocalRuntimeChromeBackdrop provides backdrop, content = bottomBar)
+            },
+            floatingActionButton = {
+                CompositionLocalProvider(LocalRuntimeChromeBackdrop provides backdrop, content = floatingActionButton)
+            },
             snackbarHost = snackbarHost,
             containerColor = containerColor,
             contentWindowInsets = contentWindowInsets,
@@ -158,8 +168,21 @@ fun FloatingActionButton(
     elevation: FloatingActionButtonElevation = FloatingActionButtonDefaults.elevation(),
     content: @Composable () -> Unit,
 ) {
-    // 库默认 FAB 为 60dp；TaiXu 统一压到 IconButton 的 40dp，避免 Material 浮层感。
+    // Keep 40dp controls in floating surfaces and top bars.
     CompositionLocalProvider(LocalContentColor provides contentColor) {
+        if (shape is CornerBasedShape) {
+            GlassFloatingActionButton(
+                onClick = onClick,
+                modifier = modifier,
+                backdrop = LocalRuntimeChromeBackdrop.current,
+                size = 40.dp,
+                shape = GlassShape(shape.topStart, shape.topEnd, shape.bottomEnd, shape.bottomStart),
+                fill = containerColor,
+                shadow = GlassShadows.Float.takeIf { elevation.defaultElevation > 0.dp },
+                content = content,
+            )
+            return@CompositionLocalProvider
+        }
         top.yukonga.miuix.kmp.basic.FloatingActionButton(
             onClick = onClick,
             modifier = modifier.clip(shape),

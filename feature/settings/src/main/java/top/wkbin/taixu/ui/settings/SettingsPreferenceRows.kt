@@ -4,10 +4,7 @@ import top.wkbin.taixu.ui.miuix.RuntimeSpacing
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.LayoutDirection
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Switch
 import androidx.compose.runtime.Composable
@@ -17,8 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.BasicComponent
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.basic.ArrowRight
+import top.wkbin.taixu.ui.components.runtimeIconImageVector
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.wkbin.taixu.ui.components.*
 import top.wkbin.taixu.ui.settings.LocalizedText as Text
@@ -61,13 +57,11 @@ private fun SettingsRowTexts(title: String, subtitle: String?, enabled: Boolean)
 @Composable
 private fun RowScope.SettingsRowArrow(enabled: Boolean) {
     val tint = MiuixTheme.colorScheme.onSurfaceVariantActions
-    val layoutDirection = LocalLayoutDirection.current
     Image(
         modifier = Modifier
             .size(width = 10.dp, height = 16.dp)
-            .graphicsLayer { scaleX = if (layoutDirection == LayoutDirection.Rtl) -1f else 1f }
             .align(Alignment.CenterVertically),
-        imageVector = MiuixIcons.Basic.ArrowRight,
+        imageVector = runtimeIconImageVector(RuntimeIconName.ChevronRight),
         contentDescription = null,
         colorFilter = ColorFilter.tint(if (enabled) tint else MiuixTheme.colorScheme.disabledOnSecondaryVariant),
     )

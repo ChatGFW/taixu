@@ -10,13 +10,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.feature.workspace.R
 import top.wkbin.taixu.ui.components.RuntimeIcon
+import top.wkbin.taixu.ui.components.RuntimeIconMenu
 import top.wkbin.taixu.ui.components.RuntimeIconName
 import top.wkbin.taixu.ui.components.SpotlightAnchor
 import top.wkbin.taixu.ui.components.spotlightAnchor
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.DropdownEntry
 import top.yukonga.miuix.kmp.basic.DropdownItem
-import top.yukonga.miuix.kmp.menu.WindowIconDropdownMenu
 
 @Composable
 internal fun WorkspaceMoreMenu(
@@ -71,7 +71,7 @@ internal fun WorkspaceMoreMenu(
             .spotlightAnchor(moreAnchor)
             .semantics { contentDescription = moreLabel },
     ) {
-        WindowIconDropdownMenu(
+        RuntimeIconMenu(
             entries = menuEntries,
             enabled = enabled,
             content = {

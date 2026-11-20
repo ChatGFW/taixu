@@ -2,27 +2,39 @@ package top.wkbin.taixu.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import top.wkbin.taixu.ui.miuix.RuntimeTheme
-import top.wkbin.taixu.ui.miuix.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-val RuntimeNavigationRailWidth = 80.dp
+import top.wkbin.taixu.ui.miuix.RuntimeTheme
+import top.yukonga.miuix.kmp.glass.GlassIconButton
+import top.yukonga.miuix.kmp.glass.GlassNavigationItem
+import top.yukonga.miuix.kmp.glass.GlassNavigationRail
+import top.yukonga.miuix.kmp.glass.GlassNavigationRailDefaults
+import top.yukonga.miuix.kmp.glass.rememberGlassNavigationRailState
+
+private val RailPanelWidth = 84.dp
+val RuntimeNavigationRailWidth = RailPanelWidth + GlassNavigationRailDefaults.Margin
+
+internal val runtimeRailInsets: WindowInsets
+    @Composable get() = WindowInsets.systemBars.union(WindowInsets.displayCutout)
+        .only(WindowInsetsSides.Vertical + WindowInsetsSides.Start)
 
 data class RuntimeRailItem(
     val label: String,
@@ -31,10 +43,7 @@ data class RuntimeRailItem(
     val onClick: () -> Unit,
 )
 
-/**
- * Icon rail for Medium/Expanded windows. Top items scroll on short (landscape) windows while the
- * footer stays pinned, so no destination becomes unreachable.
- */
+/** Scrollable navigation with a pinned footer. The adaptive shell owns drawer expansion. */
 @Composable
 fun RuntimeNavigationRail(
     header: List<RuntimeRailItem>,
@@ -42,44 +51,50 @@ fun RuntimeNavigationRail(
     footer: List<RuntimeRailItem>,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier.width(RuntimeNavigationRailWidth).fillMaxHeight(),
-        color = RuntimeTheme.colorScheme.surface,
+    val railItems = header + items
+    val colors = RuntimeTheme.colorScheme
+    Column(
+        modifier.fillMaxWidth().fillMaxHeight().windowInsetsPadding(runtimeRailInsets),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        GlassNavigationRail(
+            items = railItems.map { item ->
+                GlassNavigationItem(icon = runtimeIconImageVector(item.icon), contentDescription = item.label)
+            },
+            selectedIndex = railItems.indexOfFirst { it.selected },
+            onSelect = { railItems[it].onClick() },
+            backdrop = null,
+            modifier = Modifier.weight(1f),
+            state = rememberGlassNavigationRailState(initialExpanded = true),
+            showToggle = false,
+            defaultWindowInsetsPadding = false,
+            expandedWidth = RailPanelWidth,
+            selectedColor = colors.primary,
+        )
         Column(
-            Modifier.fillMaxHeight().windowInsetsPadding(
-                WindowInsets.systemBars.union(WindowInsets.displayCutout)
-                    .only(WindowInsetsSides.Vertical + WindowInsetsSides.Start),
-            ),
+            Modifier.padding(start = GlassNavigationRailDefaults.Margin, bottom = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Column(
-                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Spacer(Modifier.height(8.dp))
-                header.forEach { RailItem(it) }
-                Spacer(Modifier.height(12.dp))
-                items.forEach { RailItem(it) }
-            }
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                footer.forEach { RailItem(it) }
-                Spacer(Modifier.height(8.dp))
+            footer.forEach { item ->
+                RuntimeTooltip(text = item.label) {
+                    GlassIconButton(
+                        onClick = item.onClick,
+                        size = 40.dp,
+                        modifier = Modifier.semantics {
+                            role = Role.Tab
+                            contentDescription = item.label
+                            selected = item.selected
+                        },
+                    ) {
+                        RuntimeIcon(
+                            name = item.icon,
+                            modifier = Modifier.size(20.dp),
+                            tint = if (item.selected) colors.primary else colors.onSurface,
+                        )
+                    }
+                }
             }
         }
     }
-}
-
-@Composable
-private fun RailItem(item: RuntimeRailItem) {
-    top.yukonga.miuix.kmp.basic.NavigationRailItem(
-        selected = item.selected,
-        onClick = item.onClick,
-        icon = runtimeIconImageVector(item.icon),
-        label = item.label,
-    )
 }
