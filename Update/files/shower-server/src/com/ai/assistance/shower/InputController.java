@@ -1,0 +1,176 @@
+package com.ai.assistance.shower;
+
+import android.os.SystemClock;
+import android.view.InputEvent;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
+import java.lang.reflect.Method;
+
+final class InputController {
+    private static final int MODE_ASYNC = 0;
+    private static final int MODE_WAIT_FOR_RESULT = 1;
+    /** 普通点击按住时长；过短会被部分应用当成抖动忽略。 */
+    private static final long TAP_HOLD_MS = 50L;
+
+    private final Object inputManager;
+    private final Method injectInputEvent;
+    private final Method setDisplayIdMethod;
+    private int displayId;
+    private volatile Runnable afterInject;
+    /** touchDown/Move/Up 链路共用的 downTime；避免每次抬起都换新的 downTime。 */
+    private long gestureDownTime;
+
+    InputController() {
+        Object manager = null;
+        Method inject = null;
+        // Android 12 及以前：InputManager.getInstance()
+        try {
+            Class<?> cls = Class.forName("android.hardware.input.InputManager");
+            Method getInstance = cls.getDeclaredMethod("getInstance");
+            getInstance.setAccessible(true);
+            manager = getInstance.invoke(null);
+            inject = cls.getDeclaredMethod("injectInputEvent", InputEvent.class, int.class);
+        } catch (Throwable ignored) {
+            // Android 13 起 AOSP 移除了 InputManager.getInstance()，回退到 InputManagerGlobal
+        }
+        if (manager == null || inject == null) {
+            try {
+                Class<?> global = Class.forName("android.hardware.input.InputManagerGlobal");
+                Method getInstance = global.getDeclaredMethod("getInstance");
+                getInstance.setAccessible(true);
+                manager = getInstance.invoke(null);
+                inject = global.getDeclaredMethod("injectInputEvent", InputEvent.class, int.class);
+            } catch (Throwable e) {
+                ServerLog.d("InputController degraded: no injectInputEvent available", e);
+            }
+        }
+        try {
+            inject.setAccessible(true);
+        } catch (Throwable ignored) {
+        }
+        inputManager = manager;
+        injectInputEvent = inject;
+        Method setDisplayId;
+        try {
+            setDisplayId = InputEvent.class.getMethod("setDisplayId", int.class);
+        } catch (NoSuchMethodException e) {
+            setDisplayId = null;
+        }
+        setDisplayIdMethod = setDisplayId;
+    }
+
+    void setDisplayId(int id) {
+        displayId = id;
+        ServerLog.d("InputController.setDisplayId: " + id, null);
+    }
+
+        void setAfterInject(Runnable runnable) {
+        afterInject = runnable;
+    }
+
+    void inject(InputEvent event, int mode) {
+        if (injectInputEvent == null || inputManager == null) return;
+        try {
+            if (setDisplayIdMethod != null && displayId != 0) {
+                setDisplayIdMethod.invoke(event, displayId);
+            }
+            injectInputEvent.invoke(inputManager, event, mode);
+            Runnable hook = afterInject;
+            if (hook != null) {
+                try {
+                    hook.run();
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Exception e) {
+            ServerLog.d("InputController.inject failed: " + e.getMessage(), e);
+        }
+    }
+
+    void key(int keyCode, int metaState) {
+        long now = SystemClock.uptimeMillis();
+        KeyEvent down = new KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0, metaState);
+        down.setSource(257);
+        inject(down, MODE_WAIT_FOR_RESULT);
+        KeyEvent up = new KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0, metaState);
+        up.setSource(257);
+        inject(up, MODE_WAIT_FOR_RESULT);
+    }
+
+    void touch(int action, float x, float y, long downTime, long eventTime,
+               float pressure, float size, int metaState, float xPrecision, float yPrecision,
+               int deviceId, int edgeFlags) {
+        long down = Math.max(0L, downTime);
+        long when = Math.max(down, eventTime);
+        MotionEvent ev = MotionEvent.obtain(
+                down, when, action, x, y, pressure, size, metaState, xPrecision, yPrecision, deviceId, edgeFlags);
+        ev.setSource(4098);
+        inject(ev, MODE_ASYNC);
+        ev.recycle();
+    }
+
+        void injectMotion(MotionEvent event) {
+        if (event == null) return;
+        inject(event, MODE_ASYNC);
+    }
+
+    void tap(float x, float y) {
+        long start = SystemClock.uptimeMillis();
+        // 与 swipe 相同：必须按墙钟推进。只改 eventTime、同毫秒连发 DOWN/UP 时，
+        // 部分应用会吞点击或把触点判成无效手势（对照 twoyi HostDisplay 真实间隔注入）。
+        touch(MotionEvent.ACTION_DOWN, x, y, start, start, 1f, 1f, 0, 1f, 1f, 0, 0);
+        sleepUntil(start + TAP_HOLD_MS);
+        touch(MotionEvent.ACTION_UP, x, y, start, SystemClock.uptimeMillis(), 1f, 1f, 0, 1f, 1f, 0, 0);
+    }
+
+    void touchDown(float x, float y) {
+        long now = SystemClock.uptimeMillis();
+        gestureDownTime = now;
+        touch(MotionEvent.ACTION_DOWN, x, y, now, now, 1f, 1f, 0, 1f, 1f, 0, 0);
+    }
+
+    void touchMove(float x, float y) {
+        long down = gestureDownTime > 0L ? gestureDownTime : SystemClock.uptimeMillis();
+        long now = SystemClock.uptimeMillis();
+        touch(MotionEvent.ACTION_MOVE, x, y, down, now, 1f, 1f, 0, 1f, 1f, 0, 0);
+    }
+
+    void touchUp(float x, float y) {
+        long down = gestureDownTime > 0L ? gestureDownTime : SystemClock.uptimeMillis();
+        long now = SystemClock.uptimeMillis();
+        gestureDownTime = 0L;
+        touch(MotionEvent.ACTION_UP, x, y, down, now, 1f, 1f, 0, 1f, 1f, 0, 0);
+    }
+
+    void swipe(float x1, float y1, float x2, float y2, long durationMs) {
+        long start = SystemClock.uptimeMillis();
+        long dur = Math.max(1L, durationMs);
+        // 必须按真实墙钟推进：只改 eventTime 而不 sleep 时，长按/滑动会在几毫秒内抬起。
+        touch(MotionEvent.ACTION_DOWN, x1, y1, start, start, 1f, 1f, 0, 1f, 1f, 0, 0);
+        int steps = Math.max(2, (int) Math.min(60L, Math.max(8L, dur / 16L)));
+        for (int i = 1; i < steps; i++) {
+            float t = i / (float) steps;
+            long target = start + (long) (dur * t);
+            sleepUntil(target);
+            long now = SystemClock.uptimeMillis();
+            touch(MotionEvent.ACTION_MOVE,
+                    x1 + (x2 - x1) * t, y1 + (y2 - y1) * t,
+                    start, now, 1f, 1f, 0, 1f, 1f, 0, 0);
+        }
+        sleepUntil(start + dur);
+        touch(MotionEvent.ACTION_UP, x2, y2, start, SystemClock.uptimeMillis(), 1f, 1f, 0, 1f, 1f, 0, 0);
+    }
+
+    private static void sleepUntil(long uptimeDeadlineMs) {
+        while (true) {
+            long remain = uptimeDeadlineMs - SystemClock.uptimeMillis();
+            if (remain <= 0L) return;
+            try {
+                Thread.sleep(Math.min(remain, 50L));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+}

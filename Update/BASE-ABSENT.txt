@@ -1,0 +1,6 @@
+feature/developer/src/main/java/top/wkbin/taixu/ui/developer/RootfsUpdateDialog.kt
+runtime/src/main/java/top/wkbin/taixu/runtime/RegistryRoutePolicy.kt
+scripts/test-sdk-candidates.py
+shower-server/build.sh
+app/src/main/assets/scripts/taixu_env_heal.sh
+runtime/src/main/java/top/wkbin/taixu/runtime/scripts/EnvironmentSelfHeal.kt

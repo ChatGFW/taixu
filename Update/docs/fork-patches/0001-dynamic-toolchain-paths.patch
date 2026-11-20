@@ -1,0 +1,2385 @@
+diff --git a/app/src/main/assets/scripts/build_android.sh b/app/src/main/assets/scripts/build_android.sh
+index 7b20e6c2..c0cd5fab 100644
+--- a/app/src/main/assets/scripts/build_android.sh
++++ b/app/src/main/assets/scripts/build_android.sh
+@@ -10,7 +10,12 @@ set -e
+ 
+ PROJECT_PATH="${1:-.}"
+ TASK="${2:-assembleDebug}"
+-GRADLE_VER="8.14.2"
++# Gradle 兜底版本按本机实际安装取最高，不写死版本号
++GRADLE_VER=$(ls -d /opt/gradle-[0-9]* 2>/dev/null \
++    | sed 's|^/opt/gradle-||' \
++    | grep -E '^[0-9]+(\.[0-9]+)+$' \
++    | sort -t. -k1,1n -k2,2n -k3,3n \
++    | tail -n 1)
+ 
+ echo "==> [TaiXu Build Engine] 启动 Android 项目编译..."
+ echo "==> [TaiXu Build] 项目路径: $PROJECT_PATH"
+@@ -73,15 +78,19 @@ export TAIXU_TOOL_DIR="${TAIXU_TOOL_DIR:-/opt/taixu/tools}"
+ 
+ # The local offline suite is authoritative when present. A distro package may
+ # leave an x86_64 Java earlier on PATH, which is unusable in the ARM64 PRoot.
+-if [ -z "${JAVA_HOME:-}" ] && [ -x /opt/taixu/toolchains/android/jdk/bin/java ]; then
+-    JAVA_HOME=/opt/taixu/toolchains/android/jdk
++if [ -z "${JAVA_HOME:-}" ] && [ -x /opt/taixu/tools/android/jdk/bin/java ]; then
++    JAVA_HOME=/opt/taixu/tools/android/jdk
+ fi
+ 
+ # AGP's default Maven artifact is a Linux x86_64 executable.  When the
+ # android-core plugin installed the ARM64 tool bundle, pass the real aapt2
+ # executable explicitly so AGP never tries to start the incompatible daemon.
+-AAPT2_OVERRIDE="${TAIXU_AAPT2_PATH:-$ANDROID_HOME/build-tools/35.0.0/aapt2}"
+-NDK_PATH="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}}"
++# build-tools 同样不写死：取本机实际安装的最高稳定版
++_tx_bt_dir=$(for _tx_candidate in "$ANDROID_HOME"/build-tools/[0-9]*; do [ -f "$_tx_candidate/source.properties" ] && [ -f "$_tx_candidate/lib/d8.jar" ] && { [ -n "${TAIXU_AAPT2_PATH:-}" ] || [ -x "$_tx_candidate/aapt2" ]; } && printf '%s\n' "$_tx_candidate"; done \
++    | grep -Eiv 'rc|beta|alpha|preview|snapshot' \
++    | sort -V | tail -n 1)
++AAPT2_OVERRIDE="${TAIXU_AAPT2_PATH:-${_tx_bt_dir:-$ANDROID_HOME/build-tools}/aapt2}"
++NDK_PATH="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/tools/ndk}}"
+ 
+ # 非登录 shell 可能没有继承插件写入的 profile；变量为空时从标准 JDK
+ # 目录和 PATH 重新解析，避免环境变量漂移阻断构建。
+@@ -142,9 +151,14 @@ echo "==> [TaiXu Build] Java 执行文件: $JAVA_EXEC"
+ echo "==> [TaiXu Build] JAVA_HOME: $JAVA_HOME"
+ echo "==> [TaiXu Build] ANDROID_HOME: $ANDROID_HOME"
+ 
+-# AGP 8.11.1 requires SDK Build Tools 35.0.0. Fail before Gradle starts slow
++# Fail before Gradle starts slow remote SDK probes when build-tools is absent.
+ # remote SDK probes, which hide the actionable error in restricted networks.
+-REQUIRED_BUILD_TOOLS="35.0.0"
++REQUIRED_BUILD_TOOLS="${_tx_bt_dir##*/}"
++if [ -z "$REQUIRED_BUILD_TOOLS" ]; then
++    echo "==> [TaiXu Build] ❌ 未检测到可用的 Android Build-Tools"
++    echo "==> [TaiXu Build] 请在插件中心重新装配【Android 核心基础环境】后再构建"
++    exit 2
++fi
+ if [ ! -f "$ANDROID_HOME/build-tools/$REQUIRED_BUILD_TOOLS/source.properties" ] || \
+    [ ! -f "$ANDROID_HOME/build-tools/$REQUIRED_BUILD_TOOLS/lib/d8.jar" ]; then
+     echo "==> [TaiXu Build] ❌ 缺少 Android Build-Tools $REQUIRED_BUILD_TOOLS"
+@@ -152,7 +166,7 @@ if [ ! -f "$ANDROID_HOME/build-tools/$REQUIRED_BUILD_TOOLS/source.properties" ]
+     exit 2
+ fi
+ case "$AAPT2_OVERRIDE" in
+-    /opt/android-sdk/build-tools/35.0.0/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/*/build-tools/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/homu-*/android-sdk/build-tools/*/aapt2) ;;
++    "$ANDROID_HOME"/build-tools/*/aapt2|/opt/android-sdk/build-tools/*/aapt2|/opt/taixu/tools/android/sdk-tools/artifacts/*/build-tools/aapt2|/opt/taixu/tools/android/sdk-tools/artifacts/*/build-tools/aapt2|/opt/taixu/tools/android/sdk-tools/artifacts/homu-*/android-sdk/build-tools/*/aapt2) ;;
+     *)
+         echo "==> [TaiXu Build] ❌ AAPT2 未指向不可变 ARM64 制品目录"
+         exit 2
+@@ -251,13 +265,13 @@ if [ -d "$GRADLE_HOME/lib" ]; then
+         $JAVA_RUNTIME_OPTS \
+         -classpath "$GRADLE_HOME/lib/*" \
+         org.gradle.launcher.GradleMain $TASK $EXTRA_ARGS
+-elif [ -d /opt/gradle-8.7/lib ]; then
+-    echo "==> [TaiXu Build] 调度官方独立完整版 Gradle 8.7 执行构建..."
++elif [ -n "$GRADLE_VER" ] && [ -d "/opt/gradle-$GRADLE_VER/lib" ]; then
++    echo "==> [TaiXu Build] 调度本机 Gradle $GRADLE_VER 执行构建..."
+     exec "$JAVA_EXEC" $GRADLE_JVM_MEMORY_OPTS \
+         -Dorg.gradle.appname=gradle \
+-        -Dorg.gradle.installation.dir=/opt/gradle-8.7 \
++        -Dorg.gradle.installation.dir="/opt/gradle-$GRADLE_VER" \
+         $JAVA_RUNTIME_OPTS \
+-        -classpath "/opt/gradle-8.7/lib/*" \
++        -classpath "/opt/gradle-$GRADLE_VER/lib/*" \
+         org.gradle.launcher.GradleMain $TASK $EXTRA_ARGS
+ elif [ -x "$GRADLE_HOME/bin/gradle" ]; then
+     echo "==> [TaiXu Build] 调度 $GRADLE_HOME/bin/gradle 执行构建..."
+diff --git a/app/src/main/assets/scripts/build_flutter.sh b/app/src/main/assets/scripts/build_flutter.sh
+index b35890e3..76cb6c1b 100644
+--- a/app/src/main/assets/scripts/build_flutter.sh
++++ b/app/src/main/assets/scripts/build_flutter.sh
+@@ -7,7 +7,12 @@ set -e
+ 
+ PROJECT_PATH="${1:-.}"
+ TARGET="${2:-apk --debug}"
+-GRADLE_VER="8.14.2"
++# Gradle 兜底版本按本机实际安装取最高，不写死版本号
++GRADLE_VER=$(ls -d /opt/gradle-[0-9]* 2>/dev/null \
++    | sed 's|^/opt/gradle-||' \
++    | grep -E '^[0-9]+(\.[0-9]+)+$' \
++    | sort -t. -k1,1n -k2,2n -k3,3n \
++    | tail -n 1)
+ 
+ echo "==> [TaiXu Build Engine] 启动 Flutter 项目跨端编译..."
+ echo "==> [TaiXu Build] 项目路径: $PROJECT_PATH"
+@@ -60,7 +65,7 @@ export ANDROID_SDK_ROOT="$ANDROID_HOME"
+ export PUB_HOSTED_URL="https://pub.flutter-io.cn"
+ export FLUTTER_STORAGE_BASE_URL="https://storage.flutter-io.cn"
+ export PUB_CACHE="${PUB_CACHE:-/opt/taixu/cache/flutter-pub}"
+-NDK_PATH="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}}"
++NDK_PATH="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/tools/ndk}}"
+ LLVM_STRIP=$(find "$NDK_PATH/toolchains/llvm/prebuilt" \( -type f -o -type l \) -name llvm-strip -print -quit 2>/dev/null)
+ NDK_CLANG=$(find "$NDK_PATH/toolchains/llvm/prebuilt" \( -type f -o -type l \) -name clang -print -quit 2>/dev/null)
+ if [ -z "$NDK_PATH" ] || [ ! -f "$NDK_PATH/source.properties" ] || \
+@@ -84,7 +89,7 @@ echo "==> [TaiXu Build] 固定 ARM64 NDK: $NDK_PATH"
+ # Java 启动器防回环守卫（与 build_android.sh 同一规则）：Flutter 的 Gradle
+ # 宿主构建最终经 JAVA_HOME 启动 JVM。包装脚本回环在 PRoot 下是零输出、
+ # CPU 满载的死循环，必须在 JVM 启动前拒绝。
+-JAVA_GUARD="${JAVA_HOME:-/opt/taixu/toolchains/android/jdk}/bin/java"
++JAVA_GUARD="${JAVA_HOME:-/opt/taixu/tools/android/jdk}/bin/java"
+ if [ -e "$JAVA_GUARD" ]; then
+     JAVA_GUARD_REAL=$(readlink -f "$JAVA_GUARD" 2>/dev/null || echo "$JAVA_GUARD")
+     JAVA_GUARD_MAGIC=$(od -An -t x1 -N 4 "$JAVA_GUARD_REAL" 2>/dev/null | tr -d '[:space:]')
+@@ -143,7 +148,7 @@ taixu_align_build_versions() {
+     }
+ 
+     # --- NDK 版本对齐 ---
+-    ndk_home="${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}"
++    ndk_home="${ANDROID_NDK_HOME:-/opt/taixu/tools/ndk}"
+     if [ -f "$ndk_home/source.properties" ]; then
+         actual_ndk=$(sed -n 's/^[[:space:]]*Pkg\.Revision[[:space:]]*=[[:space:]]*//p' "$ndk_home/source.properties" | head -n1 | tr -d '[:space:]')
+         if [ -n "$actual_ndk" ]; then
+@@ -203,7 +208,7 @@ fi
+ # 常驻 /opt/taixu/bin/unzip（PATH 首位），避免 "Missing unzip tool" 中断。
+ if ! command -v unzip >/dev/null 2>&1; then
+     JAR_BIN=""
+-    for candidate in "${JAVA_HOME:-/opt/taixu/toolchains/android/jdk}/bin/jar" /opt/taixu/toolchains/android/jdk/bin/jar /usr/bin/jar /usr/lib/jvm/default-java/bin/jar; do
++    for candidate in "${JAVA_HOME:-/opt/taixu/tools/android/jdk}/bin/jar" /opt/taixu/tools/android/jdk/bin/jar /usr/bin/jar /usr/lib/jvm/default-java/bin/jar; do
+         if [ -x "$candidate" ]; then JAR_BIN="$candidate"; break; fi
+     done
+     if [ -n "$JAR_BIN" ]; then
+@@ -258,12 +263,19 @@ if [ ! -f "$ANDROID_HOME/licenses/android-sdk-license" ]; then
+         > "$ANDROID_HOME/licenses/android-sdk-license"
+ fi
+ 
+-if [ ! -f "${ANDROID_HOME}/platforms/android-34/android.jar" ]; then
+-    echo "==> [TaiXu Build] ❌ 缺少 Android SDK Platform 34，请同时安装 Android 核心基础环境"
++# Platform 与 Build-Tools 均按本机实际安装取最高，不写死版本号
++_tx_platform=$(for _tx_candidate in "${ANDROID_HOME}"/platforms/android-[0-9]*; do [ -f "$_tx_candidate/android.jar" ] && printf '%s\n' "$_tx_candidate"; done \
++    | grep -Eiv 'rc|beta|alpha|preview|snapshot' \
++    | sort -V | tail -n 1)
++if [ -z "$_tx_platform" ] || [ ! -f "$_tx_platform/android.jar" ]; then
++    echo "==> [TaiXu Build] ❌ 缺少 Android SDK Platform，请同时安装 Android 核心基础环境"
+     exit 126
+ fi
+-if [ ! -f "${ANDROID_HOME}/build-tools/35.0.0/lib/d8.jar" ]; then
+-    echo "==> [TaiXu Build] ❌ 缺少 Android Build-Tools 35.0.0，请重新装配 Android 核心基础环境"
++_tx_bt_dir=$(for _tx_candidate in "${ANDROID_HOME}"/build-tools/[0-9]*; do [ -f "$_tx_candidate/source.properties" ] && [ -f "$_tx_candidate/lib/d8.jar" ] && { [ -n "${TAIXU_AAPT2_PATH:-}" ] || [ -x "$_tx_candidate/aapt2" ]; } && printf '%s\n' "$_tx_candidate"; done \
++    | grep -Eiv 'rc|beta|alpha|preview|snapshot' \
++    | sort -V | tail -n 1)
++if [ -z "$_tx_bt_dir" ] || [ ! -f "$_tx_bt_dir/lib/d8.jar" ]; then
++    echo "==> [TaiXu Build] ❌ 缺少 Android Build-Tools（d8.jar），请重新装配 Android 核心基础环境"
+     exit 126
+ fi
+ 
+@@ -314,9 +326,9 @@ if [ -f "$FLUTTER_HOME/bin/flutter" ]; then
+     mv -f "$LOCAL_PROPERTIES_TMP" "$LOCAL_PROPERTIES"
+     echo "==> [TaiXu Build] 绑定 ANDROID_HOME/Flutter SDK: $ANDROID_HOME / $FLUTTER_HOME"
+ fi
+-AAPT2_PATH="${TAIXU_AAPT2_PATH:-$ANDROID_HOME/build-tools/35.0.0/aapt2}"
++AAPT2_PATH="${TAIXU_AAPT2_PATH:-${_tx_bt_dir:-$ANDROID_HOME/build-tools}/aapt2}"
+ case "$AAPT2_PATH" in
+-    /opt/android-sdk/build-tools/35.0.0/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/*/build-tools/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/homu-*/android-sdk/build-tools/*/aapt2) ;;
++    "$ANDROID_HOME"/build-tools/*/aapt2|/opt/android-sdk/build-tools/*/aapt2|/opt/taixu/tools/android/sdk-tools/artifacts/*/build-tools/aapt2|/opt/taixu/tools/android/sdk-tools/artifacts/*/build-tools/aapt2|/opt/taixu/tools/android/sdk-tools/artifacts/homu-*/android-sdk/build-tools/*/aapt2) ;;
+     *)
+         echo "==> [TaiXu Build] ❌ AAPT2 未指向不可变 ARM64 制品目录"
+         exit 126
+@@ -365,25 +377,24 @@ else
+     flutter pub get --verbose
+ fi
+ 
+-# 3. 确保 Android 宿主使用本地 Gradle 8.14.2 + 国内镜像，避免 Wrapper 从 services.gradle.org
++# 3. 确保 Android 宿主使用本机 Gradle + 国内镜像，避免 Wrapper 从 services.gradle.org
+ #    下载发行版（国内网络易被重置，报 SocketException: connection abort）。
+ mkdir -p android/gradle/wrapper
+-cat > android/gradle/wrapper/gradle-wrapper.properties <<'EOF'
+-distributionBase=GRADLE_USER_HOME
+-distributionPath=wrapper/dists
+-distributionUrl=https\://mirrors.cloud.tencent.com/gradle/gradle-8.14.2-bin.zip
+-zipStoreBase=GRADLE_USER_HOME
+-zipStorePath=wrapper/dists
+-EOF
++if [ -n "$GRADLE_VER" ]; then
++    printf 'distributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\ndistributionUrl=https\\://mirrors.cloud.tencent.com/gradle/gradle-%s-bin.zip\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists\n' \
++        "$GRADLE_VER" > android/gradle/wrapper/gradle-wrapper.properties
++else
++    echo "==> [TaiXu Build] ⚠ 未检测到本机 Gradle，保留项目自带 wrapper 配置"
++fi
+ cat > android/gradlew <<'EOF'
+ #!/bin/sh
+-# 优先复用插件装配期已装好的本地 Gradle 8.14.2，避免 Wrapper 重新下载发行版。
++# 优先复用本机已装好的 Gradle，避免 Wrapper 重新下载发行版。
+ DIR="$(cd "$(dirname "$0")" && pwd)"
+ set -- "$@" "-Pandroid.aapt2FromMavenOverride=$TAIXU_AAPT2_PATH"
+ if [ -x "$GRADLE_HOME/bin/gradle" ]; then
+     exec "$GRADLE_HOME/bin/gradle" "$@"
+-elif [ -x /opt/gradle-8.7/bin/gradle ]; then
+-    exec /opt/gradle-8.7/bin/gradle "$@"
++elif _tx_g=$(ls -d /opt/gradle-[0-9]* 2>/dev/null | sed 's|^/opt/gradle-||' | grep -E '^[0-9]+(\.[0-9]+)+$' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1) && [ -n "$_tx_g" ] && [ -x "/opt/gradle-$_tx_g/bin/gradle" ]; then
++    exec "/opt/gradle-$_tx_g/bin/gradle" "$@"
+ elif [ -f "$DIR/gradle/wrapper/gradle-wrapper.jar" ]; then
+     exec java -jar "$DIR/gradle/wrapper/gradle-wrapper.jar" "$@"
+ elif [ -x /usr/local/bin/gradle ]; then
+diff --git a/app/src/main/assets/scripts/setup_android_core.sh b/app/src/main/assets/scripts/setup_android_core.sh
+index 57d3683a..edc70834 100644
+--- a/app/src/main/assets/scripts/setup_android_core.sh
++++ b/app/src/main/assets/scripts/setup_android_core.sh
+@@ -28,7 +28,7 @@ https://gh.llkk.cc/${ARM64_TOOLS_URL}
+ https://gh-proxy.com/${ARM64_TOOLS_URL}
+ ${ARM64_TOOLS_URL}
+ "
+-ARM64_TOOLS_DIR="/opt/taixu/toolchains/android/sdk-tools/artifacts/${ARM64_TOOLS_ARTIFACT_ID}"
++ARM64_TOOLS_DIR="/opt/taixu/tools/android/sdk-tools/artifacts/${ARM64_TOOLS_ARTIFACT_ID}"
+ AAPT2_STABLE_PATH="/opt/taixu/android-sdk-tools/aapt2"
+ TOOLCHAIN_LOCK_FILE="/opt/taixu/locks/android-toolchain.lock"
+ 
+@@ -76,15 +76,15 @@ if [ -x "$JAVA_HOME_RESOLVED/bin/java" ] && [ ! -x /usr/bin/java ]; then
+ fi
+ 
+ # 工坊签名管理器（WorkshopSigningManager）与离线套件统一使用
+-# /opt/taixu/toolchains/android/jdk 作为 JAVA_HOME 规范路径。在线安装的
++# /opt/taixu/tools/android/jdk 作为 JAVA_HOME 规范路径。在线安装的
+ # apt JDK 位于 /usr/lib/jvm/*，这里补一个规范路径软链接，保证 keytool
+ # 在在线/离线两条安装路径下都从默认路径可达。若离线插件已部署 JDK 真身
+ # 目录（非软链接），保留不动。
+-TOOLCHAIN_JDK_LINK="/opt/taixu/toolchains/android/jdk"
++TOOLCHAIN_JDK_LINK="/opt/taixu/tools/android/jdk"
+ if [ -d "$TOOLCHAIN_JDK_LINK" ] && [ ! -L "$TOOLCHAIN_JDK_LINK" ]; then
+     echo "==> [TaiXu] 检测到离线套件 JDK 真身，跳过规范路径链接"
+ else
+-    mkdir -p /opt/taixu/toolchains/android /opt/taixu/bin 2>/dev/null || true
++    mkdir -p /opt/taixu/tools/android /opt/taixu/bin 2>/dev/null || true
+     ln -sfn "$JAVA_HOME_RESOLVED" "$TOOLCHAIN_JDK_LINK"
+     # keytool / jarsigner 进 /opt/taixu/bin（PATH 首位），终端可直接调用。
+     for jdk_cmd in keytool jarsigner; do
+@@ -195,7 +195,7 @@ fi
+ # ------------------------------------------------------------------------------
+ # 步骤 3：部署 Android SDK 平台包 (android-34)
+ # ------------------------------------------------------------------------------
+-if [ ! -f "$SDK_HOME/platforms/android-34/android.jar" ]; then
++if ! ls -d "$SDK_HOME"/platforms/android-[0-9]* >/dev/null 2>&1; then
+     echo "==> [TaiXu] 正在从国内镜像拉取 Android 34 平台包 (android.jar, ~60MB)..."
+     rm -rf /tmp/"$PLATFORM_ZIP" /tmp/android-platform-staging 2>/dev/null || true
+     (curl -fsSL -m 300 "https://mirrors.cloud.tencent.com/AndroidSDK/$PLATFORM_ZIP" -o /tmp/"$PLATFORM_ZIP" 2>/dev/null || \
+@@ -271,6 +271,7 @@ if [ ! -f "$BUILD_TOOLS_DIR/lib/d8.jar" ]; then
+     fi
+ fi
+ mkdir -p "$BUILD_TOOLS_DIR"
++ln -sfn "$BUILD_TOOLS_VERSION" "$SDK_HOME/build-tools/0-current"
+ if [ ! -f "$BUILD_TOOLS_DIR/source.properties" ]; then
+     cat > "$BUILD_TOOLS_DIR/source.properties" << EOF
+ Pkg.Desc=Android SDK Build-Tools 35
+@@ -378,7 +379,7 @@ fi
+ # Install the pinned Linux AArch64 NDK while the same exclusive toolchain lock
+ # is held. This prevents AGP from observing a half-installed SDK/NDK view.
+ /bin/sh /opt/taixu/scripts/setup_termux_ndk.sh
+-. /opt/taixu/toolchains/android/ndk/taixu-ndk.env
++. /opt/taixu/tools/ndk/taixu-ndk.env
+ 
+ # Remove only TaiXu's legacy project-level AAPT2 overrides. Formal injection is
+ # now user-scoped and points at the immutable digest path, so projects cannot
+@@ -543,10 +544,10 @@ echo "==> [TaiXu] 装配自检:"
+ 
+ [ -x "$JAVA_HOME_RESOLVED/bin/java" ] && echo "    [OK] Java 运行时" || { echo "    [MISS] Java 运行时"; exit 1; }
+ # 工坊签名（创建/导入 keystore）依赖规范路径下的 keytool，缺失时签名功能不可用。
+-[ -x /opt/taixu/toolchains/android/jdk/bin/keytool ] && echo "    [OK] keytool 签名工具链 (规范路径)" || { echo "    [MISS] keytool 签名工具链"; exit 1; }
++[ -x /opt/taixu/tools/android/jdk/bin/keytool ] && echo "    [OK] keytool 签名工具链 (规范路径)" || { echo "    [MISS] keytool 签名工具链"; exit 1; }
+ [ -s "$SECURITY_CONF_DIR/java.security" ] && [ -f "$SECURITY_CONF_DIR/policy/unlimited/default_local.policy" ] && echo "    [OK] java.security + crypto policy" || { echo "    [MISS] java.security / crypto policy"; exit 1; }
+ [ -s "$SECURITY_DIR/cacerts" ] && "$JAVA_HOME_RESOLVED/bin/keytool" -list -keystore "$SECURITY_DIR/cacerts" -storetype PKCS12 -storepass changeit >/dev/null 2>&1 && echo "    [OK] Java cacerts (PKCS12)" || { echo "    [MISS] Java cacerts"; exit 1; }
+-[ -f "$SDK_HOME/platforms/android-34/android.jar" ] && echo "    [OK] Android Platform 34" || { echo "    [MISS] Android 平台包"; exit 1; }
++ls -d "$SDK_HOME"/platforms/android-[0-9]* >/dev/null 2>&1 && echo "    [OK] Android Platform (已安装版本见 platforms/)" || { echo "    [MISS] Android 平台包"; exit 1; }
+ [ -s "$SDK_HOME/licenses/android-sdk-license" ] && echo "    [OK] Android SDK licenses" || { echo "    [MISS] Android SDK licenses"; exit 1; }
+ [ -f "$BUILD_TOOLS_DIR/source.properties" ] && [ -f "$BUILD_TOOLS_DIR/lib/d8.jar" ] && echo "    [OK] Build-Tools $BUILD_TOOLS_VERSION (Java d8/r8 + ARM64 native tools)" || { echo "    [MISS] Build-Tools $BUILD_TOOLS_VERSION"; exit 1; }
+ [ -f "$TAIXU_NDK_PATH/source.properties" ] && [ -x "$TAIXU_NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" ] && echo "    [OK] lzhiyong ARM64 NDK $TAIXU_NDK_VERSION" || { echo "    [MISS] 固定 ARM64 NDK"; exit 1; }
+diff --git a/app/src/main/assets/scripts/setup_flutter.sh b/app/src/main/assets/scripts/setup_flutter.sh
+index 287b96f7..06921b19 100644
+--- a/app/src/main/assets/scripts/setup_flutter.sh
++++ b/app/src/main/assets/scripts/setup_flutter.sh
+@@ -28,8 +28,8 @@ mkdir -p /opt/flutter /usr/local/bin /usr/bin 2>/dev/null || true
+ # native ARM64 archive marker so an older x86_64 installation is replaced.
+ FLUTTER_ARM64_MARKER=/opt/flutter/.taixu-arm64
+ 
+-if [ ! -f "${ANDROID_HOME:-/opt/android-sdk}/platforms/android-34/android.jar" ]; then
+-    echo "!! [TaiXu] Flutter APK 构建依赖 Android 核心基础环境 (Platform 34)，请先安装 android-core"
++if ! ls -d "${ANDROID_HOME:-/opt/android-sdk}"/platforms/android-[0-9]* >/dev/null 2>&1; then
++    echo "!! [TaiXu] Flutter APK 构建依赖 Android 核心基础环境（Android Platform），请先安装 android-core"
+ fi
+ 
+ # 1. 下载 Flutter SDK 压缩包（HTTP Range 分片 + 断点续传）
+diff --git a/app/src/main/assets/scripts/setup_rust.sh b/app/src/main/assets/scripts/setup_rust.sh
+index 8f00d46a..0a95835d 100644
+--- a/app/src/main/assets/scripts/setup_rust.sh
++++ b/app/src/main/assets/scripts/setup_rust.sh
+@@ -7,7 +7,7 @@ set -e
+ 
+ echo "==> [TaiXu] 正在初始化 Rust & Android JNI 交叉编译开发环境..."
+ 
+-RUST_HOME="/opt/taixu/toolchains/rust"
++RUST_HOME="/opt/taixu/tools/rust"
+ mkdir -p "$RUST_HOME" /usr/local/bin /usr/bin /tmp /root/.cargo 2>/dev/null || true
+ 
+ RUST_VERSION="1.85.0"
+@@ -76,8 +76,8 @@ fi
+ # 配置 Cargo 镜像源与 Android NDK Linker
+ cat << 'EOF' > /root/.cargo/config.toml
+ [target.aarch64-linux-android]
+-linker = "/opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
+-ar = "/opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
++linker = "/opt/taixu/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
++ar = "/opt/taixu/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+ 
+ [source.crates-io]
+ replace-with = 'tuna'
+@@ -100,9 +100,9 @@ done
+ mkdir -p /etc/profile.d
+ cat << 'EOF' > /etc/profile.d/taixu-rust.sh
+ # TaiXu Rust development environment
+-export RUSTUP_HOME="/opt/taixu/toolchains/rust"
++export RUSTUP_HOME="/opt/taixu/tools/rust"
+ export CARGO_HOME="/root/.cargo"
+-export PATH="/opt/taixu/toolchains/rust/bin:/opt/taixu/bin:$PATH"
++export PATH="/opt/taixu/tools/rust/bin:/opt/taixu/bin:$PATH"
+ EOF
+ chmod 644 /etc/profile.d/taixu-rust.sh 2>/dev/null || true
+ 
+diff --git a/app/src/main/assets/scripts/setup_termux_ndk.sh b/app/src/main/assets/scripts/setup_termux_ndk.sh
+index 0c0e270d..8c800603 100644
+--- a/app/src/main/assets/scripts/setup_termux_ndk.sh
++++ b/app/src/main/assets/scripts/setup_termux_ndk.sh
+@@ -22,7 +22,7 @@ https://gh-proxy.com/${NDK_UPSTREAM_URL}
+ ${NDK_UPSTREAM_URL}
+ "
+ 
+-TOOLCHAIN_ROOT="/opt/taixu/toolchains/android"
++TOOLCHAIN_ROOT="/opt/taixu/tools/android"
+ NDK_ARTIFACT_DIR="$TOOLCHAIN_ROOT/ndk/artifacts/$NDK_SHA256"
+ NDK_PATH="$NDK_ARTIFACT_DIR/ndk"
+ NDK_ENV_FILE="$TOOLCHAIN_ROOT/ndk/taixu-ndk.env"
+diff --git a/app/src/main/assets/scripts/taixu-android-ndk.gradle b/app/src/main/assets/scripts/taixu-android-ndk.gradle
+index db3cd91b..c8fb8c4c 100644
+--- a/app/src/main/assets/scripts/taixu-android-ndk.gradle
++++ b/app/src/main/assets/scripts/taixu-android-ndk.gradle
+@@ -2,7 +2,7 @@
+ // the standard local offline-suite path.
+ def taixuNdkPath = System.getenv('TAIXU_NDK_PATH') ?:
+     System.getenv('ANDROID_NDK_HOME') ?:
+-    '/opt/taixu/toolchains/android/ndk'
++    '/opt/taixu/tools/ndk'
+ def taixuNdkProperties = new Properties()
+ def taixuNdkSourceProperties = new File(taixuNdkPath, 'source.properties')
+ if (taixuNdkSourceProperties.isFile()) {
+diff --git a/app/src/main/assets/scripts/taixu-build-analyze.sh b/app/src/main/assets/scripts/taixu-build-analyze.sh
+index aac27eb1..685c80d0 100644
+--- a/app/src/main/assets/scripts/taixu-build-analyze.sh
++++ b/app/src/main/assets/scripts/taixu-build-analyze.sh
+@@ -34,7 +34,7 @@ if grep -RhsEiq 'abiFilters[^\n]*(x86_64|x86|armeabi-v7a)' "$project"/*.gradle "
+     echo "ERROR non_arm64_abi=declared expected=arm64-v8a-only action=align_abi_filters"; errors=1
+ else echo "OK x86_abi=absent"; fi
+ 
+-ndk_home="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}}"
++ndk_home="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/tools/ndk}}"
+ expected_ndk=$(sed -n 's/^[[:space:]]*Pkg\.Revision[[:space:]]*=[[:space:]]*//p' "$ndk_home/source.properties" 2>/dev/null | head -n 1 || true)
+ test -n "$expected_ndk" || expected_ndk=unknown
+ declared_ndk=$(grep -RhsE 'ndkVersion[^0-9]*[0-9]+(\.[0-9]+)+' "$project"/*.gradle "$project"/*.gradle.kts "$project"/app/*.gradle "$project"/app/*.gradle.kts "$project"/android/app/*.gradle "$project"/android/app/*.gradle.kts 2>/dev/null | sed -n 's/.*ndkVersion[^0-9]*\([0-9][0-9.]*\).*/\1/p' | head -n 1 || true)
+diff --git a/app/src/main/assets/scripts/taixu-build.sh b/app/src/main/assets/scripts/taixu-build.sh
+index b5f5e0c5..27e2edf1 100644
+--- a/app/src/main/assets/scripts/taixu-build.sh
++++ b/app/src/main/assets/scripts/taixu-build.sh
+@@ -28,14 +28,21 @@ test -z "$workshop_ninja_home" || TAIXU_NINJA_HOME="$workshop_ninja_home"
+ test -z "$workshop_gradle_user_home" || GRADLE_USER_HOME="$workshop_gradle_user_home"
+ test -z "$workshop_pub_cache" || PUB_CACHE="$workshop_pub_cache"
+ test -z "$workshop_tool_dir" || TAIXU_TOOL_DIR="$workshop_tool_dir"
+-if test -z "${JAVA_HOME:-}" && test -x /opt/taixu/toolchains/android/jdk/bin/java; then
+-    JAVA_HOME=/opt/taixu/toolchains/android/jdk
++if test -z "${JAVA_HOME:-}" && test -x /opt/taixu/tools/android/jdk/bin/java; then
++    JAVA_HOME=/opt/taixu/tools/android/jdk
+ elif test -z "${JAVA_HOME:-}"; then
+     JAVA_HOME=/usr/lib/jvm/java-17-openjdk-arm64
+ fi
+ ANDROID_HOME="${ANDROID_HOME:-/opt/android-sdk}"
+ ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+-GRADLE_HOME="${GRADLE_HOME:-/opt/gradle-8.14.2}"
++if [ -z "${GRADLE_HOME:-}" ]; then
++    _tx_gv=$(ls -d /opt/gradle-[0-9]* 2>/dev/null \
++        | sed 's|^/opt/gradle-||' \
++        | grep -E '^[0-9]+(\.[0-9]+)+$' \
++        | sort -t. -k1,1n -k2,2n -k3,3n \
++        | tail -n 1)
++    [ -n "$_tx_gv" ] && GRADLE_HOME="/opt/gradle-$_tx_gv"
++fi
+ FLUTTER_HOME="${FLUTTER_HOME:-/opt/flutter}"
+ if [ -z "${TAIXU_CMAKE_HOME:-}" ] || [ ! -x "$TAIXU_CMAKE_HOME/bin/cmake" ]; then
+     if [ -x /opt/taixu/tools/android-ndk/cmake/bin/cmake ]; then
+@@ -135,7 +142,7 @@ keep_project_arm64_only() {
+ 
+ check_project_toolchain_declarations() {
+     project="$1"
+-    ndk_home="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}}"
++    ndk_home="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/tools/ndk}}"
+     expected_ndk=$(sed -n 's/^[[:space:]]*Pkg\.Revision[[:space:]]*=[[:space:]]*//p' "$ndk_home/source.properties" 2>/dev/null | head -n 1 || true)
+     declared_ndk=$(grep -RhsE 'ndkVersion[^0-9]*[0-9]+(\.[0-9]+)+' "$project"/*.gradle "$project"/*.gradle.kts "$project"/app/*.gradle "$project"/app/*.gradle.kts "$project"/android/app/*.gradle "$project"/android/app/*.gradle.kts 2>/dev/null |
+         sed -n 's/.*ndkVersion[^0-9]*\([0-9][0-9.]*\).*/\1/p' | head -n 1 || true)
+@@ -162,7 +169,10 @@ doctor() {
+     check_project_toolchain_declarations "$project"
+     analyze_args=""
+     test "${TAIXU_OFFLINE:-0}" = 1 && analyze_args="--offline"
+-    need_file "$ANDROID_HOME/platforms/android-34/android.jar" "Android Platform 34"
++    _tx_platform=$(for _tx_candidate in "$ANDROID_HOME"/platforms/android-[0-9]*; do [ -f "$_tx_candidate/android.jar" ] && printf '%s\n' "$_tx_candidate"; done \
++        | grep -Eiv 'rc|beta|alpha|preview|snapshot' \
++        | sort -V | tail -n 1)
++    need_file "${_tx_platform}/android.jar" "Android Platform"
+     has_native=0
+     if test -f "$project/CMakeLists.txt" || test -f "$project/app/CMakeLists.txt" || test -d "$project/app/src/main/cpp" || test -d "$project/app/src/main/jni"; then
+         has_native=1
+@@ -174,13 +184,16 @@ doctor() {
+         need_exec "$TAIXU_CMAKE_HOME/bin/cmake" "CMake"
+         need_exec "$TAIXU_NINJA_HOME/ninja" "Ninja"
+     fi
+-    aapt2="${TAIXU_AAPT2_PATH:-$ANDROID_HOME/build-tools/35.0.0/aapt2}"
++    _tx_bt=$(for _tx_candidate in "$ANDROID_HOME"/build-tools/[0-9]*; do [ -f "$_tx_candidate/source.properties" ] && [ -f "$_tx_candidate/lib/d8.jar" ] && { [ -n "${TAIXU_AAPT2_PATH:-}" ] || [ -x "$_tx_candidate/aapt2" ]; } && printf '%s\n' "$_tx_candidate"; done \
++        | grep -Eiv 'rc|beta|alpha|preview|snapshot' \
++        | sort -V | tail -n 1)
++    aapt2="${TAIXU_AAPT2_PATH:-${_tx_bt:-$ANDROID_HOME/build-tools}/aapt2}"
+     need_exec "$aapt2" "ARM64 AAPT2"
+     check_java_arch "$JAVA_HOME/bin/java" b700 "JDK 17"
+     check_elf_machine "$aapt2" b700 "AAPT2"
+     TAIXU_AAPT2_PATH="$aapt2"
+     export TAIXU_AAPT2_PATH
+-    ndk="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}}"
++    ndk="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/tools/ndk}}"
+     if [ "$has_native" = 1 ] || [ -f "$ndk/source.properties" ]; then
+         need_file "$ndk/source.properties" "固定 ARM64 NDK"
+         ndk_clang=$(find "$ndk/toolchains/llvm/prebuilt" \( -type f -o -type l \) -name clang -print -quit 2>/dev/null)
+@@ -214,22 +227,24 @@ doctor() {
+     if test -f "$wrapper_project/gradlew" || test -d "$wrapper_project/gradle/wrapper"; then
+         test -f "$wrapper_project/gradlew" -a -f "$wrapper_project/gradle/wrapper/gradle-wrapper.jar" -a \
+             -f "$wrapper_project/gradle/wrapper/gradle-wrapper.properties" ||
+-            warn "项目 Gradle Wrapper 不完整，将使用本地 Gradle 8.14.2"
++            warn "项目 Gradle Wrapper 不完整，将使用本地 Gradle ${GRADLE_HOME##*/gradle-}"
+     fi
+     test -x "$GRADLE_HOME/bin/gradle" -o -d "$GRADLE_HOME/lib" -o -x "$wrapper_project/gradlew" -o -n "$(command -v gradle 2>/dev/null || true)" ||
+-        fail "未找到 Gradle 8.14.2 或项目 Gradle Wrapper"
++        fail "未找到本机 Gradle 或项目 Gradle Wrapper"
+     test "$kind" != android || test -f "$project/settings.gradle" -o -f "$project/settings.gradle.kts" ||
+         fail "不是可识别的 Android Gradle 工程 (缺少 settings.gradle/settings.gradle.kts)"
+     wrapper="$wrapper_project/gradle/wrapper/gradle-wrapper.properties"
+     if test -f "$wrapper"; then
+         wrapper_version=$(sed -n 's#.*gradle-\([0-9][0-9.]*\)-bin\.zip.*#\1#p' "$wrapper" | head -n 1)
+-        if test -n "$wrapper_version" && test "$wrapper_version" != "8.14.2"; then
+-            warn "项目 Gradle Wrapper=$wrapper_version，本地基准=8.14.2；太墟构建入口将优先使用本地 Gradle"
++        if test -n "$wrapper_version" && test -n "${GRADLE_HOME:-}" && test "$wrapper_version" != "${GRADLE_HOME##*/gradle-}"; then
++            warn "项目 Gradle Wrapper=$wrapper_version，本地基准=${GRADLE_HOME##*/gradle-}；太墟构建入口将优先使用本地 Gradle"
+         fi
+     fi
+     compile_sdk=$(grep -RhsE 'compileSdk(Version)?[[:space:]]*[=( ]+[0-9]+' "$project"/*.gradle "$project"/*.gradle.kts "$project"/app/*.gradle "$project"/app/*.gradle.kts 2>/dev/null | grep -Eo '[0-9]+' | head -n 1)
+-    if test -n "$compile_sdk" && test "$compile_sdk" -gt 34; then
+-        fail "项目 compileSdk=$compile_sdk，高于本地 Android Platform 34；请先由 Agent 对齐项目或安装对应 ARM64 平台资源"
++    _tx_max_api=$(for _tx_candidate in "$ANDROID_HOME"/platforms/android-[0-9]*; do [ -f "$_tx_candidate/android.jar" ] && printf '%s\n' "$_tx_candidate"; done \
++        | sed 's#.*/android-##' | cut -d. -f1 | grep -E '^[0-9]+$' | sort -n | tail -n 1)
++    if test -n "$compile_sdk" && test -n "$_tx_max_api" && test "$compile_sdk" -gt "$_tx_max_api"; then
++        fail "项目 compileSdk=$compile_sdk，高于本地 Android Platform $_tx_max_api；请先由 Agent 对齐项目或安装对应 ARM64 平台资源"
+     fi
+     if test "$kind" = flutter; then
+         need_exec "$FLUTTER_HOME/bin/flutter" "Flutter SDK"
+diff --git a/app/src/main/assets/scripts/taixu_env_heal.sh b/app/src/main/assets/scripts/taixu_env_heal.sh
+new file mode 100644
+index 00000000..3e519a49
+--- /dev/null
++++ b/app/src/main/assets/scripts/taixu_env_heal.sh
+@@ -0,0 +1,82 @@
++#!/bin/sh
++# TaiXu 环境自愈脚本（幂等，永不返回非零）
++#
++# 背景：RootFS 更新会整体替换发行版，旧 rootfs 里 apt 装过的包、以及
++# setup_android_core.sh 写出的 /etc/profile.d/taixu-android.sh 会一并消失，
++# 表现为环境检查掉项：
++#   -「核心基础工具链」缺 xz / file（apt 包没了）
++#   -「Node.js 运行时」未检测到（libatomic.so.1 缺失，node 起不来；软链也没了）
++#   -「Android 开发环境」未安装（探针首句 source profile.d 失败，整条命令直接中断）
++# 本脚本按「缺什么补什么」处理，全部就绪时只做几次 stat，不产生任何副作用。
++
++LOG_DIR="/opt/taixu/data"
++LOG="$LOG_DIR/env-heal.log"
++
++log() {
++    [ -d "$LOG_DIR" ] || mkdir -p "$LOG_DIR" 2>/dev/null || return 0
++    echo "$(date '+%F %T') $*" >>"$LOG" 2>/dev/null || true
++}
++
++# 1) 基础工具包：补回旧 rootfs 里装过、更新后丢失的 apt 包
++missing=""
++for pkg in xz-utils file libatomic1 ca-certificates; do
++    dpkg -s "$pkg" >/dev/null 2>&1 || missing="$missing $pkg"
++done
++if [ -n "$missing" ]; then
++    log "补装缺失包:$missing"
++    # 新 rootfs 的 apt 索引可能是空的，先直接装，失败再更新索引重试一次
++    if ! apt-get install -y -q --no-install-recommends $missing >>"$LOG" 2>&1; then
++        log "首次安装失败，刷新索引后重试"
++        apt-get update -q >>"$LOG" 2>&1 || log "apt-get update 失败（离线可忽略）"
++        apt-get install -y -q --no-install-recommends $missing >>"$LOG" 2>&1 || log "补装失败:$missing"
++    fi
++fi
++
++# 2) Node.js 软链：/opt/taixu 会随 rootfs 重建，bin 下的软链可能丢失
++node_dir=$(ls -d /opt/taixu/tools/node-* 2>/dev/null | tail -1)
++if [ -n "$node_dir" ] && [ -x "$node_dir/bin/node" ]; then
++    for entry in node npm npx; do
++        if [ ! -e "/opt/taixu/bin/$entry" ] && [ -e "$node_dir/bin/$entry" ]; then
++            ln -sf "$node_dir/bin/$entry" "/opt/taixu/bin/$entry" && log "重建软链 /opt/taixu/bin/$entry"
++        fi
++    done
++fi
++
++# 3) Android SDK 入口软链（SDK 实体在 /opt/taixu 下，/opt/android-sdk 在 rootfs 里）
++if [ ! -e /opt/android-sdk ] && [ -d /opt/taixu/tools/android-sdk ]; then
++    ln -sfn /opt/taixu/tools/android-sdk /opt/android-sdk && log "重建软链 /opt/android-sdk"
++fi
++
++# 4) android-core 的 profile.d：缺失会让探针首句 `. /etc/profile.d/taixu-android.sh`
++#    作为特殊内建命令直接中断整个 shell，被误判成「未安装 Android 环境」
++if [ ! -f /etc/profile.d/taixu-android.sh ]; then
++    java_home=$(dirname "$(dirname "$(readlink -f /opt/taixu/bin/java 2>/dev/null)")" 2>/dev/null)
++    [ -d "$java_home" ] || java_home="/opt/taixu/tools/jdk21"
++    gradle_home=$(ls -d /opt/taixu/tools/gradle-* 2>/dev/null | tail -1)
++    [ -n "$gradle_home" ] || gradle_home="/opt/gradle-8.14"
++    ndk_path="/opt/taixu/tools/ndk"
++    ndk_ver=$(grep -m1 'Pkg.Revision' "$ndk_path/source.properties" 2>/dev/null | cut -d= -f2 | tr -d ' ')
++    aapt2_path=$(readlink -f /opt/taixu/bin/aapt2 2>/dev/null)
++    mkdir -p /etc/profile.d 2>/dev/null || true
++    {
++        echo '# TaiXu Android development environment (managed by android-core plugin)'
++        echo "export JAVA_HOME=\"$java_home\""
++        echo 'export ANDROID_HOME="/opt/android-sdk"'
++        echo 'export ANDROID_SDK_ROOT="/opt/android-sdk"'
++        echo "export GRADLE_HOME=\"$gradle_home\""
++        echo "export TAIXU_AAPT2_PATH=\"$aapt2_path\""
++        echo "export TAIXU_NDK_PATH=\"$ndk_path\""
++        echo "export TAIXU_NDK_VERSION=\"$ndk_ver\""
++        echo "export ANDROID_NDK_HOME=\"$ndk_path\""
++        echo "export ANDROID_NDK_ROOT=\"$ndk_path\""
++        echo 'export PATH="/opt/taixu/bin:$JAVA_HOME/bin:$GRADLE_HOME/bin:$PATH"'
++        echo 'export _JAVA_OPTIONS="-Djava.security.egd=file:/dev/urandom"'
++    } >/etc/profile.d/taixu-android.sh 2>/dev/null && log "重建 /etc/profile.d/taixu-android.sh"
++    for rc_file in /root/.bashrc /etc/bash.bashrc; do
++        [ -f "$rc_file" ] || continue
++        grep -q 'taixu-android' "$rc_file" 2>/dev/null || \
++            echo '. /etc/profile.d/taixu-android.sh 2>/dev/null || true' >>"$rc_file"
++    done
++fi
++
++exit 0
+diff --git a/app/src/main/assets/scripts/template_gradlew.sh b/app/src/main/assets/scripts/template_gradlew.sh
+index e4ab17fe..dbe87b38 100644
+--- a/app/src/main/assets/scripts/template_gradlew.sh
++++ b/app/src/main/assets/scripts/template_gradlew.sh
+@@ -21,24 +21,28 @@ else
+     JAVA_EXEC=$(which java 2>/dev/null || echo "java")
+ fi
+ 
++
++# 全局 Gradle 兜底：按本机实际安装目录取最高版本，不写死版本号
++_tx_pick_gradle() {
++    _gv=$(ls -d /opt/gradle-[0-9]* 2>/dev/null \
++        | sed 's|^/opt/gradle-||' \
++        | grep -E '^[0-9]+(\.[0-9]+)+$' \
++        | sort -t. -k1,1n -k2,2n -k3,3n \
++        | tail -n 1)
++    [ -n "$_gv" ] && printf '%s' "/opt/gradle-$_gv"
++}
++_tx_gradle_home=$(_tx_pick_gradle)
+ if [ -f "$DIR/gradle/wrapper/gradle-wrapper.jar" ]; then
+     exec "$JAVA_EXEC" -jar "$DIR/gradle/wrapper/gradle-wrapper.jar" "$@"
+-elif [ -d /opt/gradle-8.14.2/lib ]; then
+-    exec "$JAVA_EXEC" -Xmx1024m -XX:MaxMetaspaceSize=384m -XX:+UseSerialGC \
+-        -Dorg.gradle.appname=gradle \
+-        -Dorg.gradle.installation.dir=/opt/gradle-8.14.2 \
+-        -Dorg.gradle.native=false \
+-        -classpath "/opt/gradle-8.14.2/lib/*" \
+-        org.gradle.launcher.GradleMain "$@"
+-elif [ -d /opt/gradle-8.7/lib ]; then
++elif [ -n "$_tx_gradle_home" ] && [ -d "$_tx_gradle_home/lib" ]; then
+     exec "$JAVA_EXEC" -Xmx1024m -XX:MaxMetaspaceSize=384m -XX:+UseSerialGC \
+         -Dorg.gradle.appname=gradle \
+-        -Dorg.gradle.installation.dir=/opt/gradle-8.7 \
++        -Dorg.gradle.installation.dir="$_tx_gradle_home" \
+         -Dorg.gradle.native=false \
+-        -classpath "/opt/gradle-8.7/lib/*" \
++        -classpath "$_tx_gradle_home/lib/*" \
+         org.gradle.launcher.GradleMain "$@"
+-elif [ -x /opt/gradle-8.14.2/bin/gradle ]; then
+-    exec /opt/gradle-8.14.2/bin/gradle "$@"
++elif [ -n "$_tx_gradle_home" ] && [ -x "$_tx_gradle_home/bin/gradle" ]; then
++    exec "$_tx_gradle_home/bin/gradle" "$@"
+ elif [ -x /usr/local/bin/gradle ]; then
+     exec /usr/local/bin/gradle "$@"
+ elif command -v gradle >/dev/null 2>&1; then
+diff --git a/app/src/test/java/top/wkbin/taixu/runtime/FakeLinuxRuntime.kt b/app/src/test/java/top/wkbin/taixu/runtime/FakeLinuxRuntime.kt
+index 7da122d0..c22aa6f8 100644
+--- a/app/src/test/java/top/wkbin/taixu/runtime/FakeLinuxRuntime.kt
++++ b/app/src/test/java/top/wkbin/taixu/runtime/FakeLinuxRuntime.kt
+@@ -48,9 +48,9 @@ class FakeLinuxRuntime : LinuxRuntime {
+ 
+     override suspend fun initialize(request: RuntimeInstallRequest): AppResult<Unit> = AppResult.Success(Unit)
+     override suspend fun restoreInstalledState(): Boolean = false
+-    override suspend fun updateRootfs(distroId: String?): AppResult<Unit> = AppResult.Success(Unit)
++    override suspend fun updateRootfs(distroId: String?, route: RegistryRoute): AppResult<Unit> = AppResult.Success(Unit)
+ 
+-    override suspend fun checkRootfsUpdate(distroId: String?): AppResult<RootfsUpdateInfo> =
++    override suspend fun checkRootfsUpdate(distroId: String?, route: RegistryRoute): AppResult<RootfsUpdateInfo> =
+         AppResult.Success(
+             RootfsUpdateInfo(
+                 distroId = distroId ?: "ubuntu",
+diff --git a/app/src/test/java/top/wkbin/taixu/runtime/service/LocalServiceLauncherTest.kt b/app/src/test/java/top/wkbin/taixu/runtime/service/LocalServiceLauncherTest.kt
+index eb585c37..8ad3d7bf 100644
+--- a/app/src/test/java/top/wkbin/taixu/runtime/service/LocalServiceLauncherTest.kt
++++ b/app/src/test/java/top/wkbin/taixu/runtime/service/LocalServiceLauncherTest.kt
+@@ -5,6 +5,7 @@ import top.wkbin.taixu.core.model.InstalledDistro
+ import top.wkbin.taixu.core.model.RuntimeState
+ import top.wkbin.taixu.runtime.DownloadProgress
+ import top.wkbin.taixu.runtime.LinuxRuntime
++import top.wkbin.taixu.runtime.RegistryRoute
+ import top.wkbin.taixu.runtime.RootfsUpdateInfo
+ import top.wkbin.taixu.runtime.RuntimeHealth
+ import top.wkbin.taixu.runtime.RuntimeInstallRequest
+@@ -93,8 +94,8 @@ class LocalServiceLauncherTest {
+ 
+         override suspend fun initialize(request: RuntimeInstallRequest): AppResult<Unit> = AppResult.Success(Unit)
+         override suspend fun restoreInstalledState(): Boolean = false
+-        override suspend fun updateRootfs(distroId: String?): AppResult<Unit> = AppResult.Success(Unit)
+-        override suspend fun checkRootfsUpdate(distroId: String?): AppResult<RootfsUpdateInfo> =
++        override suspend fun updateRootfs(distroId: String?, route: RegistryRoute): AppResult<Unit> = AppResult.Success(Unit)
++        override suspend fun checkRootfsUpdate(distroId: String?, route: RegistryRoute): AppResult<RootfsUpdateInfo> =
+             error("unused")
+         override suspend fun healthCheck(distroId: String?): RuntimeHealth = error("unused")
+         override suspend fun execute(command: ShellCommand, distroId: String?): CommandResult = error("unused")
+diff --git a/assets/plugins/android-suite-offline/manifest.json b/assets/plugins/android-suite-offline/manifest.json
+index ab20e518..735f3525 100644
+--- a/assets/plugins/android-suite-offline/manifest.json
++++ b/assets/plugins/android-suite-offline/manifest.json
+@@ -33,11 +33,11 @@
+   "environment": {
+     "ANDROID_HOME": "/opt/android-sdk",
+     "ANDROID_SDK_ROOT": "/opt/android-sdk",
+-    "GRADLE_HOME": "/opt/gradle-8.14.2",
+-    "JAVA_HOME": "/opt/taixu/toolchains/android/jdk",
+-    "ANDROID_NDK_HOME": "/opt/taixu/toolchains/android/ndk",
+-    "RUSTUP_HOME": "/opt/taixu/toolchains/rust",
++    "GRADLE_HOME": "/opt/gradle",
++    "JAVA_HOME": "/opt/taixu/tools/android/jdk",
++    "ANDROID_NDK_HOME": "/opt/taixu/tools/ndk",
++    "RUSTUP_HOME": "/opt/taixu/tools/rust",
+     "CARGO_HOME": "/root/.cargo",
+-    "PATH": "/opt/taixu/bin:/opt/taixu/toolchains/rust/bin:/opt/taixu/tools/android-suite-offline/bin:/opt/taixu/toolchains/android/jdk/bin:/opt/gradle-8.14.2/bin:$PATH"
++    "PATH": "/opt/taixu/bin:/opt/taixu/tools/rust/bin:/opt/taixu/tools/android-suite-offline/bin:/opt/taixu/tools/android/jdk/bin:/opt/gradle/bin:$PATH"
+   }
+ }
+diff --git a/assets/plugins/android-suite-offline/payload/config/gradle.properties b/assets/plugins/android-suite-offline/payload/config/gradle.properties
+index b2eaaab3..a16619e0 100644
+--- a/assets/plugins/android-suite-offline/payload/config/gradle.properties
++++ b/assets/plugins/android-suite-offline/payload/config/gradle.properties
+@@ -1,5 +1,6 @@
+ android.builder.sdkDownload=false
+-android.aapt2FromMavenOverride=/opt/android-sdk/build-tools/35.0.0/aapt2
++# 版本目录由安装脚本维护为稳定软链 0-current，升级 Build-Tools 后无需改这里
++android.aapt2FromMavenOverride=/opt/android-sdk/build-tools/0-current/aapt2
+ org.gradle.daemon=false
+ org.gradle.parallel=false
+ org.gradle.workers.max=2
+diff --git a/assets/plugins/android-suite-offline/payload/config/taixu-android-ndk.gradle b/assets/plugins/android-suite-offline/payload/config/taixu-android-ndk.gradle
+index db3cd91b..c8fb8c4c 100644
+--- a/assets/plugins/android-suite-offline/payload/config/taixu-android-ndk.gradle
++++ b/assets/plugins/android-suite-offline/payload/config/taixu-android-ndk.gradle
+@@ -2,7 +2,7 @@
+ // the standard local offline-suite path.
+ def taixuNdkPath = System.getenv('TAIXU_NDK_PATH') ?:
+     System.getenv('ANDROID_NDK_HOME') ?:
+-    '/opt/taixu/toolchains/android/ndk'
++    '/opt/taixu/tools/ndk'
+ def taixuNdkProperties = new Properties()
+ def taixuNdkSourceProperties = new File(taixuNdkPath, 'source.properties')
+ if (taixuNdkSourceProperties.isFile()) {
+diff --git a/assets/plugins/android-suite-offline/payload/scripts/install-android-suite.sh b/assets/plugins/android-suite-offline/payload/scripts/install-android-suite.sh
+index c50ac719..ef85ffc5 100644
+--- a/assets/plugins/android-suite-offline/payload/scripts/install-android-suite.sh
++++ b/assets/plugins/android-suite-offline/payload/scripts/install-android-suite.sh
+@@ -6,11 +6,16 @@ ARCHIVES="$PAYLOAD/archives"
+ CHECKSUMS="$PAYLOAD/checksums/SHA256SUMS"
+ TOOL_DIR="${TAIXU_TOOL_DIR:?missing TAIXU_TOOL_DIR}"
+ ANDROID_HOME="/opt/android-sdk"
+-TOOLCHAIN_ROOT="/opt/taixu/toolchains/android"
++TOOLCHAIN_ROOT="/opt/taixu/tools/android"
+ JDK_HOME="$TOOLCHAIN_ROOT/jdk"
+ NDK_HOME="$TOOLCHAIN_ROOT/ndk"
+-GRADLE_VERSION="8.14.2"
+-BUILD_TOOLS_VERSION="35.0.0"
++# 版本号不写死：从归档文件名推导（离线包自带唯一制品）
++_gradle_zip=$(ls "$ARCHIVES"/gradle-*-bin.zip 2>/dev/null | head -n 1 || true)
++GRADLE_VERSION=$(printf '%s' "${_gradle_zip##*/}" | sed 's/^gradle-//; s/-bin\.zip$//')
++_platform_zip=$(ls "$ARCHIVES"/platform-*.zip 2>/dev/null | head -n 1 || true)
++PLATFORM_DIR="android-$(printf '%s' "${_platform_zip##*/}" | sed 's/^platform-//; s/-.*$//')"
++_bt_zip=$(ls "$ARCHIVES"/build-tools_*.zip 2>/dev/null | head -n 1 || true)
++BUILD_TOOLS_VERSION=""
+ 
+ need() {
+     resource_path="${1:-}"
+@@ -121,7 +126,7 @@ fi
+ 
+ # Gradle.
+ progress 17 "[EXTRACT] 正在解压 Gradle $GRADLE_VERSION：gradle-$GRADLE_VERSION-bin.zip"
+-need "$ARCHIVES/gradle-8.14.2-bin.zip"
++need "${_gradle_zip:-$ARCHIVES/gradle-8.14.2-bin.zip}"
+ rm -rf "/opt/gradle-$GRADLE_VERSION.staging"
+ mkdir -p "/opt/gradle-$GRADLE_VERSION.staging"
+ extract_zip "$ARCHIVES/gradle-$GRADLE_VERSION-bin.zip" "/opt/gradle-$GRADLE_VERSION.staging"
+@@ -135,26 +140,31 @@ progress 23 "[COMMAND] Gradle $GRADLE_VERSION 安装完成"
+ 
+ # Android Platform 34.
+ progress 25 "[EXTRACT] 正在解压 Android Platform 34：platform-34-ext7_r03.zip"
+-need "$ARCHIVES/platform-34-ext7_r03.zip"
++need "${_platform_zip:-$ARCHIVES/platform-34-ext7_r03.zip}"
+ rm -rf /tmp/taixu-android-platform
+ mkdir -p /tmp/taixu-android-platform
+-extract_zip "$ARCHIVES/platform-34-ext7_r03.zip" /tmp/taixu-android-platform
++extract_zip "${_platform_zip:-$ARCHIVES/platform-34-ext7_r03.zip}" /tmp/taixu-android-platform
+ PLATFORM_SOURCE=$(find /tmp/taixu-android-platform -type f -name android.jar -print -quit | xargs -r dirname)
+ need "$PLATFORM_SOURCE/android.jar"
+-rm -rf "$ANDROID_HOME/platforms/android-34"
++rm -rf "$ANDROID_HOME/platforms/$PLATFORM_DIR"
+ mkdir -p "$ANDROID_HOME/platforms"
+-mv "$PLATFORM_SOURCE" "$ANDROID_HOME/platforms/android-34"
++mv "$PLATFORM_SOURCE" "$ANDROID_HOME/platforms/$PLATFORM_DIR"
+ rm -rf /tmp/taixu-android-platform
+-progress 30 "[COMMAND] Android Platform 34 安装完成"
++progress 30 "[COMMAND] Android Platform ${PLATFORM_DIR#android-} 安装完成"
+ 
+ # Java Build-Tools 35 and ARM64 native SDK tools.
+-progress 32 "[EXTRACT] 正在解压 Build Tools $BUILD_TOOLS_VERSION：build-tools_r35_linux.zip"
++progress 32 "[EXTRACT] 正在解压 Build Tools 制品：${_bt_zip##*/}"
+ need "$ARCHIVES/build-tools_r35_linux.zip"
++ln -sfn "$BUILD_TOOLS_VERSION" "$ANDROID_HOME/build-tools/0-current"
+ rm -rf /tmp/taixu-build-tools
+ mkdir -p /tmp/taixu-build-tools
+-extract_zip "$ARCHIVES/build-tools_r35_linux.zip" /tmp/taixu-build-tools
++extract_zip "${_bt_zip:-$ARCHIVES/build-tools_r35_linux.zip}" /tmp/taixu-build-tools
+ BUILD_SOURCE=$(find /tmp/taixu-build-tools -type f -name source.properties -print -quit | xargs -r dirname)
+ need "$BUILD_SOURCE/lib/d8.jar"
++# 版本号以制品自带的 source.properties 为准，不写死
++BUILD_TOOLS_VERSION=$(sed -n 's/^Pkg\.Revision=//p' "$BUILD_SOURCE/source.properties" 2>/dev/null | head -n 1 || true)
++test -n "$BUILD_TOOLS_VERSION" || BUILD_TOOLS_VERSION=$(printf '%s' "${_bt_zip##*/}" | sed 's/^build-tools_r//; s/_linux\.zip$//')
++test -n "$BUILD_TOOLS_VERSION" || { echo "无法确定 Build-Tools 版本" >&2; exit 2; }
+ rm -rf "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
+ mkdir -p "$ANDROID_HOME/build-tools"
+ mv "$BUILD_SOURCE" "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
+@@ -299,7 +309,7 @@ progress 85 "[COMMAND] Flutter Android ARM64 SDK 安装完成"
+ # Rust ARM64 独立工具链与 aarch64-linux-android 交叉编译目标库
+ RUST_STANDALONE=$(find "$ARCHIVES" -maxdepth 1 -type f -name 'rust-*-aarch64-unknown-linux-gnu.tar.*' -print -quit 2>/dev/null || true)
+ RUST_STD_ANDROID=$(find "$ARCHIVES" -maxdepth 1 -type f -name 'rust-std-*-aarch64-linux-android.tar.*' -print -quit 2>/dev/null || true)
+-RUST_HOME="/opt/taixu/toolchains/rust"
++RUST_HOME="/opt/taixu/tools/rust"
+ if [ -n "$RUST_STANDALONE" ] && [ -f "$RUST_STANDALONE" ]; then
+     progress 86 "[EXTRACT] 正在解压 Rust ARM64 独立开发工具链：$(basename "$RUST_STANDALONE")"
+     rm -rf /tmp/taixu-rust "$RUST_HOME"
+@@ -331,8 +341,8 @@ if [ -n "$RUST_STANDALONE" ] && [ -f "$RUST_STANDALONE" ]; then
+         mkdir -p /root/.cargo
+         cat << 'EOF' > /root/.cargo/config.toml
+ [target.aarch64-linux-android]
+-linker = "/opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
+-ar = "/opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
++linker = "/opt/taixu/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
++ar = "/opt/taixu/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+ 
+ [source.crates-io]
+ replace-with = 'tuna'
+@@ -509,6 +519,8 @@ progress 97 "[COMMAND] 正在创建全局开发、逆向与签名命令链接"
+ ln -sfn "$JDK_HOME/bin/java" "$TOOL_DIR/bin/java"
+ ln -sfn "$JDK_HOME/bin/javac" "$TOOL_DIR/bin/javac"
+ ln -sfn "/opt/gradle-$GRADLE_VERSION/bin/gradle" "$TOOL_DIR/bin/gradle"
++# 稳定入口 /opt/gradle 指向本次安装版本，环境变量与脚本不再依赖具体版本号目录
++ln -sfn "/opt/gradle-$GRADLE_VERSION" /opt/gradle
+ for command in java javac gradle cmake ninja adb flutter dart rustc cargo rustdoc apksigner zipalign jarsigner keytool aapt aapt2 dexdump readelf objdump nm strings cxxfilt uber-apk-signer smali baksmali taixu-apk-sign jadx apktool d2j-dex2jar d2j-baksmali d2j-smali rg; do
+     if [ "$command" = "adb" ] && [ -f "/opt/taixu/bin/adb" ] && ! [ -L "/opt/taixu/bin/adb" ]; then
+         # 保留 /opt/taixu/bin/adb 智能连接包装脚本
+@@ -568,9 +580,9 @@ export ANDROID_NDK_HOME="$NDK_HOME"
+ export ANDROID_NDK_ROOT="$NDK_HOME"
+ export TAIXU_CMAKE_HOME="$TOOL_DIR/cmake"
+ export TAIXU_NINJA_HOME="$TOOL_DIR/bin"
+-export RUSTUP_HOME="/opt/taixu/toolchains/rust"
++export RUSTUP_HOME="/opt/taixu/tools/rust"
+ export CARGO_HOME="/root/.cargo"
+-export PATH="/opt/taixu/bin:/opt/taixu/toolchains/rust/bin:$TOOL_DIR/bin:$TOOL_DIR/cmake/bin:\$JAVA_HOME/bin:\$GRADLE_HOME/bin:/opt/flutter/bin:\$PATH"
++export PATH="/opt/taixu/bin:/opt/taixu/tools/rust/bin:$TOOL_DIR/bin:$TOOL_DIR/cmake/bin:\$JAVA_HOME/bin:\$GRADLE_HOME/bin:/opt/flutter/bin:\$PATH"
+ export _JAVA_OPTIONS="-Djava.security.egd=file:/dev/urandom"
+ EOF
+ chmod 644 /etc/profile.d/taixu-android.sh 2>/dev/null || true
+@@ -585,9 +597,9 @@ TAIXU_NDK_PATH=$NDK_HOME
+ TAIXU_NDK_VERSION=r29
+ ANDROID_NDK_HOME=$NDK_HOME
+ ANDROID_NDK_ROOT=$NDK_HOME
+-RUSTUP_HOME=/opt/taixu/toolchains/rust
++RUSTUP_HOME=/opt/taixu/tools/rust
+ CARGO_HOME=/root/.cargo
+-PATH=/opt/taixu/bin:/opt/taixu/toolchains/rust/bin:$TOOL_DIR/bin:$TOOL_DIR/cmake/bin:$JDK_HOME/bin:/opt/gradle-$GRADLE_VERSION/bin:/opt/flutter/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
++PATH=/opt/taixu/bin:/opt/taixu/tools/rust/bin:$TOOL_DIR/bin:$TOOL_DIR/cmake/bin:$JDK_HOME/bin:/opt/gradle-$GRADLE_VERSION/bin:/opt/flutter/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ _JAVA_OPTIONS=-Djava.security.egd=file:/dev/urandom
+ EOF
+ 
+diff --git a/assets/plugins/android-suite-offline/payload/scripts/uninstall-android-suite.sh b/assets/plugins/android-suite-offline/payload/scripts/uninstall-android-suite.sh
+index 0e99e0f8..804f3383 100644
+--- a/assets/plugins/android-suite-offline/payload/scripts/uninstall-android-suite.sh
++++ b/assets/plugins/android-suite-offline/payload/scripts/uninstall-android-suite.sh
+@@ -2,7 +2,17 @@
+ set -eu
+ 
+ TOOL_DIR="${TAIXU_TOOL_DIR:?missing TAIXU_TOOL_DIR}"
+-rm -f /opt/taixu/bin/java /opt/taixu/bin/javac /opt/taixu/bin/gradle /opt/taixu/bin/cmake /opt/taixu/bin/ninja /opt/taixu/bin/flutter /opt/taixu/bin/dart
+-rm -rf "$TOOL_DIR"
+-rm -rf /opt/android-sdk /opt/gradle-8.14.2 /opt/taixu/toolchains/android /opt/flutter
++GRADLE_VERSION=8.14.2
++for name in java javac gradle cmake ninja flutter dart rustc cargo rustdoc apksigner zipalign jarsigner keytool aapt aapt2 dexdump readelf objdump nm strings cxxfilt jadx apktool rg; do
++    link="/opt/taixu/bin/$name"
++    [ -L "$link" ] || continue
++    target=$(readlink -f "$link" 2>/dev/null || true)
++    case "$target" in
++        "$TOOL_DIR"/*|/opt/taixu/tools/android/*|/opt/taixu/tools/rust/*|/opt/android-sdk/*|"/opt/gradle-$GRADLE_VERSION"/*|/opt/flutter/*) rm -f "$link" ;;
++    esac
++done
++rm -rf "$TOOL_DIR" /opt/android-sdk "/opt/gradle-$GRADLE_VERSION" /opt/taixu/tools/android /opt/taixu/tools/rust /opt/flutter
++if [ "$(readlink -f /opt/gradle 2>/dev/null || true)" = "/opt/gradle-$GRADLE_VERSION" ]; then
++    rm -f /opt/gradle
++fi
+ rm -f /root/.gradle/init.d/taixu-android-ndk.gradle
+diff --git a/assets/plugins/android-suite-offline/payload/scripts/verify-android-suite.sh b/assets/plugins/android-suite-offline/payload/scripts/verify-android-suite.sh
+index 22b7a620..a80a35fe 100644
+--- a/assets/plugins/android-suite-offline/payload/scripts/verify-android-suite.sh
++++ b/assets/plugins/android-suite-offline/payload/scripts/verify-android-suite.sh
+@@ -34,11 +34,16 @@ require_executable /opt/taixu/bin/ninja
+ # od 会跟随软链，符号链接链最终必须落在 JDK 的 AArch64 ELF 上。
+ require_aarch64 /opt/taixu/bin/java
+ require_aarch64 /opt/taixu/bin/javac
+-require_file /opt/android-sdk/platforms/android-34/android.jar
+-require_file /opt/android-sdk/build-tools/35.0.0/lib/d8.jar
+-require_executable /opt/android-sdk/build-tools/35.0.0/aapt2
+-require_aarch64 /opt/android-sdk/build-tools/35.0.0/aapt2
+-NDK_STRIP=$(find /opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt \( -type f -o -type l \) -name llvm-strip -print -quit)
++# 平台与 Build-Tools 版本按实际安装取最高，不写死版本号
++_TX_PLAT=$(for _tx_candidate in /opt/android-sdk/platforms/android-[0-9]*; do [ -f "$_tx_candidate/android.jar" ] && printf '%s\n' "$_tx_candidate"; done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)
++test -n "$_TX_PLAT" || fail "missing Android platform"
++require_file "$_TX_PLAT/android.jar"
++_TX_BT=$(for _tx_candidate in /opt/android-sdk/build-tools/[0-9]*; do [ -f "$_tx_candidate/source.properties" ] && [ -f "$_tx_candidate/lib/d8.jar" ] && [ -x "$_tx_candidate/aapt2" ] && printf '%s\n' "$_tx_candidate"; done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)
++test -n "$_TX_BT" || fail "missing Android build-tools"
++require_file "$_TX_BT/lib/d8.jar"
++require_executable "$_TX_BT/aapt2"
++require_aarch64 "$_TX_BT/aapt2"
++NDK_STRIP=$(find /opt/taixu/tools/ndk/toolchains/llvm/prebuilt \( -type f -o -type l \) -name llvm-strip -print -quit)
+ test -n "$NDK_STRIP" || fail "missing NDK llvm-strip"
+ require_executable "$NDK_STRIP"
+ require_aarch64 "$NDK_STRIP"
+diff --git a/core/common/src/main/java/top/wkbin/taixu/core/common/files/SafeFileTree.kt b/core/common/src/main/java/top/wkbin/taixu/core/common/files/SafeFileTree.kt
+index f21f1f45..697d5a31 100644
+--- a/core/common/src/main/java/top/wkbin/taixu/core/common/files/SafeFileTree.kt
++++ b/core/common/src/main/java/top/wkbin/taixu/core/common/files/SafeFileTree.kt
+@@ -2,6 +2,7 @@ package top.wkbin.taixu.core.common.files
+ 
+ import java.io.File
+ import java.io.IOException
++import java.nio.file.AccessDeniedException
+ import java.nio.file.DirectoryNotEmptyException
+ import java.nio.file.FileVisitResult
+ import java.nio.file.Files
+@@ -67,21 +68,38 @@ object SafeFileTree {
+         // 安装回滚时，刚被强杀的 npm/node 子进程可能仍在向目录写入文件，导致
+         // walkFileTree 走到 postVisitDirectory 时目录又非空。短暂等待后重试整棵
+         // 目录树，消除这类瞬时竞争。
++        // 另外 PRoot glue.c 会把绑定目标做成 mode 000 的占位目录（典型是 .l2s 的宿主
++        // 绝对路径绑定链），父目录可写但自身不可读，遍历会抛 AccessDeniedException。
++        // 这里先恢复报错目录的属主权限，再整树重试，避免更新事务卡死在占位目录上。
+         var lastError: IOException? = null
+-        repeat(DELETE_ATTEMPTS) { attempt ->
++        var attempt = 0
++        while (attempt < DELETE_TOTAL_ATTEMPTS) {
++            attempt++
+             try {
+                 walkDelete(path)
+                 return
+             } catch (notEmpty: DirectoryNotEmptyException) {
+                 lastError = notEmpty
+-                if (attempt < DELETE_ATTEMPTS - 1) {
+-                    Thread.sleep(DELETE_RETRY_DELAY_MS)
+-                }
++            } catch (denied: AccessDeniedException) {
++                lastError = denied
++                val blocked = denied.file?.let { File(it) }
++                if (blocked == null || !unlockPermissions(blocked)) throw denied
++            }
++            if (attempt < DELETE_TOTAL_ATTEMPTS) {
++                Thread.sleep(DELETE_RETRY_DELAY_MS)
+             }
+         }
+         throw lastError ?: IllegalStateException("无法删除目录：$file")
+     }
+ 
++    /** 恢复 mode 000 占位目录的属主读写执行位；无权限改动时返回 false。 */
++    private fun unlockPermissions(dir: File): Boolean {
++        val readable = dir.setReadable(true, true)
++        val executable = dir.setExecutable(true, true)
++        dir.setWritable(true, true)
++        return readable || executable || dir.canRead()
++    }
++
+     private fun walkDelete(path: Path) {
+         Files.walkFileTree(path, object : SimpleFileVisitor<Path>() {
+             override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+@@ -97,6 +115,6 @@ object SafeFileTree {
+         })
+     }
+ 
+-    private const val DELETE_ATTEMPTS = 5
++    private const val DELETE_TOTAL_ATTEMPTS = 40
+     private const val DELETE_RETRY_DELAY_MS = 200L
+ }
+diff --git a/core/model/src/main/java/top/wkbin/taixu/core/model/AgentSkill.kt b/core/model/src/main/java/top/wkbin/taixu/core/model/AgentSkill.kt
+index a9994bd3..f1f41503 100644
+--- a/core/model/src/main/java/top/wkbin/taixu/core/model/AgentSkill.kt
++++ b/core/model/src/main/java/top/wkbin/taixu/core/model/AgentSkill.kt
+@@ -178,7 +178,7 @@ object BuiltinSkills {
+                      org.gradle.caching=true
+                      kotlin.daemon.jvmargs=-Xmx512m -XX:MaxMetaspaceSize=256m
+                      ```
+-                   - 需要更新 Gradle 时使用腾讯云镜像 https://mirrors.cloud.tencent.com/gradle/gradle-8.14.2-bin.zip。
++                   - 需要更新 Gradle 时使用腾讯云镜像 https://mirrors.cloud.tencent.com/gradle/gradle-<version>-bin.zip。
+                 8. 安装到本机：APK 构建完成后用 `taixu-host install-apk <apk路径>`（或 adb 已连接时 `adb install -r <apk路径>`）交付。
+                 9. 排错顺序：先 `java -version` / `adb version` / `gradle --version` 与实际 Gradle、AAPT2 报错定位；
+                    `android info` 可查看 CLI 自身版本与 SDK 位置；不要把失败一律归因到 QEMU 或主机架构。
+diff --git a/core/model/src/main/java/top/wkbin/taixu/core/model/DevEnvironmentSuite.kt b/core/model/src/main/java/top/wkbin/taixu/core/model/DevEnvironmentSuite.kt
+index 4579c293..2f86bcaf 100644
+--- a/core/model/src/main/java/top/wkbin/taixu/core/model/DevEnvironmentSuite.kt
++++ b/core/model/src/main/java/top/wkbin/taixu/core/model/DevEnvironmentSuite.kt
+@@ -60,14 +60,14 @@ object BuiltinPluginBundles {
+             id = "android-suite",
+             name = "Android & 移动全栈开发套件",
+             summary = "Gradle 8.14、ARM64 AAPT2/NDK 与可选 Flutter、逆向审计",
+-            description = "集成 OpenJDK 17、Gradle 8.14.2、固定摘要的 ARM64 AAPT2 与 lzhiyong/termux-ndk，并提供可选 Flutter、C/C++ 和 JADX/APKTool 工具链。构建期禁止自动下载官方 x86_64 主机工具。",
++            description = "集成 OpenJDK、Gradle、固定摘要的 ARM64 AAPT2 与 NDK 工具链，并提供可选 Flutter、C/C++ 和 JADX/APKTool 工具链。构建期禁止自动下载官方 x86_64 主机工具。",
+             iconName = "Android",
+             category = "移动开发",
+             components = listOf(
+                 PluginComponent(
+                     id = "android-core",
+                     name = "Android 核心基础环境",
+-                    description = "OpenJDK 17、Android 34、Build Tools 35、Gradle 8.14.2、不可变 ARM64 AAPT2、lzhiyong NDK r29、ADB 与国内 Maven 镜像，全部在装配期一次性就位",
++                    description = "OpenJDK、Android Platform、Build Tools、Gradle、不可变 ARM64 AAPT2、NDK、ADB 与国内 Maven 镜像，全部在装配期一次性就位",
+                     isRequired = true,
+                     // aapt/zipalign/apksigner come from the downloaded Google
+                     // Build-Tools archive. Installing Ubuntu's similarly named
+@@ -77,14 +77,15 @@ object BuiltinPluginBundles {
+                     postInstallSteps = listOf(
+                         "/bin/sh /opt/taixu/scripts/setup_android_core.sh",
+                     ),
+-                    checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; JAVA_BIN=\"\${JAVA_HOME:-/opt/taixu/toolchains/android/jdk}/bin/java\"; (test -x \"\$JAVA_BIN\" || test -x /opt/taixu/bin/java || command -v java >/dev/null 2>&1) && test -f /opt/android-sdk/platforms/android-34/android.jar && test -f /opt/android-sdk/build-tools/35.0.0/lib/d8.jar && (test -f /opt/gradle-8.14.2/lib/gradle-launcher-8.14.2.jar || test -x /opt/taixu/bin/gradle || command -v gradle >/dev/null 2>&1) && (test -x \"\${TAIXU_AAPT2_PATH:-/opt/android-sdk/build-tools/35.0.0/aapt2}\" || test -x /opt/android-sdk/build-tools/35.0.0/aapt2 || test -x /opt/taixu/bin/aapt2) && (test -f \"\${TAIXU_NDK_PATH:-/opt/taixu/toolchains/android/ndk}/source.properties\" || test -f /opt/taixu/toolchains/android/ndk/source.properties)",
++                    checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; JAVA_BIN=\"\${JAVA_HOME:-/opt/taixu/tools/android/jdk}/bin/java\"; (test -x \"\$JAVA_BIN\" || test -x /opt/taixu/bin/java || command -v java >/dev/null 2>&1) && test -n \"\$(ls -d /opt/android-sdk/platforms/android-[0-9]* 2>/dev/null)\" && test -n \"\$(ls -d /opt/android-sdk/build-tools/[0-9]* 2>/dev/null)\" && (test -n \"\$(ls -d /opt/gradle-[0-9]* 2>/dev/null)\" || test -x /opt/taixu/bin/gradle || command -v gradle >/dev/null 2>&1) && (test -x \"\${TAIXU_AAPT2_PATH:-}\" || test -x /opt/taixu/bin/aapt2 || test -n \"\$(ls -d /opt/android-sdk/build-tools/[0-9]*/aapt2 2>/dev/null)\") && (test -f \"\${TAIXU_NDK_PATH:-/opt/taixu/tools/ndk}/source.properties\" || test -f /opt/taixu/tools/ndk/source.properties)",
+                     purgePaths = listOf(
+                         "/opt/android-sdk",
+-                        "/opt/gradle-8.14.2",
++                        // 卸载按实际安装的版本目录执行，通配由沙箱 shell 展开
++                        "/opt/gradle-*",
+                         "/opt/taixu/android-sdk-tools",
+-                        "/opt/taixu/toolchains/android/sdk-tools",
+-                        "/opt/taixu/toolchains/android/jdk",
+-                        "/opt/taixu/toolchains/android/ndk",
++                        "/opt/taixu/tools/android/sdk-tools",
++                        "/opt/taixu/tools/android/jdk",
++                        "/opt/taixu/tools/ndk",
+                     ),
+                     purgeFiles = listOf(
+                         "/etc/profile.d/taixu-android.sh",
+@@ -117,7 +118,7 @@ object BuiltinPluginBundles {
+                     postInstallSteps = listOf(
+                         "/bin/sh /opt/taixu/scripts/setup_flutter.sh",
+                     ),
+-                    checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; (test -x /opt/flutter/bin/flutter || test -x /opt/taixu/bin/flutter || command -v flutter >/dev/null 2>&1) && test -f /opt/android-sdk/platforms/android-34/android.jar && test -f /opt/android-sdk/build-tools/35.0.0/lib/d8.jar",
++                    checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; (test -x /opt/flutter/bin/flutter || test -x /opt/taixu/bin/flutter || command -v flutter >/dev/null 2>&1) && test -n \"\$(ls -d /opt/android-sdk/platforms/android-[0-9]* 2>/dev/null)\" && test -n \"\$(ls -d /opt/android-sdk/build-tools/[0-9]* 2>/dev/null)\"",
+                     purgePaths = listOf("/opt/flutter"),
+                     purgeLinks = listOf(
+                         "/opt/taixu/bin/flutter",
+@@ -133,15 +134,15 @@ object BuiltinPluginBundles {
+                 PluginComponent(
+                     id = "android-ndk",
+                     name = "C/C++ & NDK 原生构建链",
+-                    description = "lzhiyong/termux-ndk r29 Linux AArch64 工具链，以及 CMake、Ninja、GCC/G++、Clang 等原生构建辅助工具",
++                    description = "ARM64 NDK 工具链，以及 CMake、Ninja、GCC/G++、Clang 等原生构建辅助工具",
+                     isRequired = false,
+                     aptPackages = listOf("cmake", "ninja-build", "gcc", "g++", "clang", "make", "pkg-config", "util-linux"),
+                     postInstallSteps = listOf(
+                         "/bin/sh /opt/taixu/scripts/setup_termux_ndk.sh",
+                     ),
+-                    checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || . /opt/taixu/toolchains/android/ndk/taixu-ndk.env 2>/dev/null || true; (command -v cmake >/dev/null 2>&1 || test -x /opt/taixu/bin/cmake || test -x /opt/taixu/tools/android-suite-offline/cmake/bin/cmake || test -x /usr/bin/cmake) && (test -f \"\${TAIXU_NDK_PATH:-/opt/taixu/toolchains/android/ndk}/source.properties\" || test -f /opt/taixu/toolchains/android/ndk/source.properties)",
++                    checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || . /opt/taixu/tools/ndk/taixu-ndk.env 2>/dev/null || true; (command -v cmake >/dev/null 2>&1 || test -x /opt/taixu/bin/cmake || test -x /opt/taixu/tools/android-suite-offline/cmake/bin/cmake || test -x /usr/bin/cmake) && (test -f \"\${TAIXU_NDK_PATH:-/opt/taixu/tools/ndk}/source.properties\" || test -f /opt/taixu/tools/ndk/source.properties)",
+                     purgePaths = listOf(
+-                        "/opt/taixu/toolchains/android/ndk",
++                        "/opt/taixu/tools/ndk",
+                         "/opt/taixu/tools/android-suite-offline/cmake",
+                     ),
+                     purgeLinks = listOf(
+@@ -186,8 +187,8 @@ object BuiltinPluginBundles {
+                     postInstallSteps = listOf(
+                         "/bin/sh /opt/taixu/scripts/setup_rust.sh",
+                     ),
+-                    checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; (command -v rustc >/dev/null 2>&1 || test -x /opt/taixu/bin/rustc || test -x /opt/taixu/toolchains/rust/bin/rustc) && (command -v cargo >/dev/null 2>&1 || test -x /opt/taixu/bin/cargo || test -x /opt/taixu/toolchains/rust/bin/cargo)",
+-                    purgePaths = listOf("/opt/taixu/toolchains/rust"),
++                    checkCommand = ". /etc/profile.d/taixu-android.sh 2>/dev/null || true; (command -v rustc >/dev/null 2>&1 || test -x /opt/taixu/bin/rustc || test -x /opt/taixu/tools/rust/bin/rustc) && (command -v cargo >/dev/null 2>&1 || test -x /opt/taixu/bin/cargo || test -x /opt/taixu/tools/rust/bin/cargo)",
++                    purgePaths = listOf("/opt/taixu/tools/rust"),
+                     purgeFiles = listOf("/etc/profile.d/taixu-rust.sh"),
+                     purgeLinks = listOf(
+                         "/opt/taixu/bin/rustc",
+diff --git a/core/model/src/main/java/top/wkbin/taixu/core/model/PluginBundleScripts.kt b/core/model/src/main/java/top/wkbin/taixu/core/model/PluginBundleScripts.kt
+index 24de7573..68f12bd9 100644
+--- a/core/model/src/main/java/top/wkbin/taixu/core/model/PluginBundleScripts.kt
++++ b/core/model/src/main/java/top/wkbin/taixu/core/model/PluginBundleScripts.kt
+@@ -10,8 +10,8 @@ internal object PluginBundleScripts {
+         "^/opt/(android-sdk|flutter|jadx)$" +
+             "|^/opt/gradle-8\\.14\\.2$" +
+             "|^/opt/taixu/android-sdk-tools$" +
+-            "|^/opt/taixu/toolchains/android/(sdk-tools|jdk|ndk)$" +
+-            "|^/opt/taixu/toolchains/rust$" +
++            "|^/opt/taixu/tools/android/(sdk-tools|jdk|ndk)$" +
++            "|^/opt/taixu/tools/rust$" +
+             "|^/opt/taixu/tools/android-suite-offline/(jadx|cmake)$",
+     )
+     private val safeFile = Regex(
+diff --git a/core/model/src/main/java/top/wkbin/taixu/core/model/SandboxToolchain.kt b/core/model/src/main/java/top/wkbin/taixu/core/model/SandboxToolchain.kt
+index 7db89d34..96b20d1b 100644
+--- a/core/model/src/main/java/top/wkbin/taixu/core/model/SandboxToolchain.kt
++++ b/core/model/src/main/java/top/wkbin/taixu/core/model/SandboxToolchain.kt
+@@ -209,7 +209,7 @@ object SandboxToolchainCatalog {
+             displayName = "aapt2",
+             purpose = "资源打包与解析，资源表（arsc）分析必用",
+             commands = listOf("aapt2", "aapt"),
+-            candidatePaths = listOf("/opt/android-sdk/build-tools/35.0.0/aapt2"),
++            candidatePaths = listOf("/opt/android-sdk/build-tools/*/aapt2"),
+             versionCommand = "{cmd} version",
+             group = ToolchainGroup.NATIVE_BUILD,
+             repair = RepairStrategy.ByBundleComponents(
+@@ -223,7 +223,7 @@ object SandboxToolchainCatalog {
+             purpose = "APK 签名与重签名，自改包安装前必须过这一关",
+             commands = listOf("apksigner"),
+             candidatePaths = listOf(
+-                "/opt/android-sdk/build-tools/35.0.0/apksigner",
++                "/opt/android-sdk/build-tools/*/apksigner",
+                 "/usr/bin/apksigner",
+             ),
+             // apksigner version 输出的是内部工具版本（0.9），不是 build-tools 版本，比较无意义；
+diff --git a/core/model/src/test/java/top/wkbin/taixu/core/model/PluginBundleScriptsTest.kt b/core/model/src/test/java/top/wkbin/taixu/core/model/PluginBundleScriptsTest.kt
+index a73c88c4..744fb4d7 100644
+--- a/core/model/src/test/java/top/wkbin/taixu/core/model/PluginBundleScriptsTest.kt
++++ b/core/model/src/test/java/top/wkbin/taixu/core/model/PluginBundleScriptsTest.kt
+@@ -50,7 +50,7 @@ class PluginBundleScriptsTest {
+             retainedComponentIds = setOf("android-re", "android-ndk"),
+         ).joinToString("\n")
+         assertTrue(script.contains("rm -rf -- /opt/android-sdk"))
+-        assertFalse(script.contains("/opt/taixu/toolchains/android/ndk"))
++        assertFalse(script.contains("/opt/taixu/tools/ndk"))
+         assertFalse(script.contains("openjdk-17-jdk-headless"))
+         assertTrue(script.contains("apt-get remove"))
+         assertTrue(script.contains("adb"))
+@@ -62,7 +62,7 @@ class PluginBundleScriptsTest {
+             selectedComponentIds = setOf("android-core"),
+             retainedComponentIds = emptySet(),
+         ).joinToString("\n")
+-        assertTrue(script.contains("/opt/taixu/toolchains/android/ndk"))
++        assertTrue(script.contains("/opt/taixu/tools/ndk"))
+         assertTrue(script.contains("openjdk-17-jdk-headless"))
+         assertTrue(script.contains("rm -f -- /usr/local/bin/java /usr/bin/java"))
+     }
+diff --git a/feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperScreen.kt b/feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperScreen.kt
+index ff415c08..5ca1063b 100644
+--- a/feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperScreen.kt
++++ b/feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperScreen.kt
+@@ -495,13 +495,7 @@ internal fun LocalDeveloperScreen(
+         )
+     }
+     if (showRootfsUpdateConfirmation) {
+-        RuntimeAlertDialog(
+-            onDismissRequest = { showRootfsUpdateConfirmation = false },
+-            title = { Text("更新 Linux RootFS？") },
+-            text = { Text("将在线下载并校验新版本，保留 /root 与 /opt/taixu。更新期间后台 Linux 进程会停止，失败时自动恢复旧版本。") },
+-            confirmButton = { TextButton(onClick = { showRootfsUpdateConfirmation = false; viewModel?.updateRootfs() }) { Text("确认更新") } },
+-            dismissButton = { TextButton(onClick = { showRootfsUpdateConfirmation = false }) { Text("取消") } },
+-        )
++        RootfsUpdateDialog(viewModel) { showRootfsUpdateConfirmation = false }
+     }
+     if (showAgentLogDialog) {
+         RuntimeAlertDialog(
+diff --git a/feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperViewModel.kt b/feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperViewModel.kt
+index 1493a60a..551c7c87 100644
+--- a/feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperViewModel.kt
++++ b/feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperViewModel.kt
+@@ -1,5 +1,4 @@
+ package top.wkbin.taixu.ui.developer
+-
+ import androidx.lifecycle.ViewModel
+ import androidx.lifecycle.viewModelScope
+ import top.wkbin.taixu.core.common.logging.AppLogger
+@@ -15,6 +14,9 @@ import top.wkbin.taixu.core.tools.SignedRegistryRequest
+ import top.wkbin.taixu.core.tools.ToolManager
+ import top.wkbin.taixu.core.tools.ToolRegistry
+ import top.wkbin.taixu.runtime.LinuxRuntime
++import top.wkbin.taixu.runtime.RegistryRoute
++import top.wkbin.taixu.runtime.toRegistryRoute
++import top.wkbin.taixu.runtime.toPolicyValue
+ import top.wkbin.taixu.runtime.RuntimeHealth
+ import top.wkbin.taixu.runtime.RootfsUpdateInfo
+ import top.wkbin.taixu.runtime.shell.CommandResult
+@@ -26,9 +28,9 @@ import kotlinx.coroutines.flow.SharingStarted
+ import kotlinx.coroutines.flow.StateFlow
+ import kotlinx.coroutines.flow.asStateFlow
+ import kotlinx.coroutines.flow.stateIn
++import kotlinx.coroutines.CancellationException
+ import kotlinx.coroutines.Job
+ import kotlinx.coroutines.launch
+-
+ class DeveloperViewModel(
+     private val linuxRuntime: LinuxRuntime,
+     private val runtimeManager: RuntimeManager,
+@@ -41,37 +43,28 @@ class DeveloperViewModel(
+     private val logger: AppLogger,
+     private val embeddedAdbManager: EmbeddedAdbManager,
+ ) : ViewModel() {
+-
+     init {
+         embeddedAdbManager.startDiscovery(EmbeddedAdbManager.TAG_DEVELOPER_UI)
+     }
+-
+     override fun onCleared() {
+         super.onCleared()
+         embeddedAdbManager.stopDiscovery(EmbeddedAdbManager.TAG_DEVELOPER_UI)
+     }
+-
+     val runtimeState: StateFlow<RuntimeState> = linuxRuntime.state
+-
++    val mirrorPolicy get() = onboardingPreferences.mirrorPolicy
+     private val _commandInput = MutableStateFlow("cat /etc/os-release")
+     val commandInput: StateFlow<String> = _commandInput.asStateFlow()
+-
+     private val _busy = MutableStateFlow(false)
+     val busy: StateFlow<Boolean> = _busy.asStateFlow()
+-
+     private val _health = MutableStateFlow<RuntimeHealth?>(null)
+     val health: StateFlow<RuntimeHealth?> = _health.asStateFlow()
+-
+     private val _commandResult = MutableStateFlow<CommandResult?>(null)
+     val commandResult: StateFlow<CommandResult?> = _commandResult.asStateFlow()
+-
+     private val _message = MutableStateFlow<String?>(null)
+     val message: StateFlow<String?> = _message.asStateFlow()
+-
+     /** 当前 message 是否为失败结果（类型化标记，避免 UI 用字符串匹配判断样式）。 */
+     private val _messageIsError = MutableStateFlow(false)
+     val messageIsError: StateFlow<Boolean> = _messageIsError.asStateFlow()
+-
+     private fun setMessage(text: String, isError: Boolean = false) {
+         _message.value = text
+         _messageIsError.value = isError
+@@ -85,7 +78,6 @@ class DeveloperViewModel(
+     private val _rootfsUpdate = MutableStateFlow<RootfsUpdateInfo?>(null)
+     val rootfsUpdate: StateFlow<RootfsUpdateInfo?> = _rootfsUpdate.asStateFlow()
+     private var initializationJob: Job? = null
+-
+     val adbState: StateFlow<EmbeddedAdbManager.ConnectionState> = embeddedAdbManager.state
+     val adbDiscovery: StateFlow<EmbeddedAdbManager.DiscoveryState> = embeddedAdbManager.discovery
+     private val _adbBusy = MutableStateFlow(false)
+@@ -273,27 +265,35 @@ class DeveloperViewModel(
+         initializationJob?.cancel()
+     }
+ 
+-    fun updateRootfs() {
+-        if (_busy.value || linuxRuntime.state.value !is RuntimeState.Ready) return
++    fun updateRootfs(route: RegistryRoute? = null) {
++        if (_busy.value) return
++        if (linuxRuntime.state.value.let { it !is RuntimeState.Ready && it !is RuntimeState.Error }) {
++            setMessage("运行时尚未就绪，请先完成初始化", isError = true)
++            return
++        }
+         viewModelScope.launch {
+             _busy.value = true
+             _message.value = null
+             _messageIsError.value = false
+-            runCatching { linuxRuntime.updateRootfs() }
+-                .onSuccess { result ->
+-                    if (result.isSuccess) {
+-                        setMessage("RootFS 更新完成，用户数据已保留。")
+-                    } else {
+-                        logger.e("RootFS update failed: ${result.errorOrNull()?.message}")
+-                        setMessage("RootFS 更新失败，已自动恢复旧版本；请稍后重试", isError = true)
+-                    }
+-                    refreshRootfsVersion()
+-                }
+-                .onFailure { throwable ->
+-                    logger.e("RootFS update failed", throwable)
+-                    setMessage("RootFS 更新失败，请检查网络后重试", isError = true)
++            try {
++                val picked = route ?: onboardingPreferences.mirrorPolicy.toRegistryRoute()
++                if (route != null) onboardingPreferences.setMirrorPolicy(route.toPolicyValue())
++                val result = linuxRuntime.updateRootfs(route = picked)
++                val error = result.errorOrNull()
++                if (error == null) setMessage("RootFS 更新完成，用户数据已保留。")
++                else {
++                    logger.e("RootFS update failed: ${error.message}")
++                    setMessage("RootFS 更新失败：${error.message}", isError = true)
+                 }
+-            _busy.value = false
++                refreshRootfsVersion()
++            } catch (cancelled: CancellationException) {
++                throw cancelled
++            } catch (throwable: Throwable) {
++                logger.e("RootFS update failed", throwable)
++                setMessage("RootFS 更新失败：${throwable.message}", isError = true)
++            } finally {
++                _busy.value = false
++            }
+         }
+     }
+ 
+@@ -302,26 +302,26 @@ class DeveloperViewModel(
+         viewModelScope.launch {
+             _busy.value = true
+             setMessage("正在检查 RootFS 的 OCI manifest…")
+-            runCatching { linuxRuntime.checkRootfsUpdate() }
+-                .onSuccess { result ->
+-                    if (result.isSuccess) {
+-                        val info = result.getOrNull()!!
+-                        _rootfsUpdate.value = info
+-                        if (info.hasUpdate) {
+-                            setMessage("检测到 RootFS 新版本，可以更新。")
+-                        } else {
+-                            setMessage("RootFS 已是最新版本。")
+-                        }
+-                    } else {
+-                        logger.e("RootFS update check failed: ${result.errorOrNull()?.message}")
+-                        setMessage("RootFS 更新检查失败，请检查网络后重试", isError = true)
+-                    }
+-                }
+-                .onFailure { throwable ->
+-                    logger.e("RootFS update check failed", throwable)
+-                    setMessage("RootFS 更新检查失败，请检查网络后重试", isError = true)
++            try {
++                val route = onboardingPreferences.mirrorPolicy.toRegistryRoute()
++                val result = linuxRuntime.checkRootfsUpdate(route = route)
++                if (result.isSuccess) {
++                    val info = result.getOrNull()!!
++                    _rootfsUpdate.value = info
++                    setMessage(if (info.hasUpdate) "检测到 RootFS 新版本，可以更新。" else "RootFS 已是最新版本。")
++                } else {
++                    val error = result.errorOrNull()
++                    logger.e("RootFS update check failed: ${error?.message}")
++                    setMessage("RootFS 更新检查失败：${error?.message ?: "未知错误"}", isError = true)
+                 }
+-            _busy.value = false
++            } catch (cancelled: CancellationException) {
++                throw cancelled
++            } catch (throwable: Throwable) {
++                logger.e("RootFS update check failed", throwable)
++                setMessage("RootFS 更新检查失败：${throwable.message}", isError = true)
++            } finally {
++                _busy.value = false
++            }
+         }
+     }
+ 
+diff --git a/feature/developer/src/main/java/top/wkbin/taixu/ui/developer/RootfsUpdateDialog.kt b/feature/developer/src/main/java/top/wkbin/taixu/ui/developer/RootfsUpdateDialog.kt
+new file mode 100644
+index 00000000..2bb2aaf6
+--- /dev/null
++++ b/feature/developer/src/main/java/top/wkbin/taixu/ui/developer/RootfsUpdateDialog.kt
+@@ -0,0 +1,57 @@
++package top.wkbin.taixu.ui.developer
++
++import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Column
++import androidx.compose.foundation.layout.fillMaxWidth
++import androidx.compose.runtime.Composable
++import androidx.lifecycle.compose.collectAsStateWithLifecycle
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableStateOf
++import androidx.compose.runtime.remember
++import androidx.compose.runtime.setValue
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.unit.dp
++import top.wkbin.taixu.runtime.RegistryRoute
++import top.wkbin.taixu.runtime.toRegistryRoute
++import top.wkbin.taixu.ui.components.RuntimeAlertDialog
++import top.wkbin.taixu.ui.components.RuntimeOutlinedButton as OutlinedButton
++import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
++import top.wkbin.taixu.ui.developer.LocalizedText as Text
++
++/**
++ * RootFS 更新确认弹窗：在更新前选择实际下载线路。
++ *
++ * 更新前可显式选择线路；选择结果写回镜像策略，后续检查与更新会沿用。
++ *
++ * 三个选项竖排全宽：横排时按钮宽度不足，「国内镜像」会被折断成两行。
++ */
++@Composable
++internal fun RootfsUpdateDialog(viewModel: DeveloperViewModel?, onDismiss: () -> Unit) {
++    val savedPolicy by viewModel?.mirrorPolicy?.collectAsStateWithLifecycle(initialValue = "auto")
++        ?: remember { mutableStateOf("auto") }
++    var route by remember(savedPolicy) { mutableStateOf(savedPolicy.toRegistryRoute()) }
++    RuntimeAlertDialog(
++        onDismissRequest = onDismiss,
++        title = { Text("更新 Linux RootFS？") },
++        text = {
++            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
++                Text("将在线下载并校验新版本，保留 /root 与 /opt/taixu。更新期间后台 Linux 进程会停止，失败时自动恢复旧版本。")
++                Text("下载线路（选择后长期生效）：")
++                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
++                    RouteChip("自动加速", route == RegistryRoute.AUTO) { route = RegistryRoute.AUTO }
++                    RouteChip("官方直连", route == RegistryRoute.OFFICIAL) { route = RegistryRoute.OFFICIAL }
++                    RouteChip("国内镜像", route == RegistryRoute.CHINA_ACCELERATED) { route = RegistryRoute.CHINA_ACCELERATED }
++                }
++            }
++        },
++        confirmButton = { TextButton(onClick = { onDismiss(); viewModel?.updateRootfs(route) }) { Text("确认更新") } },
++        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
++    )
++}
++
++@Composable
++private fun RouteChip(label: String, selected: Boolean, onClick: () -> Unit) {
++    OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
++        Text(if (selected) "● $label" else "○ $label", maxLines = 1)
++    }
++}
+diff --git a/feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkshopSettingsViewModel.kt b/feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkshopSettingsViewModel.kt
+index a3534c4a..886df06d 100644
+--- a/feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkshopSettingsViewModel.kt
++++ b/feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkshopSettingsViewModel.kt
+@@ -72,13 +72,13 @@ class WorkshopSettingsViewModel(
+ ) : ViewModel() {
+     private val defaults = WorkshopEnvironmentDraft(
+         androidSdkPath = "/opt/android-sdk",
+-        ndkPath = "/opt/taixu/toolchains/android/ndk",
++        ndkPath = "/opt/taixu/tools/ndk",
+         flutterSdkPath = "/opt/flutter",
+-        javaPath = "/opt/taixu/toolchains/android/jdk",
+-        gradlePath = "/opt/gradle-8.14.2",
++        javaPath = "/opt/taixu/tools/android/jdk",
++        gradlePath = "",
+         cmakePath = "/opt/taixu/tools/android-suite-offline/cmake",
+         ninjaPath = "/opt/taixu/tools/android-suite-offline/bin",
+-        aapt2Path = "/opt/android-sdk/build-tools/35.0.0/aapt2",
++        aapt2Path = "",
+         gradleUserHome = "/root/.gradle",
+         pubCache = "/opt/taixu/cache/flutter-pub",
+         toolDir = "/opt/taixu/tools",
+@@ -122,11 +122,11 @@ class WorkshopSettingsViewModel(
+         val probeCmd = """
+             sh -c '
+             echo "===GRADLE==="
+-            ls -d /opt/gradle* /opt/taixu/toolchains/gradle* /usr/share/gradle* /usr/lib/gradle* 2>/dev/null || true
++            ls -d /opt/gradle* /opt/taixu/tools/gradle* /usr/share/gradle* /usr/lib/gradle* 2>/dev/null || true
+             echo "===JAVA==="
+-            ls -d /opt/taixu/toolchains/android/jdk /usr/lib/jvm/* /opt/jdk* 2>/dev/null || true
++            ls -d /opt/taixu/tools/android/jdk /usr/lib/jvm/* /opt/jdk* 2>/dev/null | while read -r d; do [ -f "${'$'}d/bin/java" ] && echo "${'$'}d"; done || true
+             echo "===NDK==="
+-            ls -d /opt/taixu/toolchains/android/ndk /opt/android-sdk/ndk/* 2>/dev/null || true
++            ls -d /opt/taixu/tools/ndk /opt/android-sdk/ndk/* 2>/dev/null || true
+             echo "===AAPT2==="
+             ls /opt/android-sdk/build-tools/*/aapt2 2>/dev/null || true
+             '
+@@ -169,11 +169,11 @@ class WorkshopSettingsViewModel(
+                     if (ver != null) "Gradle $ver" else path
+                 },
+                 javaOptions = toOptions(detectedJava) { path ->
+-                    if (path.contains("taixu/toolchains/android/jdk")) "Adoptium OpenJDK 17 (内置)"
++                    if (path.contains("taixu/tools/android/jdk")) "内置 OpenJDK"
+                     else "JDK ${path.substringAfterLast('/')}"
+                 },
+                 ndkOptions = toOptions(detectedNdk) { path ->
+-                    if (path.contains("taixu/toolchains/android/ndk")) "固定 ARM64 NDK r29 (内置)"
++                    if (path.contains("taixu/tools/ndk")) "内置 NDK"
+                     else "NDK ${path.substringAfterLast('/')}"
+                 },
+                 aapt2Options = toOptions(detectedAapt2) { path ->
+@@ -209,18 +209,18 @@ class WorkshopSettingsViewModel(
+ 
+         // 2. 扫描 Java / JDK
+         val jvmDir = File(rootfs, "usr/lib/jvm")
+-        jvmDir.listFiles()?.filter { it.isDirectory && !it.name.startsWith(".") }?.forEach {
++        jvmDir.listFiles()?.filter { it.isDirectory && !it.name.startsWith(".") && File(it, "bin/java").exists() }?.forEach {
+             javaPaths.add("/usr/lib/jvm/${it.name}")
+         }
+-        val taixuJdk = File(hostOpt, "taixu/toolchains/android/jdk")
+-        if (taixuJdk.exists() || File(guestOpt, "taixu/toolchains/android/jdk").exists()) {
+-            javaPaths.add("/opt/taixu/toolchains/android/jdk")
++        val taixuJdk = File(hostOpt, "taixu/tools/android/jdk")
++        if (taixuJdk.exists() || File(guestOpt, "taixu/tools/android/jdk").exists()) {
++            javaPaths.add("/opt/taixu/tools/android/jdk")
+         }
+ 
+         // 3. 扫描 NDK
+-        val taixuNdk = File(hostOpt, "taixu/toolchains/android/ndk")
+-        if (taixuNdk.exists() || File(guestOpt, "taixu/toolchains/android/ndk").exists()) {
+-            ndkPaths.add("/opt/taixu/toolchains/android/ndk")
++        val taixuNdk = File(hostOpt, "taixu/tools/ndk")
++        if (taixuNdk.exists() || File(guestOpt, "taixu/tools/ndk").exists()) {
++            ndkPaths.add("/opt/taixu/tools/ndk")
+         }
+         listOf(File(hostOpt, "android-sdk/ndk"), File(guestOpt, "android-sdk/ndk")).forEach { ndkParent ->
+             ndkParent.listFiles()?.filter { it.isDirectory }?.forEach {
+@@ -245,11 +245,11 @@ class WorkshopSettingsViewModel(
+                 if (ver != null) "Gradle $ver" else path
+             },
+             javaOptions = toOptions(javaPaths) { path ->
+-                if (path.contains("taixu/toolchains/android/jdk")) "Adoptium OpenJDK 17 (内置)"
++                if (path.contains("taixu/tools/android/jdk")) "内置 OpenJDK"
+                 else "JDK ${path.substringAfterLast('/')}"
+             },
+             ndkOptions = toOptions(ndkPaths) { path ->
+-                if (path.contains("taixu/toolchains/android/ndk")) "固定 ARM64 NDK r29 (内置)"
++                if (path.contains("taixu/tools/ndk")) "内置 NDK"
+                 else "NDK ${path.substringAfterLast('/')}"
+             },
+             aapt2Options = toOptions(aapt2Paths) { path ->
+diff --git a/runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntime.kt b/runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntime.kt
+index 69d28b1f..e0b8ee89 100644
+--- a/runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntime.kt
++++ b/runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntime.kt
+@@ -24,8 +24,14 @@ interface LinuxRuntime {
+ 
+     suspend fun initialize(request: RuntimeInstallRequest = RuntimeInstallRequest("ubuntu")): AppResult<Unit>
+     suspend fun restoreInstalledState(): Boolean
+-    suspend fun updateRootfs(distroId: String? = null): AppResult<Unit>
+-    suspend fun checkRootfsUpdate(distroId: String? = null): AppResult<RootfsUpdateInfo>
++    suspend fun updateRootfs(
++        distroId: String? = null,
++        route: RegistryRoute = RegistryRoute.AUTO,
++    ): AppResult<Unit>
++    suspend fun checkRootfsUpdate(
++        distroId: String? = null,
++        route: RegistryRoute = RegistryRoute.AUTO,
++    ): AppResult<RootfsUpdateInfo>
+     suspend fun healthCheck(distroId: String? = null): RuntimeHealth
+ 
+     suspend fun switchActiveDistro(distroId: String): AppResult<Unit>
+diff --git a/runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntimeImpl.kt b/runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntimeImpl.kt
+index b5e2a220..f94c18aa 100644
+--- a/runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntimeImpl.kt
++++ b/runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntimeImpl.kt
+@@ -415,9 +415,10 @@ class LinuxRuntimeImpl(
+         }
+     }
+ 
+-    override suspend fun updateRootfs(distroId: String?): AppResult<Unit> = initializeMutex.withLock {
++    override suspend fun updateRootfs(distroId: String?, route: RegistryRoute): AppResult<Unit> = initializeMutex.withLock {
+         withRuntimeMaintenance {
+-            if (_state.value !is RuntimeState.Ready) {
++            val usableState = _state.value
++            if (usableState !is RuntimeState.Ready && usableState !is RuntimeState.Error) {
+                 return@withRuntimeMaintenance AppResult.Failure(
+                     AppError(ErrorCode.INSTALLATION_FAILED, "只有已就绪的 Linux Runtime 才能更新"),
+                 )
+@@ -429,10 +430,9 @@ class LinuxRuntimeImpl(
+                 val distribution = DistributionCatalog.require(targetDistro)
+                 val result = rootfsInstaller.updateOci(
+                     distribution,
+-                    RegistryRoute.AUTO,
++                    route,
+                 ) { progress -> updateDownloadProgress("更新 ${distribution.displayName}", 0.1f, 0.65f, progress) }
+                 result.errorOrNull()?.let { error ->
+-                    _state.value = RuntimeState.Error(error.cause ?: IllegalStateException(error.message))
+                     return@withRuntimeMaintenance AppResult.Failure(error)
+                 }
+ 
+@@ -460,14 +460,14 @@ class LinuxRuntimeImpl(
+                 AppResult.Success(Unit)
+             } catch (cancellation: CancellationException) {
+                 val targetDistro = distroId?.lowercase()?.trim() ?: _activeDistroId.value
+-                rootfsInstaller.rollbackPendingUpdate(targetDistro)
+-                _state.value = RuntimeState.Error(IllegalStateException("RootFS 更新已取消，旧版本已恢复"))
++                runCatching { rootfsInstaller.rollbackPendingUpdate(targetDistro) }
++                _state.value = RuntimeState.Ready
+                 throw cancellation
+             } catch (throwable: Throwable) {
+                 val targetDistro = distroId?.lowercase()?.trim() ?: _activeDistroId.value
+-                rootfsInstaller.rollbackPendingUpdate(targetDistro)
++                runCatching { rootfsInstaller.rollbackPendingUpdate(targetDistro) }
+                 logger.e("Linux runtime update failed", throwable)
+-                _state.value = RuntimeState.Error(throwable)
++                _state.value = RuntimeState.Ready
+                 AppResult.Failure(
+                     AppError(ErrorCode.INSTALLATION_FAILED, throwable.message ?: "RootFS 更新失败", throwable),
+                 )
+@@ -475,7 +475,7 @@ class LinuxRuntimeImpl(
+         }
+     }
+ 
+-    override suspend fun checkRootfsUpdate(distroId: String?): AppResult<RootfsUpdateInfo> =
++    override suspend fun checkRootfsUpdate(distroId: String?, route: RegistryRoute): AppResult<RootfsUpdateInfo> =
+         withContext(Dispatchers.IO) {
+             if (_state.value !is RuntimeState.Ready) {
+                 return@withContext AppResult.Failure(
+@@ -484,7 +484,7 @@ class LinuxRuntimeImpl(
+             }
+             val targetDistro = distroId?.lowercase()?.trim() ?: _activeDistroId.value
+             val distribution = DistributionCatalog.require(targetDistro)
+-            runCatching { rootfsInstaller.checkForUpdate(distribution, RegistryRoute.AUTO) }.fold(
++            runCatching { rootfsInstaller.checkForUpdate(distribution, route) }.fold(
+                 onSuccess = { AppResult.Success(it) },
+                 onFailure = {
+                     logger.e("Linux runtime RootFS update check failed", it)
+diff --git a/runtime/src/main/java/top/wkbin/taixu/runtime/RegistryRoutePolicy.kt b/runtime/src/main/java/top/wkbin/taixu/runtime/RegistryRoutePolicy.kt
+new file mode 100644
+index 00000000..162c3046
+--- /dev/null
++++ b/runtime/src/main/java/top/wkbin/taixu/runtime/RegistryRoutePolicy.kt
+@@ -0,0 +1,20 @@
++package top.wkbin.taixu.runtime
++
++import kotlinx.coroutines.flow.Flow
++import kotlinx.coroutines.flow.first
++
++/** Map the persisted mirror preference to a RootFS registry route. */
++suspend fun Flow<String>.toRegistryRoute(): RegistryRoute = first().toRegistryRoute()
++
++fun String.toRegistryRoute(): RegistryRoute = when (this) {
++    "official" -> RegistryRoute.OFFICIAL
++    "china" -> RegistryRoute.CHINA_ACCELERATED
++    else -> RegistryRoute.AUTO
++}
++
++/** 反向映射：把界面选中的线路写回镜像策略，供后续更新与检查更新沿用。 */
++fun RegistryRoute.toPolicyValue(): String = when (this) {
++    RegistryRoute.OFFICIAL -> "official"
++    RegistryRoute.CHINA_ACCELERATED -> "china"
++    RegistryRoute.AUTO -> "auto"
++}
+diff --git a/runtime/src/main/java/top/wkbin/taixu/runtime/RuntimeHealthChecker.kt b/runtime/src/main/java/top/wkbin/taixu/runtime/RuntimeHealthChecker.kt
+index c97168ff..d4e9703b 100644
+--- a/runtime/src/main/java/top/wkbin/taixu/runtime/RuntimeHealthChecker.kt
++++ b/runtime/src/main/java/top/wkbin/taixu/runtime/RuntimeHealthChecker.kt
+@@ -4,13 +4,24 @@ import top.wkbin.taixu.runtime.backend.BackendSelector
+ import top.wkbin.taixu.runtime.shell.CommandResult
+ import top.wkbin.taixu.runtime.shell.ShellCommand
+ import top.wkbin.taixu.runtime.shell.ShellExecutor
++import top.wkbin.taixu.runtime.scripts.EnvironmentSelfHeal
+ import java.io.File
++import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.SupervisorJob
++import kotlinx.coroutines.launch
+ 
+ class RuntimeHealthChecker(
+     private val pathManager: RuntimePathManager,
+     private val backendSelector: BackendSelector,
+     private val shellExecutor: ShellExecutor,
+ ) {
++    private val environmentSelfHeal = EnvironmentSelfHeal(
++        pathManager,
++        backendSelector,
++        shellExecutor,
++    )
++    private val healScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+     suspend fun check(): RuntimeHealth {
+         if (!pathManager.isProotInstalled()) {
+             return RuntimeHealth(
+@@ -24,6 +35,9 @@ class RuntimeHealthChecker(
+                 detail = "Linux RootFS 校验失败：Bash、/bin/sh 或其 ARM64 ELF 解释器不完整",
+             )
+         }
++        // RootFS 更新会整体替换发行版，旧环境里 apt 装的包与 profile.d 会一起消失：
++        // 启动时异步补一次（幂等、缺什么补什么），不阻塞健康检查与冷启动。
++        healScope.launch { environmentSelfHeal.heal() }
+ 
+         val healthMarker = ".taixu-health"
+         // 三条 PRoot 命令合并为单次探针：每次冷启动都要完整拉起 proot 进程，
+diff --git a/runtime/src/main/java/top/wkbin/taixu/runtime/build/BuildEnvironmentPreflight.kt b/runtime/src/main/java/top/wkbin/taixu/runtime/build/BuildEnvironmentPreflight.kt
+index 08cb6606..7237fdc5 100644
+--- a/runtime/src/main/java/top/wkbin/taixu/runtime/build/BuildEnvironmentPreflight.kt
++++ b/runtime/src/main/java/top/wkbin/taixu/runtime/build/BuildEnvironmentPreflight.kt
+@@ -65,9 +65,12 @@ object BuildEnvironmentPreflight {
+             lines += "test -n \"\$JAVA_BIN\" -a -x \"\$JAVA_BIN\" || fail java_missing"
+             lines += "JAVA_MACHINE=\$(java_arch_machine \"\$JAVA_BIN\")"
+             lines += "test \"\$JAVA_MACHINE\" = $ARM64_ELF_MACHINE || { echo \"TAIXU_PREFLIGHT_FAIL: java_arch path=\$JAVA_BIN machine=\${JAVA_MACHINE:-unreadable} expected=$ARM64_ELF_MACHINE\"; exit 2; }"
+-            lines += "test -f \"\$ANDROID_HOME/platforms/android-34/android.jar\" || fail android_platform"
+-            lines += "test -f \"\$ANDROID_HOME/build-tools/35.0.0/lib/d8.jar\" || fail build_tools"
+-            lines += "AAPT2=\${TAIXU_AAPT2_PATH:-\$ANDROID_HOME/build-tools/35.0.0/aapt2}"
++            // 平台与 Build-Tools 版本按本机实际安装取最高，不写死版本号
++            lines += "_tx_plat=\$(for _tx_candidate in \"\$ANDROID_HOME\"/platforms/android-[0-9]*; do [ -f \"\$_tx_candidate/android.jar\" ] && printf '%s\\n' \"\$_tx_candidate\"; done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)"
++            lines += "test -n \"\$_tx_plat\" -a -f \"\$_tx_plat/android.jar\" || fail android_platform"
++            lines += "_tx_bt=\$(for _tx_candidate in \"\$ANDROID_HOME\"/build-tools/[0-9]*; do [ -f \"\$_tx_candidate/source.properties\" ] && [ -f \"\$_tx_candidate/lib/d8.jar\" ] && { [ -n \"\${TAIXU_AAPT2_PATH:-}\" ] || [ -x \"\$_tx_candidate/aapt2\" ]; } && printf '%s\\n' \"\$_tx_candidate\"; done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)"
++            lines += "test -n \"\$_tx_bt\" -a -f \"\$_tx_bt/lib/d8.jar\" || fail build_tools"
++            lines += "AAPT2=\${TAIXU_AAPT2_PATH:-\${_tx_bt:-\$ANDROID_HOME/build-tools}/aapt2}"
+             lines += "test -x \"\$AAPT2\" -a \"\$(elf_machine \"\$AAPT2\")\" = $ARM64_ELF_MACHINE || fail aapt2_arch"
+             lines += "NDK_PATH=\${TAIXU_NDK_PATH:-\${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}}"
+             lines += "NDK_CLANG=\$(find \"\$NDK_PATH/toolchains/llvm/prebuilt\" \\( -type f -o -type l \\) -name clang -print -quit 2>/dev/null)"
+@@ -88,7 +91,8 @@ object BuildEnvironmentPreflight {
+             lines += "fi"
+             lines += "GRADLE_USER_HOME=\${GRADLE_USER_HOME:-/root/.gradle}"
+             lines += "grep -Fqx 'android.builder.sdkDownload=false' \"\$GRADLE_USER_HOME/gradle.properties\" 2>/dev/null || fail sdk_download_enabled"
+-            lines += "GRADLE_HOME=\${GRADLE_HOME:-/opt/gradle-8.14.2}"
++            lines += "_tx_gv=\$(ls -d /opt/gradle-[0-9]* 2>/dev/null | sed 's|^/opt/gradle-||' | grep -E '^[0-9]+(\\.[0-9]+)+\$' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)"
++            lines += "GRADLE_HOME=\${GRADLE_HOME:-\${_tx_gv:+/opt/gradle-\$_tx_gv}}"
+             lines += "test -x \"\$GRADLE_HOME/bin/gradle\" -o -d \"\$GRADLE_HOME/lib\" -o -f \"\$PROJECT_PATH/gradle/wrapper/gradle-wrapper.jar\" -o -n \"\$(command -v gradle 2>/dev/null || true)\" || fail gradle_missing"
+             if (projectType == ProjectType.FLUTTER) {
+                 lines += "# default FLUTTER=/opt/flutter/bin/flutter DART=/opt/flutter/bin/cache/dart-sdk/bin/dart"
+diff --git a/runtime/src/main/java/top/wkbin/taixu/runtime/doctor/EnvironmentRepairer.kt b/runtime/src/main/java/top/wkbin/taixu/runtime/doctor/EnvironmentRepairer.kt
+index de8d6260..7d2630eb 100644
+--- a/runtime/src/main/java/top/wkbin/taixu/runtime/doctor/EnvironmentRepairer.kt
++++ b/runtime/src/main/java/top/wkbin/taixu/runtime/doctor/EnvironmentRepairer.kt
+@@ -211,20 +211,23 @@ class EnvironmentRepairer(
+                 mkdir -p ${'$'}HOME/.pip
+                 printf '[global]\nindex-url = https://pypi.tuna.tsinghua.edu.cn/simple\n' > ${'$'}HOME/.pip/pip.conf 2>/dev/null || true
+                 echo "运行时就绪状态: Node ${'$'}(node -v 2>/dev/null || echo '未就绪'), NPM ${'$'}(npm -v 2>/dev/null || echo '未就绪')"
+-                if [ -d /opt/android-sdk ] || [ -d /opt/taixu/toolchains/android ]; then
++                if [ -d /opt/android-sdk ] || [ -d /opt/taixu/tools/android ]; then
+                     if [ ! -f /etc/profile.d/taixu-android.sh ]; then
+                         mkdir -p /etc/profile.d
+                         cat << 'EOF' > /etc/profile.d/taixu-android.sh
+ # TaiXu Android development environment (self-healed by EnvironmentRepairer)
+-export JAVA_HOME="${'$'}{JAVA_HOME:-/opt/taixu/toolchains/android/jdk}"
++export JAVA_HOME="${'$'}{JAVA_HOME:-/opt/taixu/tools/android/jdk}"
+ export ANDROID_HOME="/opt/android-sdk"
+ export ANDROID_SDK_ROOT="/opt/android-sdk"
+-export GRADLE_HOME="/opt/gradle-8.14.2"
+-export TAIXU_AAPT2_PATH="/opt/android-sdk/build-tools/35.0.0/aapt2"
+-export TAIXU_NDK_PATH="/opt/taixu/toolchains/android/ndk"
+-export TAIXU_NDK_VERSION="r29"
+-export ANDROID_NDK_HOME="/opt/taixu/toolchains/android/ndk"
+-export ANDROID_NDK_ROOT="/opt/taixu/toolchains/android/ndk"
++_tx_gv=${'$'}(ls -d /opt/gradle-[0-9]* 2>/dev/null | sed 's|^/opt/gradle-||' | grep -E '^[0-9]+(\.[0-9]+)+${'$'}' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)
++export GRADLE_HOME="${'$'}{GRADLE_HOME:-${'$'}{_tx_gv:+/opt/gradle-${'$'}_tx_gv}}"
++_tx_bt=${'$'}(for _tx_candidate in /opt/android-sdk/build-tools/[0-9]*; do [ -f "${'$'}_tx_candidate/source.properties" ] && [ -f "${'$'}_tx_candidate/lib/d8.jar" ] && { [ -n "${'$'}{TAIXU_AAPT2_PATH:-}" ] || [ -x "${'$'}_tx_candidate/aapt2" ]; } && printf '%s\n' "${'$'}_tx_candidate"; done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)
++export TAIXU_AAPT2_PATH="${'$'}{TAIXU_AAPT2_PATH:-${'$'}{_tx_bt:-/opt/android-sdk/build-tools}/aapt2}"
++export TAIXU_NDK_PATH="/opt/taixu/tools/ndk"
++_tx_ndk_ver=${'$'}(sed -n 's/^Pkg\.Revision[[:space:]]*=[[:space:]]*//p' "${'$'}TAIXU_NDK_PATH/source.properties" 2>/dev/null | head -n 1)
++export TAIXU_NDK_VERSION="${'$'}{_tx_ndk_ver:-unknown}"
++export ANDROID_NDK_HOME="/opt/taixu/tools/ndk"
++export ANDROID_NDK_ROOT="/opt/taixu/tools/ndk"
+ export TAIXU_CMAKE_HOME="/opt/taixu/tools/android-suite-offline/cmake"
+ export TAIXU_NINJA_HOME="/opt/taixu/tools/android-suite-offline/bin"
+ export PATH="/opt/taixu/bin:/opt/taixu/tools/android-suite-offline/bin:/opt/taixu/tools/android-suite-offline/cmake/bin:${'$'}JAVA_HOME/bin:${'$'}GRADLE_HOME/bin:/opt/flutter/bin:${'$'}PATH"
+diff --git a/runtime/src/main/java/top/wkbin/taixu/runtime/doctor/ToolchainInspector.kt b/runtime/src/main/java/top/wkbin/taixu/runtime/doctor/ToolchainInspector.kt
+index 054b7a3d..55e76c3c 100644
+--- a/runtime/src/main/java/top/wkbin/taixu/runtime/doctor/ToolchainInspector.kt
++++ b/runtime/src/main/java/top/wkbin/taixu/runtime/doctor/ToolchainInspector.kt
+@@ -107,7 +107,13 @@ class ToolchainInspector(
+             val resolve = StringBuilder()
+             resolve.append("res=\"\"; ")
+             probe.candidatePaths.forEach { p ->
+-                resolve.append("if [ -z \"\$res\" ] && { [ -x \"$p\" ] || [ -f \"$p\" ]; }; then res=\"$p\"; fi; ")
++                if (p.contains('*')) {
++                    // 含通配的候选（如 build-tools/*/aapt2）交给沙箱 shell 展开后再判定，
++                    // 避免把版本号写死在候选清单里。
++                    resolve.append("if [ -z \"\$res\" ]; then _tx_candidate=\$(for _c in $p; do { [ -x \"\$_c\" ] || [ -f \"\$_c\" ]; } && printf '%s\\n' \"\$_c\"; done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1); [ -n \"\$_tx_candidate\" ] && res=\"\$_tx_candidate\"; fi; ")
++                } else {
++                    resolve.append("if [ -z \"\$res\" ] && { [ -x \"$p\" ] || [ -f \"$p\" ]; }; then res=\"$p\"; fi; ")
++                }
+             }
+             probe.commands.forEach { cmd ->
+                 resolve.append("if [ -z \"\$res\" ]; then c=\$(command -v $cmd 2>/dev/null || true); [ -n \"\$c\" ] && res=\"\$c\"; fi; ")
+diff --git a/runtime/src/main/java/top/wkbin/taixu/runtime/proot/ProotMountLayout.kt b/runtime/src/main/java/top/wkbin/taixu/runtime/proot/ProotMountLayout.kt
+index b098cfe7..e3461b7e 100644
+--- a/runtime/src/main/java/top/wkbin/taixu/runtime/proot/ProotMountLayout.kt
++++ b/runtime/src/main/java/top/wkbin/taixu/runtime/proot/ProotMountLayout.kt
+@@ -57,9 +57,8 @@ internal object ProotMountLayout {
+         val guestPaths = hostSystemPaths + listOf(
+             "/dev", "/proc", "/sys", "/tmp", "/workspace", "/root", "/opt/taixu", "/attachments",
+             "/sdcard", "/sdcard/Download", "/sdcard/Documents",
+-            // Guest alias for link2symlink backing store, NOT the real rootfs/.l2s store.
+-            File(rootfs, ".l2s").absolutePath.replace('\\', '/'),
+-            File(rootfs.canonicalFile, ".l2s").absolutePath.replace('\\', '/'),
++            // link2symlink backing store：只给 guest 路径，勿传宿主绝对路径
++            "/.l2s",
+         )
+         return guestPaths.map { physicalRoot.resolve(it.trimStart('/')).normalize() }
+             .filter { it != physicalRoot && it.startsWith(physicalRoot) }.toSet()
+diff --git a/runtime/src/main/java/top/wkbin/taixu/runtime/rootfs/OciRegistryClient.kt b/runtime/src/main/java/top/wkbin/taixu/runtime/rootfs/OciRegistryClient.kt
+index 3131563f..a1ab59ab 100644
+--- a/runtime/src/main/java/top/wkbin/taixu/runtime/rootfs/OciRegistryClient.kt
++++ b/runtime/src/main/java/top/wkbin/taixu/runtime/rootfs/OciRegistryClient.kt
+@@ -68,7 +68,10 @@ class OciRegistryClient(
+         val endpoints = when (route) {
+             RegistryRoute.OFFICIAL -> listOf(Endpoint.dockerHub())
+             RegistryRoute.CHINA_ACCELERATED -> listOf(Endpoint.daoCloud())
+-            RegistryRoute.AUTO -> listOf(Endpoint.daoCloud(), Endpoint.dockerHub())
++            // DaoCloud 公共镜像已停止匿名服务（m.daocloud.io/auth/token 不再发牌），
++            // 放第一档会让每次更新先白亏一次超时；改以 Docker Hub 优先，
++            // 它才是「App 真正走了代理」时的有效源，DaoCloud 降为无代理场景兵底。
++            RegistryRoute.AUTO -> listOf(Endpoint.dockerHub(), Endpoint.daoCloud())
+         }
+         var lastFailure: Throwable? = null
+         for ((index, endpoint) in endpoints.withIndex()) {
+@@ -98,7 +101,11 @@ class OciRegistryClient(
+                 logger.w("OCI registry route ${endpoint.name} failed", failure)
+             }
+         }
+-        throw lastFailure ?: IllegalStateException("没有可用的 OCI Registry 下载线路")
++        throw IllegalStateException(
++            "RootFS 下载失败：已依次尝试 ${endpoints.joinToString(" → ") { it.name }}"
++                + "（最近一次：${lastFailure?.message ?: "未知"}）。",
++            lastFailure,
++        )
+     }
+ 
+     private suspend fun pullFrom(
+diff --git a/runtime/src/main/java/top/wkbin/taixu/runtime/rootfs/RootfsInstaller.kt b/runtime/src/main/java/top/wkbin/taixu/runtime/rootfs/RootfsInstaller.kt
+index a3ba6b14..240f7427 100644
+--- a/runtime/src/main/java/top/wkbin/taixu/runtime/rootfs/RootfsInstaller.kt
++++ b/runtime/src/main/java/top/wkbin/taixu/runtime/rootfs/RootfsInstaller.kt
+@@ -180,8 +180,8 @@ class RootfsInstaller(
+             ?: return@withContext false
+         val rootfs = pathManager.rootfsDir(distroId)
+         if (rootfs.exists()) {
+-            val broken = File(rootfs.parentFile, "rootfs.broken")
+-            SafeFileTree.delete(broken)
++            val broken = File(rootfs.parentFile, "rootfs.broken.${System.currentTimeMillis()}")
++            runCatching { SafeFileTree.delete(broken) }
+             if (!rootfs.renameTo(broken)) {
+                 throw IllegalStateException("无法移开当前 RootFS（旧版本仍保留在 ${backup.path}）")
+             }
+@@ -189,7 +189,7 @@ class RootfsInstaller(
+                 runCatching { broken.renameTo(rootfs) }
+                 throw IllegalStateException("无法恢复旧 RootFS（旧版本仍保留在 ${backup.path}）")
+             }
+-            SafeFileTree.delete(broken)
++            runCatching { SafeFileTree.delete(broken) }
+         } else {
+             check(backup.renameTo(rootfs)) { "无法恢复旧 RootFS（旧版本仍保留在 ${backup.path}）" }
+         }
+@@ -370,7 +370,7 @@ class RootfsInstaller(
+     private fun replaceRootfs(distroId: String, staging: File, retainBackup: Boolean) {
+         val rootfs = pathManager.rootfsDir(distroId)
+         val backup = pathManager.rootfsPreviousDir(distroId)
+-        SafeFileTree.delete(backup)
++        runCatching { SafeFileTree.delete(backup) }.onFailure { if (!backup.renameTo(File(backup.parentFile, backup.name + "." + System.currentTimeMillis()))) throw it }
+         if (rootfs.exists() && !rootfs.renameTo(backup)) error("无法暂存旧 RootFS")
+         if (!staging.renameTo(rootfs)) {
+             if (!backup.renameTo(rootfs)) {
+@@ -379,11 +379,11 @@ class RootfsInstaller(
+             }
+             error("无法启用新 RootFS")
+         }
+-        if (retainBackup) pendingUpdateBackup = backup else SafeFileTree.delete(backup)
++        if (retainBackup) pendingUpdateBackup = backup else runCatching { SafeFileTree.delete(backup) }.onFailure { if (!backup.renameTo(File(backup.parentFile, backup.name + "." + System.currentTimeMillis()))) throw it }
+     }
+ 
+     private fun preserveUserDirectories(oldRootfs: File, newRootfs: File) {
+-        listOf("root", "opt/taixu").forEach { relative ->
++        listOf("root").forEach { relative ->
+             val source = File(oldRootfs, relative)
+             if (source.exists()) {
+                 val target = File(newRootfs, relative)
+diff --git a/runtime/src/main/java/top/wkbin/taixu/runtime/scripts/EnvironmentSelfHeal.kt b/runtime/src/main/java/top/wkbin/taixu/runtime/scripts/EnvironmentSelfHeal.kt
+new file mode 100644
+index 00000000..0e53bd4f
+--- /dev/null
++++ b/runtime/src/main/java/top/wkbin/taixu/runtime/scripts/EnvironmentSelfHeal.kt
+@@ -0,0 +1,48 @@
++package top.wkbin.taixu.runtime.scripts
++
++import top.wkbin.taixu.runtime.RuntimePathManager
++import top.wkbin.taixu.runtime.backend.BackendSelector
++import top.wkbin.taixu.runtime.shell.ShellCommand
++import top.wkbin.taixu.runtime.shell.ShellExecutor
++
++/**
++ * RootFS 更新后的环境自愈。
++ *
++ * 更新会把整个发行版替换成上游镜像，旧 rootfs 里 apt 装过的包、以及
++ * setup_android_core.sh 写出的 `/etc/profile.d/taixu-android.sh` 会一起消失，
++ * 表现为环境检查掉项（基础工具缺失 / Node.js 未检测到 / Android 环境「未安装」）。
++ *
++ * 真正的补齐逻辑放在沙箱内的 `assets/scripts/taixu_env_heal.sh`（随
++ * [RuntimeAssetSynchronizer] 同步到 /opt/taixu/scripts/），这里只负责触发：
++ * 幂等脚本全部就绪时只做几次 stat，缺什么才补什么，永不返回非零。
++ */
++class EnvironmentSelfHeal(
++    private val pathManager: RuntimePathManager,
++    private val backendSelector: BackendSelector,
++    private val shellExecutor: ShellExecutor,
++) {
++    companion object {
++        const val GUEST_SCRIPT = "/opt/taixu/scripts/taixu_env_heal.sh"
++
++        /** 补装依赖 apt 网络，给足时间；离线时脚本自身会快速放弃。 */
++        const val HEAL_TIMEOUT_MS = 180_000L
++    }
++
++    /** 执行自愈脚本；任何异常都吞掉，环境自愈不能影响主流程。 */
++    suspend fun heal(): Boolean = runCatching {
++        shellExecutor.execute(
++            command = backendSelector.active().build(
++                prootBinary = pathManager.activeProotFile(),
++                rootfsDir = pathManager.rootfsDir,
++                workspaceDir = pathManager.workspaceDir,
++                tmpDir = pathManager.tmpDir,
++                attachmentsDir = pathManager.sharedAttachmentsDir,
++                command = ShellCommand(
++                    commandLine = "/bin/sh $GUEST_SCRIPT",
++                    timeoutMs = HEAL_TIMEOUT_MS,
++                ),
++            ),
++            timeoutMs = HEAL_TIMEOUT_MS,
++        ).isSuccess
++    }.getOrDefault(false)
++}
+diff --git a/runtime/src/test/java/top/wkbin/taixu/runtime/BuildEnvironmentPreflightTest.kt b/runtime/src/test/java/top/wkbin/taixu/runtime/BuildEnvironmentPreflightTest.kt
+index e0c4bce1..6b94723f 100644
+--- a/runtime/src/test/java/top/wkbin/taixu/runtime/BuildEnvironmentPreflightTest.kt
++++ b/runtime/src/test/java/top/wkbin/taixu/runtime/BuildEnvironmentPreflightTest.kt
+@@ -8,15 +8,32 @@ import org.junit.Test
+ import top.wkbin.taixu.runtime.ProjectType
+ 
+ class BuildEnvironmentPreflightTest {
++    @Test
++    fun sdkCandidatesAreValidatedBeforeChoosingHighestVersion() {
++        val command = BuildEnvironmentPreflight.command("/workspace/app", ProjectType.ANDROID)
++        listOf("_tx_plat", "_tx_bt").forEach { variable ->
++            val selector = command.substringAfter("$variable=\$(").substringBefore("tail -n 1)")
++            assertTrue(selector.contains("for _tx_candidate in"))
++            assertTrue(selector.indexOf("[ -f") < selector.indexOf("sort -V"))
++        }
++        assertTrue(command.contains("\$_tx_candidate/source.properties"))
++        assertTrue(command.contains("\$_tx_candidate/lib/d8.jar"))
++        assertTrue(command.contains("[ -x \"\$_tx_candidate/aapt2\" ]"))
++        assertTrue(command.contains("[ -n \"\${TAIXU_AAPT2_PATH:-}\" ]"))
++    }
++
+     @Test
+     fun androidArmPreflightRequiresPinnedArmArtifactsAndDisablesSdkDownload() {
+         val command = BuildEnvironmentPreflight.command("/workspace/a project's app", ProjectType.ANDROID)
+         assertTrue(command.contains("android.builder.sdkDownload=false"))
+         assertTrue(command.contains("TAIXU_NDK_PATH"))
+         assertTrue(command.contains("TAIXU_AAPT2_PATH"))
+-        assertTrue(command.contains("/opt/taixu/toolchains/android/jdk/bin/java"))
+-        assertTrue(command.contains("\$ANDROID_HOME/build-tools/35.0.0/aapt2"))
+-        assertTrue(command.contains("/opt/taixu/toolchains/android/ndk"))
++        assertTrue(command.contains("/opt/taixu/tools/android/jdk/bin/java"))
++        // 平台与 Build-Tools 版本由脚本探测，断言探测片段而非具体版本号
++        assertTrue(command.contains("_tx_plat"))
++        assertTrue(command.contains("_tx_bt"))
++        assertTrue(command.contains("/aapt2"))
++        assertTrue(command.contains("/opt/taixu/tools/ndk"))
+         assertTrue(command.contains("-name clang"))
+         assertTrue(command.contains("od -An -t x1 -j 18 -N 2"))
+         assertTrue(command.contains("= b700"))
+@@ -50,7 +67,7 @@ class BuildEnvironmentPreflightTest {
+     fun flutterArmPreflightAcceptsOfflineSuiteLayoutWithoutLegacyMarker() {
+         val command = BuildEnvironmentPreflight.command("/workspace/flutter", ProjectType.FLUTTER)
+ 
+-        assertTrue(command.contains("/opt/taixu/toolchains/android/jdk/bin/java"))
++        assertTrue(command.contains("/opt/taixu/tools/android/jdk/bin/java"))
+         assertTrue(command.contains("/opt/flutter/bin/flutter"))
+         assertTrue(command.contains("/opt/flutter/bin/cache/dart-sdk/bin/dart"))
+         assertFalse(command.contains("flutter_marker"))
+diff --git a/runtime/src/test/java/top/wkbin/taixu/runtime/BuildGuardAssetTest.kt b/runtime/src/test/java/top/wkbin/taixu/runtime/BuildGuardAssetTest.kt
+index 35c18134..5228588b 100644
+--- a/runtime/src/test/java/top/wkbin/taixu/runtime/BuildGuardAssetTest.kt
++++ b/runtime/src/test/java/top/wkbin/taixu/runtime/BuildGuardAssetTest.kt
+@@ -10,7 +10,7 @@ class BuildGuardAssetTest {
+     fun armBuildEntriesAcceptVersionedHomuSdkTools() {
+         listOf("build_android.sh", "build_flutter.sh").forEach { name ->
+             val script = File(assets, "scripts/$name").readText()
+-            assertTrue(script.contains("/opt/taixu/toolchains/android/sdk-tools/artifacts/homu-*/android-sdk/build-tools/*/aapt2"))
++            assertTrue(script.contains("/opt/taixu/tools/android/sdk-tools/artifacts/homu-*/android-sdk/build-tools/*/aapt2"))
+             assertTrue(script.contains("version >/dev/null 2>&1"))
+         }
+         val flutter = File(assets, "scripts/build_flutter.sh").readText()
+@@ -84,7 +84,7 @@ class BuildGuardAssetTest {
+         }
+         assertTrue(ndkSetup.contains("androidExtension.ndkPath = taixuNdkPath"))
+         assertTrue(managedNdkPolicy.contains("androidExtension.ndkPath = taixuNdkPath"))
+-        assertTrue(managedNdkPolicy.contains("/opt/taixu/toolchains/android/ndk"))
++        assertTrue(managedNdkPolicy.contains("/opt/taixu/tools/ndk"))
+         // ARM64-only 沙箱：AAR（如 androidx.graphics.path）自带 x86/x86_64
+         // 原生库，托管策略必须剥离 x86 ABI 并在无过滤时钉住 arm64-v8a，
+         // 否则 APK 会因 x86_abi_present 被产物校验拒绝。
+@@ -269,7 +269,7 @@ class BuildGuardAssetTest {
+         assertTrue(script.contains("need \"${'$'}NDK_CLANG\" \"NDK clang\""))
+         assertTrue(script.contains("need \"${'$'}NDK_STRIP\" \"NDK llvm-strip\""))
+         assertTrue(script.contains("missing offline resource: ${'$'}{resource_name:-unknown}"))
+-        assertFalse(verifier.contains("test -x /opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/*"))
++        assertFalse(verifier.contains("test -x /opt/taixu/tools/ndk/toolchains/llvm/prebuilt/*"))
+         assertTrue(verifier.contains("-name llvm-strip -print -quit"))
+         assertTrue(verifier.contains("require_executable \"${'$'}NDK_STRIP\""))
+         assertTrue(verifier.contains("require_aarch64 \"${'$'}NDK_STRIP\""))
+@@ -326,7 +326,7 @@ class BuildGuardAssetTest {
+     fun offlinePluginCompatibilityShimUsesJdkJar() {
+         val installer = File("../tools/src/main/java/top/wkbin/taixu/runtime/tools/GenericRecipeInstaller.kt").readText()
+         assertTrue(installer.contains("localUnzipCompatibilityCommand"))
+-        assertTrue(installer.contains("/opt/taixu/toolchains/android/jdk/bin/jar"))
++        assertTrue(installer.contains("/opt/taixu/tools/android/jdk/bin/jar"))
+         assertTrue(installer.contains("jar_bin"))
+         assertTrue(installer.contains("TAIXU_TOOL_DIR/bin/unzip"))
+     }
+diff --git a/runtime/src/test/java/top/wkbin/taixu/runtime/signing/WorkshopSigningManagerTest.kt b/runtime/src/test/java/top/wkbin/taixu/runtime/signing/WorkshopSigningManagerTest.kt
+index 85d99a27..61a926c3 100644
+--- a/runtime/src/test/java/top/wkbin/taixu/runtime/signing/WorkshopSigningManagerTest.kt
++++ b/runtime/src/test/java/top/wkbin/taixu/runtime/signing/WorkshopSigningManagerTest.kt
+@@ -10,7 +10,7 @@ class WorkshopSigningManagerTest {
+     @Test
+     fun createCommandPassesValidityAsCalculatedDayCount() {
+         val command = buildCreateKeystoreCommand(
+-            javaHome = "/opt/taixu/toolchains/android/jdk",
++            javaHome = "/opt/taixu/tools/android/jdk",
+             keystorePath = "/opt/taixu/keystores/release.p12",
+             alias = "release",
+             storePassword = "store-secret",
+diff --git a/scripts/test-sdk-candidates.py b/scripts/test-sdk-candidates.py
+new file mode 100644
+index 00000000..198bd38f
+--- /dev/null
++++ b/scripts/test-sdk-candidates.py
+@@ -0,0 +1,160 @@
++#!/usr/bin/env python3
++"""Execute SDK candidate selectors extracted from all six build entries."""
++import os
++from pathlib import Path
++import re
++import shlex
++import subprocess
++import tempfile
++import unittest
++
++ROOT = Path(__file__).resolve().parents[1]
++ENTRIES = [
++    "app/src/main/assets/scripts/build_android.sh",
++    "app/src/main/assets/scripts/build_flutter.sh",
++    "app/src/main/assets/scripts/taixu-build.sh",
++    "runtime/src/main/java/top/wkbin/taixu/runtime/build/BuildEnvironmentPreflight.kt",
++    "runtime/src/main/java/top/wkbin/taixu/runtime/doctor/EnvironmentRepairer.kt",
++    "assets/plugins/android-suite-offline/payload/scripts/verify-android-suite.sh",
++]
++
++
++def selectors():
++    for entry in ENTRIES:
++        text = (ROOT / entry).read_text()
++        if entry.endswith("BuildEnvironmentPreflight.kt"):
++            text = text.replace(r'\$', '$').replace(r'\"', '"').replace(r'\\n', r'\n')
++        elif entry.endswith("EnvironmentRepairer.kt"):
++            text = text.replace("${'$'}", "$")
++        found = re.findall(r"(_[tT][xX]_\w+)=\$\((for _tx_candidate.*?tail -n 1)\)",
++                           text, re.DOTALL)
++        assert found, entry
++        for variable, body in found:
++            yield entry, variable, body.replace("\\\n", "").replace(
++                "/opt/android-sdk/", '"$ANDROID_HOME"/')
++
++
++class SdkCandidatesTest(unittest.TestCase):
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory(prefix="tx-sdk-")
++        self.addCleanup(self.temp.cleanup)
++        self.sdk = Path(self.temp.name) / "SDK with spaces"
++        self.sdk.mkdir()
++
++    def build_tools(self, version, missing=None, executable=True):
++        directory = self.sdk / "build-tools" / version
++        for file in ("source.properties", "lib/d8.jar", "aapt2"):
++            if file == missing:
++                continue
++            target = directory / file
++            target.parent.mkdir(parents=True, exist_ok=True)
++            target.touch()
++            if file == "aapt2" and executable:
++                target.chmod(0o755)
++        return directory
++
++    def platform(self, version, valid=True):
++        directory = self.sdk / "platforms" / ("android-" + version)
++        directory.mkdir(parents=True)
++        if valid:
++            (directory / "android.jar").touch()
++
++    def check(self, tools, platform):
++        count = 0
++        for entry, variable, body in selectors():
++            with self.subTest(entry=entry, variable=variable):
++                result = self.run_selector(variable, body)
++                expected = platform if "/platforms/" in body else tools
++                self.assertEqual(expected.rsplit("-", 1)[-1] if variable == "_tx_max_api" and expected
++                                 else str(self.sdk / expected) if expected else "", result)
++                count += 1
++        self.assertEqual(11, count)
++
++    def run_selector(self, variable, body, override=""):
++        result = subprocess.run(
++            ["/bin/sh", "-eu", "-c", f'{variable}=$({body}); printf "%s" "${variable}"'],
++            env={**os.environ, "ANDROID_HOME": str(self.sdk),
++                 "TAIXU_AAPT2_PATH": override},
++            text=True, capture_output=True, check=True,
++        )
++        return result.stdout
++
++    def test_empty_sdk(self):
++        self.check("", "")
++
++    def test_highest_complete_stable_candidate_wins(self):
++        for version in ("9.0.0", "34.0.0", "35.0.0", "40.0.0-rc1"):
++            self.build_tools(version)
++        self.build_tools("36.0.0", missing="lib/d8.jar")
++        self.build_tools("37.0.0", missing="source.properties")
++        self.build_tools("38.0.0", missing="aapt2")
++        self.build_tools("39.0.0", executable=False)
++        for version in ("9", "34", "35", "40-preview"):
++            self.platform(version)
++        self.platform("39", valid=False)
++        self.check("build-tools/35.0.0", "platforms/android-35")
++
++    def test_broken_symlinks_are_not_candidates(self):
++        self.build_tools("35.0.0")
++        bad = self.build_tools("36.0.0", missing="lib/d8.jar")
++        (bad / "lib").mkdir(exist_ok=True)
++        (bad / "lib/d8.jar").symlink_to("missing.jar")
++        self.platform("35")
++        self.platform("36", valid=False)
++        (self.sdk / "platforms/android-36/android.jar").symlink_to("missing.jar")
++        self.check("build-tools/35.0.0", "platforms/android-35")
++
++    def test_explicit_aapt2_override_is_preserved(self):
++        self.build_tools("35.0.0", missing="aapt2")
++        override = self.sdk / "custom aapt2"
++        override.touch()
++        override.chmod(0o755)
++        for entry, variable, body in selectors():
++            if "/platforms/" in body or "verify-android-suite" in entry:
++                continue
++            self.assertEqual(str(self.sdk / "build-tools/35.0.0"),
++                             self.run_selector(variable, body, str(override)), entry)
++
++
++class SdkValidationTest(unittest.TestCase):
++    def test_generated_validate_script(self):
++        source = (ROOT / "tools/src/main/java/top/wkbin/taixu/core/tools/AndroidSdkManager.kt").read_text()
++        source = source.split("suspend fun validate(", 1)[1].split('val script = """', 1)[1].split('""".trimIndent()', 1)[0]
++        source = source.replace("${'$'}", "$")
++        for custom, missing in [(False, None), (True, None), (False, "platform"), (False, "d8")]:
++            with self.subTest(custom=custom, missing=missing), tempfile.TemporaryDirectory() as temp:
++                base = Path(temp) / "SDK"
++                tools = base / "build-tools/35.0.0"
++                (tools / "lib").mkdir(parents=True)
++                (tools / "aapt2").write_bytes(bytes(18) + bytes([0xb7, 0]) + bytes(44))
++                if missing != "d8":
++                    (tools / "lib/d8.jar").touch()
++                (base / "platform-tools").mkdir()
++                platform = base / "platforms/android-35"
++                platform.mkdir(parents=True)
++                if missing != "platform":
++                    (platform / "android.jar").touch()
++                (base / "build-tools/99.0.0").mkdir()
++                (base / "platforms/android-99").mkdir()
++                sdk = Path(temp) / "custom SDK" if custom else base
++                if custom:
++                    (sdk / "build-tools").mkdir(parents=True)
++                script = source.replace("/opt/android-sdk", str(base))
++                # The production absolute glob is unquoted; quote its mapped fixture root.
++                script = script.replace("in " + str(base) + "/", "in " + shlex.quote(str(base)) + "/")
++                script = script.replace("!= " + str(base) + ";", "!= " + shlex.quote(str(base)) + ";")
++                script = script.replace("$root", shlex.quote(str(sdk))).replace("$aapt2", shlex.quote(str(tools / "aapt2")))
++                result = subprocess.run(["sh", "-eu", "-c", "timeout() { test \"$#\" -eq 3; }\n" + script], capture_output=True, text=True)
++                if missing:
++                    self.assertEqual(2, result.returncode, result.stderr)
++                    self.assertIn("Android Platform" if missing == "platform" else "Build-Tools", result.stdout)
++                    self.assertNotIn("parameter not set", result.stderr)
++                else:
++                    self.assertEqual(0, result.returncode, result.stdout + result.stderr)
++                    if custom:
++                        self.assertTrue((sdk / "platforms").is_symlink())
++                        self.assertTrue((sdk / "build-tools/35.0.0").is_symlink())
++
++
++if __name__ == "__main__":
++    unittest.main(verbosity=2)
+diff --git a/shower-server/build.sh b/shower-server/build.sh
+new file mode 100644
+index 00000000..09975fa5
+--- /dev/null
++++ b/shower-server/build.sh
+@@ -0,0 +1,29 @@
++#!/bin/sh
++# Build shower-server.jar (classes.dex) for app_process.
++# 依赖：JDK 17+ 的 javac/jar、任一 android.jar（隐藏 API 全走反射，无需框架 stub）、build-tools 的 d8。
++# 可用环境变量覆盖：ANDROID_JAR / D8 / JAVAC / JAR。
++set -e
++root=$(cd "$(dirname "$0")" && pwd)
++
++ANDROID_JAR=${ANDROID_JAR:-$(ls -d /opt/android-sdk/platforms/android-[0-9]* 2>/dev/null | sort -V | tail -n 1)/android.jar}
++D8=${D8:-$(ls -d /opt/android-sdk/build-tools/[0-9]* 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)/d8}
++JAVAC=${JAVAC:-javac}
++JAR=${JAR:-jar}
++
++classes="$root/build/classes"
++dexDir="$root/build/dex"
++outJar="$root/../showerclient/src/main/assets/shower-server.jar"
++
++test -f "$ANDROID_JAR" || { echo "android.jar 不存在: $ANDROID_JAR" >&2; exit 1; }
++test -x "$D8" || { echo "d8 不存在: $D8" >&2; exit 1; }
++
++rm -rf "$classes" "$dexDir"
++mkdir -p "$classes" "$dexDir"
++
++"$JAVAC" -encoding UTF-8 --release 17 -classpath "$ANDROID_JAR" -d "$classes" \
++    $(find "$root/src" -name '*.java')
++"$D8" --min-api 26 --output "$dexDir" $(find "$classes" -name '*.class')
++test -f "$dexDir/classes.dex" || { echo "classes.dex missing" >&2; exit 1; }
++
++(cd "$dexDir" && "$JAR" cf "$outJar" classes.dex)
++ls -l "$outJar"
+diff --git a/shower-server/src/com/ai/assistance/shower/InputController.java b/shower-server/src/com/ai/assistance/shower/InputController.java
+index ef697c2d..9e4f921d 100644
+--- a/shower-server/src/com/ai/assistance/shower/InputController.java
++++ b/shower-server/src/com/ai/assistance/shower/InputController.java
+@@ -21,23 +21,42 @@ final class InputController {
+     private long gestureDownTime;
+ 
+     InputController() {
++        Object manager = null;
++        Method inject = null;
++        // Android 12 及以前：InputManager.getInstance()
+         try {
+             Class<?> cls = Class.forName("android.hardware.input.InputManager");
+             Method getInstance = cls.getDeclaredMethod("getInstance");
+             getInstance.setAccessible(true);
+-            inputManager = getInstance.invoke(null);
+-            injectInputEvent = cls.getDeclaredMethod("injectInputEvent", InputEvent.class, int.class);
+-            injectInputEvent.setAccessible(true);
+-            Method setDisplayId;
++            manager = getInstance.invoke(null);
++            inject = cls.getDeclaredMethod("injectInputEvent", InputEvent.class, int.class);
++        } catch (Throwable ignored) {
++            // Android 13 起 AOSP 移除了 InputManager.getInstance()，回退到 InputManagerGlobal
++        }
++        if (manager == null || inject == null) {
+             try {
+-                setDisplayId = InputEvent.class.getMethod("setDisplayId", int.class);
+-            } catch (NoSuchMethodException e) {
+-                setDisplayId = null;
++                Class<?> global = Class.forName("android.hardware.input.InputManagerGlobal");
++                Method getInstance = global.getDeclaredMethod("getInstance");
++                getInstance.setAccessible(true);
++                manager = getInstance.invoke(null);
++                inject = global.getDeclaredMethod("injectInputEvent", InputEvent.class, int.class);
++            } catch (Throwable e) {
++                ServerLog.d("InputController degraded: no injectInputEvent available", e);
+             }
+-            setDisplayIdMethod = setDisplayId;
+-        } catch (Exception e) {
+-            throw new RuntimeException("Init InputController failed", e);
+         }
++        try {
++            inject.setAccessible(true);
++        } catch (Throwable ignored) {
++        }
++        inputManager = manager;
++        injectInputEvent = inject;
++        Method setDisplayId;
++        try {
++            setDisplayId = InputEvent.class.getMethod("setDisplayId", int.class);
++        } catch (NoSuchMethodException e) {
++            setDisplayId = null;
++        }
++        setDisplayIdMethod = setDisplayId;
+     }
+ 
+     void setDisplayId(int id) {
+@@ -50,6 +69,7 @@ final class InputController {
+     }
+ 
+     void inject(InputEvent event, int mode) {
++        if (injectInputEvent == null || inputManager == null) return;
+         try {
+             if (setDisplayIdMethod != null && displayId != 0) {
+                 setDisplayIdMethod.invoke(event, displayId);
+diff --git a/showerclient/src/main/assets/shower-server.jar b/showerclient/src/main/assets/shower-server.jar
+index 6e30d09d..66c2f70b 100644
+Binary files a/showerclient/src/main/assets/shower-server.jar and b/showerclient/src/main/assets/shower-server.jar differ
+diff --git a/tools/src/main/java/top/wkbin/taixu/core/tools/AndroidSdkManager.kt b/tools/src/main/java/top/wkbin/taixu/core/tools/AndroidSdkManager.kt
+index 948d7acf..2a8f9e5a 100644
+--- a/tools/src/main/java/top/wkbin/taixu/core/tools/AndroidSdkManager.kt
++++ b/tools/src/main/java/top/wkbin/taixu/core/tools/AndroidSdkManager.kt
+@@ -60,8 +60,21 @@ class AndroidSdkManager(
+         local.requireLocal()
+         buildList {
+             val base = File(paths.distroOptDir(distroId), "android-sdk")
+-            if (File(base, "build-tools/35.0.0/aapt2").isFile) {
+-                add(InstalledAndroidSdk("本地套件 · 35.0.0", "/opt/android-sdk", "/opt/android-sdk/build-tools/35.0.0/aapt2"))
++            // 版本号按实际安装的 build-tools 目录取最高，不写死
++            val buildToolsDir = File(base, "build-tools").listFiles()
++                ?.filter { it.isDirectory && it.name.matches(Regex("[0-9]+(?:\\.[0-9]+)+")) }
++                ?.sortedByDescending { dir ->
++                    dir.name.split('.').fold(0L) { acc, part -> acc * 1000L + (part.toIntOrNull() ?: 0) }
++                }
++                ?.firstOrNull { File(it, "aapt2").isFile }
++            if (buildToolsDir != null) {
++                add(
++                    InstalledAndroidSdk(
++                        "本地套件 · ${buildToolsDir.name}",
++                        "/opt/android-sdk",
++                        "/opt/android-sdk/build-tools/${buildToolsDir.name}/aapt2",
++                    ),
++                )
+             }
+             artifacts(distroId).listFiles().orEmpty().filter { it.isDirectory && it.name.startsWith("homu-") }.forEach { dir ->
+                 val revision = File(dir, "ready").takeIf { it.isFile }?.readText()?.trim() ?: return@forEach
+@@ -151,18 +164,24 @@ class AndroidSdkManager(
+             val script = """
+                 set -eu
+                 sdk=$root
++                _tx_bt=$(for dir in /opt/android-sdk/build-tools/[0-9]*; do
++                    if [ -f "${'$'}dir/aapt2" ] && [ -f "${'$'}dir/lib/d8.jar" ]; then printf '%s\n' "${'$'}dir"; fi
++                done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)
++                _tx_plat=$(for dir in /opt/android-sdk/platforms/android-[0-9]*; do
++                    if [ -f "${'$'}dir/android.jar" ]; then printf '%s\n' "${'$'}dir"; fi
++                done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)
+                 if [ "${'$'}sdk" != /opt/android-sdk ]; then
+                     for name in platforms platform-tools; do
+                         if [ ! -e "${'$'}sdk/${'$'}name" ] && [ -d "/opt/android-sdk/${'$'}name" ]; then
+                             ln -s "/opt/android-sdk/${'$'}name" "${'$'}sdk/${'$'}name"
+                         fi
+                     done
+-                    if [ ! -e "${'$'}sdk/build-tools/35.0.0" ] && [ -d /opt/android-sdk/build-tools/35.0.0 ]; then
+-                        ln -s /opt/android-sdk/build-tools/35.0.0 "${'$'}sdk/build-tools/35.0.0"
++                    if [ -n "${'$'}_tx_bt" ] && [ ! -e "${'$'}sdk/build-tools/${'$'}{_tx_bt##*/}" ]; then
++                        ln -s "${'$'}_tx_bt" "${'$'}sdk/build-tools/${'$'}{_tx_bt##*/}"
+                     fi
+                 fi
+-                test -f "${'$'}sdk/platforms/android-34/android.jar" || { echo '请先安装 Android Platform 34 基础环境'; exit 2; }
+-                test -f "${'$'}sdk/build-tools/35.0.0/lib/d8.jar" || { echo '请先安装 Build-Tools 35 基础环境'; exit 2; }
++                test -n "${'$'}_tx_plat" && test -f "${'$'}sdk/platforms/${'$'}{_tx_plat##*/}/android.jar" || { echo '请先安装 Android Platform 基础环境'; exit 2; }
++                test -n "${'$'}_tx_bt" && test -f "${'$'}sdk/build-tools/${'$'}{_tx_bt##*/}/lib/d8.jar" || { echo '请先安装 Build-Tools 基础环境'; exit 2; }
+                 test "${'$'}(od -An -t x1 -j 18 -N 2 $aapt2 | tr -d '[:space:]')" = b700
+                 timeout 10 $aapt2 version
+             """.trimIndent()
+@@ -202,6 +221,6 @@ class AndroidSdkManager(
+     }
+ 
+     companion object {
+-        private const val ARTIFACTS = "/opt/taixu/toolchains/android/sdk-tools/artifacts"
++        private const val ARTIFACTS = "/opt/taixu/tools/android/sdk-tools/artifacts"
+     }
+ }
+diff --git a/tools/src/main/java/top/wkbin/taixu/runtime/tools/GenericRecipeInstaller.kt b/tools/src/main/java/top/wkbin/taixu/runtime/tools/GenericRecipeInstaller.kt
+index 25db65bd..1db71fb4 100644
+--- a/tools/src/main/java/top/wkbin/taixu/runtime/tools/GenericRecipeInstaller.kt
++++ b/tools/src/main/java/top/wkbin/taixu/runtime/tools/GenericRecipeInstaller.kt
+@@ -319,7 +319,7 @@ class GenericRecipeInstaller(
+                 'dest=.' \
+                 'jar_bin="${'$'}{JAVA_HOME:-}/bin/jar"' \
+                 'if [ ! -x "${'$'}{jar_bin}" ]; then' \
+-                '  for candidate in /opt/taixu/toolchains/android/jdk/bin/jar /usr/bin/jar /usr/lib/jvm/default-java/bin/jar; do' \
++                '  for candidate in /opt/taixu/tools/android/jdk/bin/jar /usr/bin/jar /usr/lib/jvm/default-java/bin/jar; do' \
+                 '    if [ -x "${'$'}{candidate}" ]; then jar_bin="${'$'}{candidate}"; break; fi' \
+                 '  done' \
+                 'fi' \
+diff --git a/tools/src/test/java/top/wkbin/taixu/core/tools/AndroidSdkManagerTest.kt b/tools/src/test/java/top/wkbin/taixu/core/tools/AndroidSdkManagerTest.kt
+index fa35266e..95c22a1c 100644
+--- a/tools/src/test/java/top/wkbin/taixu/core/tools/AndroidSdkManagerTest.kt
++++ b/tools/src/test/java/top/wkbin/taixu/core/tools/AndroidSdkManagerTest.kt
+@@ -61,7 +61,7 @@ class AndroidSdkManagerTest {
+         fixture.manager.validate("ubuntu", sdk)
+         assertEquals("ubuntu", fixture.executedDistro)
+         assertTrue(fixture.executedScript.contains(sdk.aapt2Path))
+-        assertTrue(fixture.executedScript.contains("ln -s /opt/android-sdk/build-tools/35.0.0"))
++        assertTrue(fixture.executedScript.contains("ln -s \"\$_tx_bt\""))
+         val downloads = fixture.downloads
+         fixture.manager.install("ubuntu", fixture.release()) { _, _ -> }
+         assertEquals(downloads, fixture.downloads)
+@@ -115,6 +115,60 @@ class AndroidSdkManagerTest {
+         assertTrue(runCatching { fixture.manager.validate("debian", sdk) }.isFailure)
+     }
+ 
++    @Test fun defaultSdkValidationExecutesWithNounsetAndSkipsIncompleteOrPreviewCandidates() = runBlocking {
++        val fixture = Fixture().apply { prepareBaseSdk(); executeShell = true }
++        val base = fixture.baseAapt2.parentFile!!.parentFile!!.parentFile!!
++        File(base, "build-tools/9.0.0/lib/d8.jar").apply { parentFile!!.mkdirs(); writeText("older") }
++        File(base, "build-tools/9.0.0/aapt2").writeBytes(fixture.baseAapt2.readBytes())
++        File(base, "platforms/android-9/android.jar").apply { parentFile!!.mkdirs(); writeText("older") }
++        File(base, "build-tools/99.0.0/aapt2").apply {
++            parentFile!!.mkdirs(); writeBytes(fixture.baseAapt2.readBytes())
++        }
++        File(base, "build-tools/100.0.0/lib/d8.jar").apply { parentFile!!.mkdirs(); writeText("d8") }
++        File(base, "platforms/android-99").mkdirs()
++        File(base, "platforms/android-100-preview/android.jar").apply { parentFile!!.mkdirs(); writeText("preview") }
++        File(base, "build-tools/101.0.0-rc1/lib/d8.jar").apply { parentFile!!.mkdirs(); writeText("preview") }
++        File(base, "build-tools/101.0.0-rc1/aapt2").writeBytes(fixture.baseAapt2.readBytes())
++
++        fixture.manager.validate("ubuntu", fixture.manager.installed("ubuntu").single())
++
++        assertTrue(fixture.shellOutput, fixture.shellOutput.contains(
++            "selected:$base/build-tools/35.0.0:$base/platforms/android-35"))
++        assertFalse(java.nio.file.Files.isSymbolicLink(File(base, "platforms").toPath()))
++    }
++
++    @Test fun defaultSdkValidationReportsMissingRequiredFilesInsteadOfUnboundVariables() = runBlocking {
++        for ((missing, message) in listOf("platforms" to "Android Platform", "build-tools/35.0.0/lib/d8.jar" to "Build-Tools")) {
++            val fixture = Fixture().apply { prepareBaseSdk(); executeShell = true }
++            File(fixture.paths.distroOptDir("ubuntu"), "android-sdk/$missing").deleteRecursively()
++
++            val failure = runCatching {
++                fixture.manager.validate("ubuntu", fixture.manager.installed("ubuntu").single())
++            }.exceptionOrNull()
++
++            assertTrue(failure is IllegalStateException)
++            assertEquals(fixture.shellOutput, 2, fixture.shellExitCode)
++            assertTrue(fixture.shellOutput, fixture.shellOutput.contains(message))
++            assertFalse(fixture.shellOutput, fixture.shellOutput.contains("parameter not set"))
++            assertFalse(fixture.shellOutput, fixture.shellOutput.contains("unbound variable"))
++        }
++    }
++
++    @Test fun nonDefaultSdkValidationStillLinksBaseComponentsWithoutReplacingExistingTools() = runBlocking {
++        val fixture = Fixture().apply { prepareBaseSdk(); executeShell = true }
++        val sdk = fixture.manager.install("ubuntu", fixture.release()) { _, _ -> }
++        val root = File(fixture.paths.distroOptDir("ubuntu"), sdk.path.removePrefix("/opt/"))
++        val aapt2 = File(root, "build-tools/37.0.0/aapt2").readBytes()
++
++        fixture.manager.validate("ubuntu", sdk)
++
++        for (path in listOf("platforms", "platform-tools", "build-tools/35.0.0")) {
++            assertTrue(path, java.nio.file.Files.isSymbolicLink(File(root, path).toPath()))
++        }
++        assertArrayEquals(aapt2, File(root, "build-tools/37.0.0/aapt2").readBytes())
++        fixture.manager.validate("ubuntu", sdk) // Existing links must remain valid on repeated validation.
++    }
++
+     private class Fixture {
+         private val context = RuntimeEnvironment.getApplication().apply {
+             applicationInfo.nativeLibraryDir = File(cacheDir, "native-libs").apply { mkdirs() }.path
+@@ -131,6 +185,9 @@ class AndroidSdkManagerTest {
+         var exitCode = 0
+         var executedDistro: String? = null
+         var executedScript = ""
++        var executeShell = false
++        var shellOutput = ""
++        var shellExitCode = -1
+         private val checksums = ChecksumVerifier()
+         private val runtime = Proxy.newProxyInstance(LinuxRuntime::class.java.classLoader, arrayOf(LinuxRuntime::class.java)) { _, method, args ->
+             when (method.name) {
+@@ -138,7 +195,7 @@ class AndroidSdkManagerTest {
+                 "execute" -> {
+                     executedScript = (args[0] as ShellCommand).commandLine
+                     executedDistro = args[1] as String
+-                    CommandResult(exitCode, "probe", "", 1)
++                    if (executeShell) runShell(executedScript) else CommandResult(exitCode, "probe", "", 1)
+                 }
+                 else -> error("Unexpected runtime call ${method.name}")
+             }
+@@ -167,6 +224,27 @@ class AndroidSdkManagerTest {
+             baseAapt2.writeText("old-aapt2")
+         }
+ 
++        fun prepareBaseSdk() {
++            baseAapt2.writeBytes(ByteArray(64).apply { this[18] = 0xb7.toByte() })
++            File(baseAapt2.parentFile, "lib/d8.jar").apply { parentFile!!.mkdirs(); writeText("d8") }
++            File(paths.distroOptDir("ubuntu"), "android-sdk/platforms/android-35/android.jar").apply {
++                parentFile!!.mkdirs(); writeText("android")
++            }
++            File(paths.distroOptDir("ubuntu"), "android-sdk/platform-tools").mkdirs()
++        }
++
++        private fun runShell(script: String): CommandResult {
++            // Execute the generated script against the fixture, not the host's /opt SDK.
++            // Stub only the ARM executable invocation; file checks, od and symlinks are real.
++            val mapped = script.replace("/opt/", "${paths.distroOptDir("ubuntu").path}/")
++            val process = ProcessBuilder("sh", "-c", "timeout() { test \"${'$'}#\" -eq 3; }\n" + mapped +
++                "\nprintf 'selected:%s:%s\\n' \"${'$'}_tx_bt\" \"${'$'}_tx_plat\"")
++                .redirectErrorStream(true).start()
++            shellOutput = process.inputStream.bufferedReader().use { it.readText() }
++            shellExitCode = process.waitFor()
++            return CommandResult(shellExitCode, shellOutput, "", 1)
++        }
++
+         fun release(): AndroidSdkRelease {
+             val file = File(context.cacheDir, "test-sdk.xz").apply { writeBytes(archive) }
+             return AndroidSdkRelease("37.0.0", "${AndroidSdkReleases.REPOSITORY}/releases/download/37.0.0/android-sdk-aarch64-linux-musl.tar.xz",
