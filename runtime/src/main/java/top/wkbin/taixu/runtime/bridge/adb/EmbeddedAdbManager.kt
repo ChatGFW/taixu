@@ -155,7 +155,7 @@ class EmbeddedAdbManager(
         if (discoveryStarted.getAndSet(true)) return
         runCatching {
             if (!multicastLock.isHeld) multicastLock.acquire()
-            _state.value = ConnectionState.Discovering
+            if (AdbChannelState.mayRewriteVisibleState(client != null, _state.value)) _state.value = ConnectionState.Discovering
             _discovery.value = DiscoveryState(running = true)
 
             pairingDiscoveryListener = buildDiscoveryListener(isPairing = true)
@@ -173,7 +173,7 @@ class EmbeddedAdbManager(
             )
         }.onFailure { error ->
             discoveryStarted.set(false)
-            _state.value = ConnectionState.Failed(error.userMessage("无法启动 mDNS 自动发现"))
+            if (AdbChannelState.mayRewriteVisibleState(client != null, _state.value)) _state.value = ConnectionState.Failed(error.userMessage("无法启动 mDNS 自动发现"))
             Log.w(TAG, "startDiscovery failed", error)
         }
     }
@@ -285,7 +285,7 @@ class EmbeddedAdbManager(
 
     private fun onDiscoveryError(reason: String) {
         Log.w(TAG, "mDNS discovery error: $reason")
-        if (client == null) {
+        if (AdbChannelState.mayRewriteVisibleState(client != null, _state.value)) {
             _state.value = ConnectionState.Failed("mDNS 自动发现失败，请确认 Wi-Fi 与无线调试已开启")
         }
     }
