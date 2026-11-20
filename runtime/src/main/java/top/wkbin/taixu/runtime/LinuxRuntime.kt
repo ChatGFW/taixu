@@ -24,8 +24,14 @@ interface LinuxRuntime {
 
     suspend fun initialize(request: RuntimeInstallRequest = RuntimeInstallRequest("ubuntu")): AppResult<Unit>
     suspend fun restoreInstalledState(): Boolean
-    suspend fun updateRootfs(distroId: String? = null): AppResult<Unit>
-    suspend fun checkRootfsUpdate(distroId: String? = null): AppResult<RootfsUpdateInfo>
+    suspend fun updateRootfs(
+        distroId: String? = null,
+        route: RegistryRoute = RegistryRoute.AUTO,
+    ): AppResult<Unit>
+    suspend fun checkRootfsUpdate(
+        distroId: String? = null,
+        route: RegistryRoute = RegistryRoute.AUTO,
+    ): AppResult<RootfsUpdateInfo>
     suspend fun healthCheck(distroId: String? = null): RuntimeHealth
 
     suspend fun switchActiveDistro(distroId: String): AppResult<Unit>

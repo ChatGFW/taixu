@@ -28,8 +28,8 @@ mkdir -p /opt/flutter /usr/local/bin /usr/bin 2>/dev/null || true
 # native ARM64 archive marker so an older x86_64 installation is replaced.
 FLUTTER_ARM64_MARKER=/opt/flutter/.taixu-arm64
 
-if [ ! -f "${ANDROID_HOME:-/opt/android-sdk}/platforms/android-34/android.jar" ]; then
-    echo "!! [TaiXu] Flutter APK 构建依赖 Android 核心基础环境 (Platform 34)，请先安装 android-core"
+if ! ls -d "${ANDROID_HOME:-/opt/android-sdk}"/platforms/android-[0-9]* >/dev/null 2>&1; then
+    echo "!! [TaiXu] Flutter APK 构建依赖 Android 核心基础环境（Android Platform），请先安装 android-core"
 fi
 
 # 1. 下载 Flutter SDK 压缩包（HTTP Range 分片 + 断点续传）

@@ -10,7 +10,12 @@ set -e
 
 PROJECT_PATH="${1:-.}"
 TASK="${2:-assembleDebug}"
-GRADLE_VER="8.14.2"
+# Gradle 兜底版本按本机实际安装取最高，不写死版本号
+GRADLE_VER=$(ls -d /opt/gradle-[0-9]* 2>/dev/null \
+    | sed 's|^/opt/gradle-||' \
+    | grep -E '^[0-9]+(\.[0-9]+)+$' \
+    | sort -t. -k1,1n -k2,2n -k3,3n \
+    | tail -n 1)
 
 echo "==> [TaiXu Build Engine] 启动 Android 项目编译..."
 echo "==> [TaiXu Build] 项目路径: $PROJECT_PATH"
@@ -73,15 +78,19 @@ export TAIXU_TOOL_DIR="${TAIXU_TOOL_DIR:-/opt/taixu/tools}"
 
 # The local offline suite is authoritative when present. A distro package may
 # leave an x86_64 Java earlier on PATH, which is unusable in the ARM64 PRoot.
-if [ -z "${JAVA_HOME:-}" ] && [ -x /opt/taixu/toolchains/android/jdk/bin/java ]; then
-    JAVA_HOME=/opt/taixu/toolchains/android/jdk
+if [ -z "${JAVA_HOME:-}" ] && [ -x /opt/taixu/tools/android/jdk/bin/java ]; then
+    JAVA_HOME=/opt/taixu/tools/android/jdk
 fi
 
 # AGP's default Maven artifact is a Linux x86_64 executable.  When the
 # android-core plugin installed the ARM64 tool bundle, pass the real aapt2
 # executable explicitly so AGP never tries to start the incompatible daemon.
-AAPT2_OVERRIDE="${TAIXU_AAPT2_PATH:-$ANDROID_HOME/build-tools/35.0.0/aapt2}"
-NDK_PATH="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/toolchains/android/ndk}}"
+# build-tools 同样不写死：取本机实际安装的最高稳定版
+_tx_bt_dir=$(for _tx_candidate in "$ANDROID_HOME"/build-tools/[0-9]*; do [ -f "$_tx_candidate/source.properties" ] && [ -f "$_tx_candidate/lib/d8.jar" ] && { [ -n "${TAIXU_AAPT2_PATH:-}" ] || [ -x "$_tx_candidate/aapt2" ]; } && printf '%s\n' "$_tx_candidate"; done \
+    | grep -Eiv 'rc|beta|alpha|preview|snapshot' \
+    | sort -V | tail -n 1)
+AAPT2_OVERRIDE="${TAIXU_AAPT2_PATH:-${_tx_bt_dir:-$ANDROID_HOME/build-tools}/aapt2}"
+NDK_PATH="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/tools/ndk}}"
 
 # 非登录 shell 可能没有继承插件写入的 profile；变量为空时从标准 JDK
 # 目录和 PATH 重新解析，避免环境变量漂移阻断构建。
@@ -142,9 +151,14 @@ echo "==> [TaiXu Build] Java 执行文件: $JAVA_EXEC"
 echo "==> [TaiXu Build] JAVA_HOME: $JAVA_HOME"
 echo "==> [TaiXu Build] ANDROID_HOME: $ANDROID_HOME"
 
-# AGP 8.11.1 requires SDK Build Tools 35.0.0. Fail before Gradle starts slow
+# Fail before Gradle starts slow remote SDK probes when build-tools is absent.
 # remote SDK probes, which hide the actionable error in restricted networks.
-REQUIRED_BUILD_TOOLS="35.0.0"
+REQUIRED_BUILD_TOOLS="${_tx_bt_dir##*/}"
+if [ -z "$REQUIRED_BUILD_TOOLS" ]; then
+    echo "==> [TaiXu Build] ❌ 未检测到可用的 Android Build-Tools"
+    echo "==> [TaiXu Build] 请在插件中心重新装配【Android 核心基础环境】后再构建"
+    exit 2
+fi
 if [ ! -f "$ANDROID_HOME/build-tools/$REQUIRED_BUILD_TOOLS/source.properties" ] || \
    [ ! -f "$ANDROID_HOME/build-tools/$REQUIRED_BUILD_TOOLS/lib/d8.jar" ]; then
     echo "==> [TaiXu Build] ❌ 缺少 Android Build-Tools $REQUIRED_BUILD_TOOLS"
@@ -152,7 +166,7 @@ if [ ! -f "$ANDROID_HOME/build-tools/$REQUIRED_BUILD_TOOLS/source.properties" ] 
     exit 2
 fi
 case "$AAPT2_OVERRIDE" in
-    /opt/android-sdk/build-tools/35.0.0/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/*/build-tools/aapt2|/opt/taixu/toolchains/android/sdk-tools/artifacts/homu-*/android-sdk/build-tools/*/aapt2) ;;
+    "$ANDROID_HOME"/build-tools/*/aapt2|/opt/android-sdk/build-tools/*/aapt2|/opt/taixu/tools/android/sdk-tools/artifacts/*/build-tools/aapt2|/opt/taixu/tools/android/sdk-tools/artifacts/*/build-tools/aapt2|/opt/taixu/tools/android/sdk-tools/artifacts/homu-*/android-sdk/build-tools/*/aapt2) ;;
     *)
         echo "==> [TaiXu Build] ❌ AAPT2 未指向不可变 ARM64 制品目录"
         exit 2
@@ -251,13 +265,13 @@ if [ -d "$GRADLE_HOME/lib" ]; then
         $JAVA_RUNTIME_OPTS \
         -classpath "$GRADLE_HOME/lib/*" \
         org.gradle.launcher.GradleMain $TASK $EXTRA_ARGS
-elif [ -d /opt/gradle-8.7/lib ]; then
-    echo "==> [TaiXu Build] 调度官方独立完整版 Gradle 8.7 执行构建..."
+elif [ -n "$GRADLE_VER" ] && [ -d "/opt/gradle-$GRADLE_VER/lib" ]; then
+    echo "==> [TaiXu Build] 调度本机 Gradle $GRADLE_VER 执行构建..."
     exec "$JAVA_EXEC" $GRADLE_JVM_MEMORY_OPTS \
         -Dorg.gradle.appname=gradle \
-        -Dorg.gradle.installation.dir=/opt/gradle-8.7 \
+        -Dorg.gradle.installation.dir="/opt/gradle-$GRADLE_VER" \
         $JAVA_RUNTIME_OPTS \
-        -classpath "/opt/gradle-8.7/lib/*" \
+        -classpath "/opt/gradle-$GRADLE_VER/lib/*" \
         org.gradle.launcher.GradleMain $TASK $EXTRA_ARGS
 elif [ -x "$GRADLE_HOME/bin/gradle" ]; then
     echo "==> [TaiXu Build] 调度 $GRADLE_HOME/bin/gradle 执行构建..."

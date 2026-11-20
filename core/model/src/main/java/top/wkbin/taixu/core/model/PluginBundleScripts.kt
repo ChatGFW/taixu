@@ -10,8 +10,8 @@ internal object PluginBundleScripts {
         "^/opt/(android-sdk|flutter|jadx)$" +
             "|^/opt/gradle-8\\.14\\.2$" +
             "|^/opt/taixu/android-sdk-tools$" +
-            "|^/opt/taixu/toolchains/android/(sdk-tools|jdk|ndk)$" +
-            "|^/opt/taixu/toolchains/rust$" +
+            "|^/opt/taixu/tools/android/(sdk-tools|jdk|ndk)$" +
+            "|^/opt/taixu/tools/rust$" +
             "|^/opt/taixu/tools/android-suite-offline/(jadx|cmake)$",
     )
     private val safeFile = Regex(

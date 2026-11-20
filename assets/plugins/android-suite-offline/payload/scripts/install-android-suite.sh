@@ -6,11 +6,16 @@ ARCHIVES="$PAYLOAD/archives"
 CHECKSUMS="$PAYLOAD/checksums/SHA256SUMS"
 TOOL_DIR="${TAIXU_TOOL_DIR:?missing TAIXU_TOOL_DIR}"
 ANDROID_HOME="/opt/android-sdk"
-TOOLCHAIN_ROOT="/opt/taixu/toolchains/android"
+TOOLCHAIN_ROOT="/opt/taixu/tools/android"
 JDK_HOME="$TOOLCHAIN_ROOT/jdk"
 NDK_HOME="$TOOLCHAIN_ROOT/ndk"
-GRADLE_VERSION="8.14.2"
-BUILD_TOOLS_VERSION="35.0.0"
+# 版本号不写死：从归档文件名推导（离线包自带唯一制品）
+_gradle_zip=$(ls "$ARCHIVES"/gradle-*-bin.zip 2>/dev/null | head -n 1 || true)
+GRADLE_VERSION=$(printf '%s' "${_gradle_zip##*/}" | sed 's/^gradle-//; s/-bin\.zip$//')
+_platform_zip=$(ls "$ARCHIVES"/platform-*.zip 2>/dev/null | head -n 1 || true)
+PLATFORM_DIR="android-$(printf '%s' "${_platform_zip##*/}" | sed 's/^platform-//; s/-.*$//')"
+_bt_zip=$(ls "$ARCHIVES"/build-tools_*.zip 2>/dev/null | head -n 1 || true)
+BUILD_TOOLS_VERSION=""
 
 need() {
     resource_path="${1:-}"
@@ -121,7 +126,7 @@ fi
 
 # Gradle.
 progress 17 "[EXTRACT] 正在解压 Gradle $GRADLE_VERSION：gradle-$GRADLE_VERSION-bin.zip"
-need "$ARCHIVES/gradle-8.14.2-bin.zip"
+need "${_gradle_zip:-$ARCHIVES/gradle-8.14.2-bin.zip}"
 rm -rf "/opt/gradle-$GRADLE_VERSION.staging"
 mkdir -p "/opt/gradle-$GRADLE_VERSION.staging"
 extract_zip "$ARCHIVES/gradle-$GRADLE_VERSION-bin.zip" "/opt/gradle-$GRADLE_VERSION.staging"
@@ -135,26 +140,31 @@ progress 23 "[COMMAND] Gradle $GRADLE_VERSION 安装完成"
 
 # Android Platform 34.
 progress 25 "[EXTRACT] 正在解压 Android Platform 34：platform-34-ext7_r03.zip"
-need "$ARCHIVES/platform-34-ext7_r03.zip"
+need "${_platform_zip:-$ARCHIVES/platform-34-ext7_r03.zip}"
 rm -rf /tmp/taixu-android-platform
 mkdir -p /tmp/taixu-android-platform
-extract_zip "$ARCHIVES/platform-34-ext7_r03.zip" /tmp/taixu-android-platform
+extract_zip "${_platform_zip:-$ARCHIVES/platform-34-ext7_r03.zip}" /tmp/taixu-android-platform
 PLATFORM_SOURCE=$(find /tmp/taixu-android-platform -type f -name android.jar -print -quit | xargs -r dirname)
 need "$PLATFORM_SOURCE/android.jar"
-rm -rf "$ANDROID_HOME/platforms/android-34"
+rm -rf "$ANDROID_HOME/platforms/$PLATFORM_DIR"
 mkdir -p "$ANDROID_HOME/platforms"
-mv "$PLATFORM_SOURCE" "$ANDROID_HOME/platforms/android-34"
+mv "$PLATFORM_SOURCE" "$ANDROID_HOME/platforms/$PLATFORM_DIR"
 rm -rf /tmp/taixu-android-platform
-progress 30 "[COMMAND] Android Platform 34 安装完成"
+progress 30 "[COMMAND] Android Platform ${PLATFORM_DIR#android-} 安装完成"
 
 # Java Build-Tools 35 and ARM64 native SDK tools.
-progress 32 "[EXTRACT] 正在解压 Build Tools $BUILD_TOOLS_VERSION：build-tools_r35_linux.zip"
+progress 32 "[EXTRACT] 正在解压 Build Tools 制品：${_bt_zip##*/}"
 need "$ARCHIVES/build-tools_r35_linux.zip"
+ln -sfn "$BUILD_TOOLS_VERSION" "$ANDROID_HOME/build-tools/0-current"
 rm -rf /tmp/taixu-build-tools
 mkdir -p /tmp/taixu-build-tools
-extract_zip "$ARCHIVES/build-tools_r35_linux.zip" /tmp/taixu-build-tools
+extract_zip "${_bt_zip:-$ARCHIVES/build-tools_r35_linux.zip}" /tmp/taixu-build-tools
 BUILD_SOURCE=$(find /tmp/taixu-build-tools -type f -name source.properties -print -quit | xargs -r dirname)
 need "$BUILD_SOURCE/lib/d8.jar"
+# 版本号以制品自带的 source.properties 为准，不写死
+BUILD_TOOLS_VERSION=$(sed -n 's/^Pkg\.Revision=//p' "$BUILD_SOURCE/source.properties" 2>/dev/null | head -n 1 || true)
+test -n "$BUILD_TOOLS_VERSION" || BUILD_TOOLS_VERSION=$(printf '%s' "${_bt_zip##*/}" | sed 's/^build-tools_r//; s/_linux\.zip$//')
+test -n "$BUILD_TOOLS_VERSION" || { echo "无法确定 Build-Tools 版本" >&2; exit 2; }
 rm -rf "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
 mkdir -p "$ANDROID_HOME/build-tools"
 mv "$BUILD_SOURCE" "$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION"
@@ -299,7 +309,7 @@ progress 85 "[COMMAND] Flutter Android ARM64 SDK 安装完成"
 # Rust ARM64 独立工具链与 aarch64-linux-android 交叉编译目标库
 RUST_STANDALONE=$(find "$ARCHIVES" -maxdepth 1 -type f -name 'rust-*-aarch64-unknown-linux-gnu.tar.*' -print -quit 2>/dev/null || true)
 RUST_STD_ANDROID=$(find "$ARCHIVES" -maxdepth 1 -type f -name 'rust-std-*-aarch64-linux-android.tar.*' -print -quit 2>/dev/null || true)
-RUST_HOME="/opt/taixu/toolchains/rust"
+RUST_HOME="/opt/taixu/tools/rust"
 if [ -n "$RUST_STANDALONE" ] && [ -f "$RUST_STANDALONE" ]; then
     progress 86 "[EXTRACT] 正在解压 Rust ARM64 独立开发工具链：$(basename "$RUST_STANDALONE")"
     rm -rf /tmp/taixu-rust "$RUST_HOME"
@@ -331,8 +341,8 @@ if [ -n "$RUST_STANDALONE" ] && [ -f "$RUST_STANDALONE" ]; then
         mkdir -p /root/.cargo
         cat << 'EOF' > /root/.cargo/config.toml
 [target.aarch64-linux-android]
-linker = "/opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
-ar = "/opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+linker = "/opt/taixu/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
+ar = "/opt/taixu/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
 
 [source.crates-io]
 replace-with = 'tuna'
@@ -509,6 +519,8 @@ progress 97 "[COMMAND] 正在创建全局开发、逆向与签名命令链接"
 ln -sfn "$JDK_HOME/bin/java" "$TOOL_DIR/bin/java"
 ln -sfn "$JDK_HOME/bin/javac" "$TOOL_DIR/bin/javac"
 ln -sfn "/opt/gradle-$GRADLE_VERSION/bin/gradle" "$TOOL_DIR/bin/gradle"
+# 稳定入口 /opt/gradle 指向本次安装版本，环境变量与脚本不再依赖具体版本号目录
+ln -sfn "/opt/gradle-$GRADLE_VERSION" /opt/gradle
 for command in java javac gradle cmake ninja adb flutter dart rustc cargo rustdoc apksigner zipalign jarsigner keytool aapt aapt2 dexdump readelf objdump nm strings cxxfilt uber-apk-signer smali baksmali taixu-apk-sign jadx apktool d2j-dex2jar d2j-baksmali d2j-smali rg; do
     if [ "$command" = "adb" ] && [ -f "/opt/taixu/bin/adb" ] && ! [ -L "/opt/taixu/bin/adb" ]; then
         # 保留 /opt/taixu/bin/adb 智能连接包装脚本
@@ -568,9 +580,9 @@ export ANDROID_NDK_HOME="$NDK_HOME"
 export ANDROID_NDK_ROOT="$NDK_HOME"
 export TAIXU_CMAKE_HOME="$TOOL_DIR/cmake"
 export TAIXU_NINJA_HOME="$TOOL_DIR/bin"
-export RUSTUP_HOME="/opt/taixu/toolchains/rust"
+export RUSTUP_HOME="/opt/taixu/tools/rust"
 export CARGO_HOME="/root/.cargo"
-export PATH="/opt/taixu/bin:/opt/taixu/toolchains/rust/bin:$TOOL_DIR/bin:$TOOL_DIR/cmake/bin:\$JAVA_HOME/bin:\$GRADLE_HOME/bin:/opt/flutter/bin:\$PATH"
+export PATH="/opt/taixu/bin:/opt/taixu/tools/rust/bin:$TOOL_DIR/bin:$TOOL_DIR/cmake/bin:\$JAVA_HOME/bin:\$GRADLE_HOME/bin:/opt/flutter/bin:\$PATH"
 export _JAVA_OPTIONS="-Djava.security.egd=file:/dev/urandom"
 EOF
 chmod 644 /etc/profile.d/taixu-android.sh 2>/dev/null || true
@@ -585,9 +597,9 @@ TAIXU_NDK_PATH=$NDK_HOME
 TAIXU_NDK_VERSION=r29
 ANDROID_NDK_HOME=$NDK_HOME
 ANDROID_NDK_ROOT=$NDK_HOME
-RUSTUP_HOME=/opt/taixu/toolchains/rust
+RUSTUP_HOME=/opt/taixu/tools/rust
 CARGO_HOME=/root/.cargo
-PATH=/opt/taixu/bin:/opt/taixu/toolchains/rust/bin:$TOOL_DIR/bin:$TOOL_DIR/cmake/bin:$JDK_HOME/bin:/opt/gradle-$GRADLE_VERSION/bin:/opt/flutter/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PATH=/opt/taixu/bin:/opt/taixu/tools/rust/bin:$TOOL_DIR/bin:$TOOL_DIR/cmake/bin:$JDK_HOME/bin:/opt/gradle-$GRADLE_VERSION/bin:/opt/flutter/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 _JAVA_OPTIONS=-Djava.security.egd=file:/dev/urandom
 EOF
 

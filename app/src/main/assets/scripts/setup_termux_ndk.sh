@@ -22,7 +22,7 @@ https://gh-proxy.com/${NDK_UPSTREAM_URL}
 ${NDK_UPSTREAM_URL}
 "
 
-TOOLCHAIN_ROOT="/opt/taixu/toolchains/android"
+TOOLCHAIN_ROOT="/opt/taixu/tools/android"
 NDK_ARTIFACT_DIR="$TOOLCHAIN_ROOT/ndk/artifacts/$NDK_SHA256"
 NDK_PATH="$NDK_ARTIFACT_DIR/ndk"
 NDK_ENV_FILE="$TOOLCHAIN_ROOT/ndk/taixu-ndk.env"

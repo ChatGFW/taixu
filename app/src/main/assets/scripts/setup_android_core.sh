@@ -28,7 +28,7 @@ https://gh.llkk.cc/${ARM64_TOOLS_URL}
 https://gh-proxy.com/${ARM64_TOOLS_URL}
 ${ARM64_TOOLS_URL}
 "
-ARM64_TOOLS_DIR="/opt/taixu/toolchains/android/sdk-tools/artifacts/${ARM64_TOOLS_ARTIFACT_ID}"
+ARM64_TOOLS_DIR="/opt/taixu/tools/android/sdk-tools/artifacts/${ARM64_TOOLS_ARTIFACT_ID}"
 AAPT2_STABLE_PATH="/opt/taixu/android-sdk-tools/aapt2"
 TOOLCHAIN_LOCK_FILE="/opt/taixu/locks/android-toolchain.lock"
 
@@ -76,15 +76,15 @@ if [ -x "$JAVA_HOME_RESOLVED/bin/java" ] && [ ! -x /usr/bin/java ]; then
 fi
 
 # 工坊签名管理器（WorkshopSigningManager）与离线套件统一使用
-# /opt/taixu/toolchains/android/jdk 作为 JAVA_HOME 规范路径。在线安装的
+# /opt/taixu/tools/android/jdk 作为 JAVA_HOME 规范路径。在线安装的
 # apt JDK 位于 /usr/lib/jvm/*，这里补一个规范路径软链接，保证 keytool
 # 在在线/离线两条安装路径下都从默认路径可达。若离线插件已部署 JDK 真身
 # 目录（非软链接），保留不动。
-TOOLCHAIN_JDK_LINK="/opt/taixu/toolchains/android/jdk"
+TOOLCHAIN_JDK_LINK="/opt/taixu/tools/android/jdk"
 if [ -d "$TOOLCHAIN_JDK_LINK" ] && [ ! -L "$TOOLCHAIN_JDK_LINK" ]; then
     echo "==> [TaiXu] 检测到离线套件 JDK 真身，跳过规范路径链接"
 else
-    mkdir -p /opt/taixu/toolchains/android /opt/taixu/bin 2>/dev/null || true
+    mkdir -p /opt/taixu/tools/android /opt/taixu/bin 2>/dev/null || true
     ln -sfn "$JAVA_HOME_RESOLVED" "$TOOLCHAIN_JDK_LINK"
     # keytool / jarsigner 进 /opt/taixu/bin（PATH 首位），终端可直接调用。
     for jdk_cmd in keytool jarsigner; do
@@ -195,7 +195,7 @@ fi
 # ------------------------------------------------------------------------------
 # 步骤 3：部署 Android SDK 平台包 (android-34)
 # ------------------------------------------------------------------------------
-if [ ! -f "$SDK_HOME/platforms/android-34/android.jar" ]; then
+if ! ls -d "$SDK_HOME"/platforms/android-[0-9]* >/dev/null 2>&1; then
     echo "==> [TaiXu] 正在从国内镜像拉取 Android 34 平台包 (android.jar, ~60MB)..."
     rm -rf /tmp/"$PLATFORM_ZIP" /tmp/android-platform-staging 2>/dev/null || true
     (curl -fsSL -m 300 "https://mirrors.cloud.tencent.com/AndroidSDK/$PLATFORM_ZIP" -o /tmp/"$PLATFORM_ZIP" 2>/dev/null || \
@@ -271,6 +271,7 @@ if [ ! -f "$BUILD_TOOLS_DIR/lib/d8.jar" ]; then
     fi
 fi
 mkdir -p "$BUILD_TOOLS_DIR"
+ln -sfn "$BUILD_TOOLS_VERSION" "$SDK_HOME/build-tools/0-current"
 if [ ! -f "$BUILD_TOOLS_DIR/source.properties" ]; then
     cat > "$BUILD_TOOLS_DIR/source.properties" << EOF
 Pkg.Desc=Android SDK Build-Tools 35
@@ -378,7 +379,7 @@ fi
 # Install the pinned Linux AArch64 NDK while the same exclusive toolchain lock
 # is held. This prevents AGP from observing a half-installed SDK/NDK view.
 /bin/sh /opt/taixu/scripts/setup_termux_ndk.sh
-. /opt/taixu/toolchains/android/ndk/taixu-ndk.env
+. /opt/taixu/tools/ndk/taixu-ndk.env
 
 # Remove only TaiXu's legacy project-level AAPT2 overrides. Formal injection is
 # now user-scoped and points at the immutable digest path, so projects cannot
@@ -543,10 +544,10 @@ echo "==> [TaiXu] 装配自检:"
 
 [ -x "$JAVA_HOME_RESOLVED/bin/java" ] && echo "    [OK] Java 运行时" || { echo "    [MISS] Java 运行时"; exit 1; }
 # 工坊签名（创建/导入 keystore）依赖规范路径下的 keytool，缺失时签名功能不可用。
-[ -x /opt/taixu/toolchains/android/jdk/bin/keytool ] && echo "    [OK] keytool 签名工具链 (规范路径)" || { echo "    [MISS] keytool 签名工具链"; exit 1; }
+[ -x /opt/taixu/tools/android/jdk/bin/keytool ] && echo "    [OK] keytool 签名工具链 (规范路径)" || { echo "    [MISS] keytool 签名工具链"; exit 1; }
 [ -s "$SECURITY_CONF_DIR/java.security" ] && [ -f "$SECURITY_CONF_DIR/policy/unlimited/default_local.policy" ] && echo "    [OK] java.security + crypto policy" || { echo "    [MISS] java.security / crypto policy"; exit 1; }
 [ -s "$SECURITY_DIR/cacerts" ] && "$JAVA_HOME_RESOLVED/bin/keytool" -list -keystore "$SECURITY_DIR/cacerts" -storetype PKCS12 -storepass changeit >/dev/null 2>&1 && echo "    [OK] Java cacerts (PKCS12)" || { echo "    [MISS] Java cacerts"; exit 1; }
-[ -f "$SDK_HOME/platforms/android-34/android.jar" ] && echo "    [OK] Android Platform 34" || { echo "    [MISS] Android 平台包"; exit 1; }
+ls -d "$SDK_HOME"/platforms/android-[0-9]* >/dev/null 2>&1 && echo "    [OK] Android Platform (已安装版本见 platforms/)" || { echo "    [MISS] Android 平台包"; exit 1; }
 [ -s "$SDK_HOME/licenses/android-sdk-license" ] && echo "    [OK] Android SDK licenses" || { echo "    [MISS] Android SDK licenses"; exit 1; }
 [ -f "$BUILD_TOOLS_DIR/source.properties" ] && [ -f "$BUILD_TOOLS_DIR/lib/d8.jar" ] && echo "    [OK] Build-Tools $BUILD_TOOLS_VERSION (Java d8/r8 + ARM64 native tools)" || { echo "    [MISS] Build-Tools $BUILD_TOOLS_VERSION"; exit 1; }
 [ -f "$TAIXU_NDK_PATH/source.properties" ] && [ -x "$TAIXU_NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" ] && echo "    [OK] lzhiyong ARM64 NDK $TAIXU_NDK_VERSION" || { echo "    [MISS] 固定 ARM64 NDK"; exit 1; }

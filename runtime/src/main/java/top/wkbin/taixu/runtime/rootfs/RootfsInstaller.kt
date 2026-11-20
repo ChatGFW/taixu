@@ -180,8 +180,8 @@ class RootfsInstaller(
             ?: return@withContext false
         val rootfs = pathManager.rootfsDir(distroId)
         if (rootfs.exists()) {
-            val broken = File(rootfs.parentFile, "rootfs.broken")
-            SafeFileTree.delete(broken)
+            val broken = File(rootfs.parentFile, "rootfs.broken.${System.currentTimeMillis()}")
+            runCatching { SafeFileTree.delete(broken) }
             if (!rootfs.renameTo(broken)) {
                 throw IllegalStateException("无法移开当前 RootFS（旧版本仍保留在 ${backup.path}）")
             }
@@ -189,7 +189,7 @@ class RootfsInstaller(
                 runCatching { broken.renameTo(rootfs) }
                 throw IllegalStateException("无法恢复旧 RootFS（旧版本仍保留在 ${backup.path}）")
             }
-            SafeFileTree.delete(broken)
+            runCatching { SafeFileTree.delete(broken) }
         } else {
             check(backup.renameTo(rootfs)) { "无法恢复旧 RootFS（旧版本仍保留在 ${backup.path}）" }
         }
@@ -370,7 +370,7 @@ class RootfsInstaller(
     private fun replaceRootfs(distroId: String, staging: File, retainBackup: Boolean) {
         val rootfs = pathManager.rootfsDir(distroId)
         val backup = pathManager.rootfsPreviousDir(distroId)
-        SafeFileTree.delete(backup)
+        runCatching { SafeFileTree.delete(backup) }.onFailure { if (!backup.renameTo(File(backup.parentFile, backup.name + "." + System.currentTimeMillis()))) throw it }
         if (rootfs.exists() && !rootfs.renameTo(backup)) error("无法暂存旧 RootFS")
         if (!staging.renameTo(rootfs)) {
             if (!backup.renameTo(rootfs)) {
@@ -379,11 +379,11 @@ class RootfsInstaller(
             }
             error("无法启用新 RootFS")
         }
-        if (retainBackup) pendingUpdateBackup = backup else SafeFileTree.delete(backup)
+        if (retainBackup) pendingUpdateBackup = backup else runCatching { SafeFileTree.delete(backup) }.onFailure { if (!backup.renameTo(File(backup.parentFile, backup.name + "." + System.currentTimeMillis()))) throw it }
     }
 
     private fun preserveUserDirectories(oldRootfs: File, newRootfs: File) {
-        listOf("root", "opt/taixu").forEach { relative ->
+        listOf("root").forEach { relative ->
             val source = File(oldRootfs, relative)
             if (source.exists()) {
                 val target = File(newRootfs, relative)

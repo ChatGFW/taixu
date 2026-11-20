@@ -1,5 +1,4 @@
 package top.wkbin.taixu.ui.developer
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import top.wkbin.taixu.core.common.logging.AppLogger
@@ -15,6 +14,9 @@ import top.wkbin.taixu.core.tools.SignedRegistryRequest
 import top.wkbin.taixu.core.tools.ToolManager
 import top.wkbin.taixu.core.tools.ToolRegistry
 import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.RegistryRoute
+import top.wkbin.taixu.runtime.toRegistryRoute
+import top.wkbin.taixu.runtime.toPolicyValue
 import top.wkbin.taixu.runtime.RuntimeHealth
 import top.wkbin.taixu.runtime.RootfsUpdateInfo
 import top.wkbin.taixu.runtime.shell.CommandResult
@@ -26,9 +28,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-
 class DeveloperViewModel(
     private val linuxRuntime: LinuxRuntime,
     private val runtimeManager: RuntimeManager,
@@ -41,37 +43,28 @@ class DeveloperViewModel(
     private val logger: AppLogger,
     private val embeddedAdbManager: EmbeddedAdbManager,
 ) : ViewModel() {
-
     init {
         embeddedAdbManager.startDiscovery(EmbeddedAdbManager.TAG_DEVELOPER_UI)
     }
-
     override fun onCleared() {
         super.onCleared()
         embeddedAdbManager.stopDiscovery(EmbeddedAdbManager.TAG_DEVELOPER_UI)
     }
-
     val runtimeState: StateFlow<RuntimeState> = linuxRuntime.state
-
+    val mirrorPolicy get() = onboardingPreferences.mirrorPolicy
     private val _commandInput = MutableStateFlow("cat /etc/os-release")
     val commandInput: StateFlow<String> = _commandInput.asStateFlow()
-
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy.asStateFlow()
-
     private val _health = MutableStateFlow<RuntimeHealth?>(null)
     val health: StateFlow<RuntimeHealth?> = _health.asStateFlow()
-
     private val _commandResult = MutableStateFlow<CommandResult?>(null)
     val commandResult: StateFlow<CommandResult?> = _commandResult.asStateFlow()
-
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
-
     /** 当前 message 是否为失败结果（类型化标记，避免 UI 用字符串匹配判断样式）。 */
     private val _messageIsError = MutableStateFlow(false)
     val messageIsError: StateFlow<Boolean> = _messageIsError.asStateFlow()
-
     private fun setMessage(text: String, isError: Boolean = false) {
         _message.value = text
         _messageIsError.value = isError
@@ -85,7 +78,6 @@ class DeveloperViewModel(
     private val _rootfsUpdate = MutableStateFlow<RootfsUpdateInfo?>(null)
     val rootfsUpdate: StateFlow<RootfsUpdateInfo?> = _rootfsUpdate.asStateFlow()
     private var initializationJob: Job? = null
-
     val adbState: StateFlow<EmbeddedAdbManager.ConnectionState> = embeddedAdbManager.state
     val adbDiscovery: StateFlow<EmbeddedAdbManager.DiscoveryState> = embeddedAdbManager.discovery
     private val _adbBusy = MutableStateFlow(false)
@@ -273,27 +265,35 @@ class DeveloperViewModel(
         initializationJob?.cancel()
     }
 
-    fun updateRootfs() {
-        if (_busy.value || linuxRuntime.state.value !is RuntimeState.Ready) return
+    fun updateRootfs(route: RegistryRoute? = null) {
+        if (_busy.value) return
+        if (linuxRuntime.state.value.let { it !is RuntimeState.Ready && it !is RuntimeState.Error }) {
+            setMessage("运行时尚未就绪，请先完成初始化", isError = true)
+            return
+        }
         viewModelScope.launch {
             _busy.value = true
             _message.value = null
             _messageIsError.value = false
-            runCatching { linuxRuntime.updateRootfs() }
-                .onSuccess { result ->
-                    if (result.isSuccess) {
-                        setMessage("RootFS 更新完成，用户数据已保留。")
-                    } else {
-                        logger.e("RootFS update failed: ${result.errorOrNull()?.message}")
-                        setMessage("RootFS 更新失败，已自动恢复旧版本；请稍后重试", isError = true)
-                    }
-                    refreshRootfsVersion()
+            try {
+                val picked = route ?: onboardingPreferences.mirrorPolicy.toRegistryRoute()
+                if (route != null) onboardingPreferences.setMirrorPolicy(route.toPolicyValue())
+                val result = linuxRuntime.updateRootfs(route = picked)
+                val error = result.errorOrNull()
+                if (error == null) setMessage("RootFS 更新完成，用户数据已保留。")
+                else {
+                    logger.e("RootFS update failed: ${error.message}")
+                    setMessage("RootFS 更新失败：${error.message}", isError = true)
                 }
-                .onFailure { throwable ->
-                    logger.e("RootFS update failed", throwable)
-                    setMessage("RootFS 更新失败，请检查网络后重试", isError = true)
-                }
-            _busy.value = false
+                refreshRootfsVersion()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (throwable: Throwable) {
+                logger.e("RootFS update failed", throwable)
+                setMessage("RootFS 更新失败：${throwable.message}", isError = true)
+            } finally {
+                _busy.value = false
+            }
         }
     }
 
@@ -302,26 +302,26 @@ class DeveloperViewModel(
         viewModelScope.launch {
             _busy.value = true
             setMessage("正在检查 RootFS 的 OCI manifest…")
-            runCatching { linuxRuntime.checkRootfsUpdate() }
-                .onSuccess { result ->
-                    if (result.isSuccess) {
-                        val info = result.getOrNull()!!
-                        _rootfsUpdate.value = info
-                        if (info.hasUpdate) {
-                            setMessage("检测到 RootFS 新版本，可以更新。")
-                        } else {
-                            setMessage("RootFS 已是最新版本。")
-                        }
-                    } else {
-                        logger.e("RootFS update check failed: ${result.errorOrNull()?.message}")
-                        setMessage("RootFS 更新检查失败，请检查网络后重试", isError = true)
-                    }
+            try {
+                val route = onboardingPreferences.mirrorPolicy.toRegistryRoute()
+                val result = linuxRuntime.checkRootfsUpdate(route = route)
+                if (result.isSuccess) {
+                    val info = result.getOrNull()!!
+                    _rootfsUpdate.value = info
+                    setMessage(if (info.hasUpdate) "检测到 RootFS 新版本，可以更新。" else "RootFS 已是最新版本。")
+                } else {
+                    val error = result.errorOrNull()
+                    logger.e("RootFS update check failed: ${error?.message}")
+                    setMessage("RootFS 更新检查失败：${error?.message ?: "未知错误"}", isError = true)
                 }
-                .onFailure { throwable ->
-                    logger.e("RootFS update check failed", throwable)
-                    setMessage("RootFS 更新检查失败，请检查网络后重试", isError = true)
-                }
-            _busy.value = false
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (throwable: Throwable) {
+                logger.e("RootFS update check failed", throwable)
+                setMessage("RootFS 更新检查失败：${throwable.message}", isError = true)
+            } finally {
+                _busy.value = false
+            }
         }
     }
 

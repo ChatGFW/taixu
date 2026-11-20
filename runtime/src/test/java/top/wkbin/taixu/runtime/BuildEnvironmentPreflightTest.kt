@@ -9,14 +9,31 @@ import top.wkbin.taixu.runtime.ProjectType
 
 class BuildEnvironmentPreflightTest {
     @Test
+    fun sdkCandidatesAreValidatedBeforeChoosingHighestVersion() {
+        val command = BuildEnvironmentPreflight.command("/workspace/app", ProjectType.ANDROID)
+        listOf("_tx_plat", "_tx_bt").forEach { variable ->
+            val selector = command.substringAfter("$variable=\$(").substringBefore("tail -n 1)")
+            assertTrue(selector.contains("for _tx_candidate in"))
+            assertTrue(selector.indexOf("[ -f") < selector.indexOf("sort -V"))
+        }
+        assertTrue(command.contains("\$_tx_candidate/source.properties"))
+        assertTrue(command.contains("\$_tx_candidate/lib/d8.jar"))
+        assertTrue(command.contains("[ -x \"\$_tx_candidate/aapt2\" ]"))
+        assertTrue(command.contains("[ -n \"\${TAIXU_AAPT2_PATH:-}\" ]"))
+    }
+
+    @Test
     fun androidArmPreflightRequiresPinnedArmArtifactsAndDisablesSdkDownload() {
         val command = BuildEnvironmentPreflight.command("/workspace/a project's app", ProjectType.ANDROID)
         assertTrue(command.contains("android.builder.sdkDownload=false"))
         assertTrue(command.contains("TAIXU_NDK_PATH"))
         assertTrue(command.contains("TAIXU_AAPT2_PATH"))
-        assertTrue(command.contains("/opt/taixu/toolchains/android/jdk/bin/java"))
-        assertTrue(command.contains("\$ANDROID_HOME/build-tools/35.0.0/aapt2"))
-        assertTrue(command.contains("/opt/taixu/toolchains/android/ndk"))
+        assertTrue(command.contains("/opt/taixu/tools/android/jdk/bin/java"))
+        // 平台与 Build-Tools 版本由脚本探测，断言探测片段而非具体版本号
+        assertTrue(command.contains("_tx_plat"))
+        assertTrue(command.contains("_tx_bt"))
+        assertTrue(command.contains("/aapt2"))
+        assertTrue(command.contains("/opt/taixu/tools/ndk"))
         assertTrue(command.contains("-name clang"))
         assertTrue(command.contains("od -An -t x1 -j 18 -N 2"))
         assertTrue(command.contains("= b700"))
@@ -50,7 +67,7 @@ class BuildEnvironmentPreflightTest {
     fun flutterArmPreflightAcceptsOfflineSuiteLayoutWithoutLegacyMarker() {
         val command = BuildEnvironmentPreflight.command("/workspace/flutter", ProjectType.FLUTTER)
 
-        assertTrue(command.contains("/opt/taixu/toolchains/android/jdk/bin/java"))
+        assertTrue(command.contains("/opt/taixu/tools/android/jdk/bin/java"))
         assertTrue(command.contains("/opt/flutter/bin/flutter"))
         assertTrue(command.contains("/opt/flutter/bin/cache/dart-sdk/bin/dart"))
         assertFalse(command.contains("flutter_marker"))

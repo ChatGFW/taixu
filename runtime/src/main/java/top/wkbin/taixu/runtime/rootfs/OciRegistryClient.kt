@@ -68,7 +68,10 @@ class OciRegistryClient(
         val endpoints = when (route) {
             RegistryRoute.OFFICIAL -> listOf(Endpoint.dockerHub())
             RegistryRoute.CHINA_ACCELERATED -> listOf(Endpoint.daoCloud())
-            RegistryRoute.AUTO -> listOf(Endpoint.daoCloud(), Endpoint.dockerHub())
+            // DaoCloud 公共镜像已停止匿名服务（m.daocloud.io/auth/token 不再发牌），
+            // 放第一档会让每次更新先白亏一次超时；改以 Docker Hub 优先，
+            // 它才是「App 真正走了代理」时的有效源，DaoCloud 降为无代理场景兵底。
+            RegistryRoute.AUTO -> listOf(Endpoint.dockerHub(), Endpoint.daoCloud())
         }
         var lastFailure: Throwable? = null
         for ((index, endpoint) in endpoints.withIndex()) {
@@ -98,7 +101,11 @@ class OciRegistryClient(
                 logger.w("OCI registry route ${endpoint.name} failed", failure)
             }
         }
-        throw lastFailure ?: IllegalStateException("没有可用的 OCI Registry 下载线路")
+        throw IllegalStateException(
+            "RootFS 下载失败：已依次尝试 ${endpoints.joinToString(" → ") { it.name }}"
+                + "（最近一次：${lastFailure?.message ?: "未知"}）。",
+            lastFailure,
+        )
     }
 
     private suspend fun pullFrom(

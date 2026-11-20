@@ -61,7 +61,7 @@ class AndroidSdkManagerTest {
         fixture.manager.validate("ubuntu", sdk)
         assertEquals("ubuntu", fixture.executedDistro)
         assertTrue(fixture.executedScript.contains(sdk.aapt2Path))
-        assertTrue(fixture.executedScript.contains("ln -s /opt/android-sdk/build-tools/35.0.0"))
+        assertTrue(fixture.executedScript.contains("ln -s \"\$_tx_bt\""))
         val downloads = fixture.downloads
         fixture.manager.install("ubuntu", fixture.release()) { _, _ -> }
         assertEquals(downloads, fixture.downloads)
@@ -115,6 +115,60 @@ class AndroidSdkManagerTest {
         assertTrue(runCatching { fixture.manager.validate("debian", sdk) }.isFailure)
     }
 
+    @Test fun defaultSdkValidationExecutesWithNounsetAndSkipsIncompleteOrPreviewCandidates() = runBlocking {
+        val fixture = Fixture().apply { prepareBaseSdk(); executeShell = true }
+        val base = fixture.baseAapt2.parentFile!!.parentFile!!.parentFile!!
+        File(base, "build-tools/9.0.0/lib/d8.jar").apply { parentFile!!.mkdirs(); writeText("older") }
+        File(base, "build-tools/9.0.0/aapt2").writeBytes(fixture.baseAapt2.readBytes())
+        File(base, "platforms/android-9/android.jar").apply { parentFile!!.mkdirs(); writeText("older") }
+        File(base, "build-tools/99.0.0/aapt2").apply {
+            parentFile!!.mkdirs(); writeBytes(fixture.baseAapt2.readBytes())
+        }
+        File(base, "build-tools/100.0.0/lib/d8.jar").apply { parentFile!!.mkdirs(); writeText("d8") }
+        File(base, "platforms/android-99").mkdirs()
+        File(base, "platforms/android-100-preview/android.jar").apply { parentFile!!.mkdirs(); writeText("preview") }
+        File(base, "build-tools/101.0.0-rc1/lib/d8.jar").apply { parentFile!!.mkdirs(); writeText("preview") }
+        File(base, "build-tools/101.0.0-rc1/aapt2").writeBytes(fixture.baseAapt2.readBytes())
+
+        fixture.manager.validate("ubuntu", fixture.manager.installed("ubuntu").single())
+
+        assertTrue(fixture.shellOutput, fixture.shellOutput.contains(
+            "selected:$base/build-tools/35.0.0:$base/platforms/android-35"))
+        assertFalse(java.nio.file.Files.isSymbolicLink(File(base, "platforms").toPath()))
+    }
+
+    @Test fun defaultSdkValidationReportsMissingRequiredFilesInsteadOfUnboundVariables() = runBlocking {
+        for ((missing, message) in listOf("platforms" to "Android Platform", "build-tools/35.0.0/lib/d8.jar" to "Build-Tools")) {
+            val fixture = Fixture().apply { prepareBaseSdk(); executeShell = true }
+            File(fixture.paths.distroOptDir("ubuntu"), "android-sdk/$missing").deleteRecursively()
+
+            val failure = runCatching {
+                fixture.manager.validate("ubuntu", fixture.manager.installed("ubuntu").single())
+            }.exceptionOrNull()
+
+            assertTrue(failure is IllegalStateException)
+            assertEquals(fixture.shellOutput, 2, fixture.shellExitCode)
+            assertTrue(fixture.shellOutput, fixture.shellOutput.contains(message))
+            assertFalse(fixture.shellOutput, fixture.shellOutput.contains("parameter not set"))
+            assertFalse(fixture.shellOutput, fixture.shellOutput.contains("unbound variable"))
+        }
+    }
+
+    @Test fun nonDefaultSdkValidationStillLinksBaseComponentsWithoutReplacingExistingTools() = runBlocking {
+        val fixture = Fixture().apply { prepareBaseSdk(); executeShell = true }
+        val sdk = fixture.manager.install("ubuntu", fixture.release()) { _, _ -> }
+        val root = File(fixture.paths.distroOptDir("ubuntu"), sdk.path.removePrefix("/opt/"))
+        val aapt2 = File(root, "build-tools/37.0.0/aapt2").readBytes()
+
+        fixture.manager.validate("ubuntu", sdk)
+
+        for (path in listOf("platforms", "platform-tools", "build-tools/35.0.0")) {
+            assertTrue(path, java.nio.file.Files.isSymbolicLink(File(root, path).toPath()))
+        }
+        assertArrayEquals(aapt2, File(root, "build-tools/37.0.0/aapt2").readBytes())
+        fixture.manager.validate("ubuntu", sdk) // Existing links must remain valid on repeated validation.
+    }
+
     private class Fixture {
         private val context = RuntimeEnvironment.getApplication().apply {
             applicationInfo.nativeLibraryDir = File(cacheDir, "native-libs").apply { mkdirs() }.path
@@ -131,6 +185,9 @@ class AndroidSdkManagerTest {
         var exitCode = 0
         var executedDistro: String? = null
         var executedScript = ""
+        var executeShell = false
+        var shellOutput = ""
+        var shellExitCode = -1
         private val checksums = ChecksumVerifier()
         private val runtime = Proxy.newProxyInstance(LinuxRuntime::class.java.classLoader, arrayOf(LinuxRuntime::class.java)) { _, method, args ->
             when (method.name) {
@@ -138,7 +195,7 @@ class AndroidSdkManagerTest {
                 "execute" -> {
                     executedScript = (args[0] as ShellCommand).commandLine
                     executedDistro = args[1] as String
-                    CommandResult(exitCode, "probe", "", 1)
+                    if (executeShell) runShell(executedScript) else CommandResult(exitCode, "probe", "", 1)
                 }
                 else -> error("Unexpected runtime call ${method.name}")
             }
@@ -165,6 +222,27 @@ class AndroidSdkManagerTest {
             paths.baseDir.deleteRecursively()
             baseAapt2.parentFile!!.mkdirs()
             baseAapt2.writeText("old-aapt2")
+        }
+
+        fun prepareBaseSdk() {
+            baseAapt2.writeBytes(ByteArray(64).apply { this[18] = 0xb7.toByte() })
+            File(baseAapt2.parentFile, "lib/d8.jar").apply { parentFile!!.mkdirs(); writeText("d8") }
+            File(paths.distroOptDir("ubuntu"), "android-sdk/platforms/android-35/android.jar").apply {
+                parentFile!!.mkdirs(); writeText("android")
+            }
+            File(paths.distroOptDir("ubuntu"), "android-sdk/platform-tools").mkdirs()
+        }
+
+        private fun runShell(script: String): CommandResult {
+            // Execute the generated script against the fixture, not the host's /opt SDK.
+            // Stub only the ARM executable invocation; file checks, od and symlinks are real.
+            val mapped = script.replace("/opt/", "${paths.distroOptDir("ubuntu").path}/")
+            val process = ProcessBuilder("sh", "-c", "timeout() { test \"${'$'}#\" -eq 3; }\n" + mapped +
+                "\nprintf 'selected:%s:%s\\n' \"${'$'}_tx_bt\" \"${'$'}_tx_plat\"")
+                .redirectErrorStream(true).start()
+            shellOutput = process.inputStream.bufferedReader().use { it.readText() }
+            shellExitCode = process.waitFor()
+            return CommandResult(shellExitCode, shellOutput, "", 1)
         }
 
         fun release(): AndroidSdkRelease {

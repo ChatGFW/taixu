@@ -495,13 +495,7 @@ internal fun LocalDeveloperScreen(
         )
     }
     if (showRootfsUpdateConfirmation) {
-        RuntimeAlertDialog(
-            onDismissRequest = { showRootfsUpdateConfirmation = false },
-            title = { Text("更新 Linux RootFS？") },
-            text = { Text("将在线下载并校验新版本，保留 /root 与 /opt/taixu。更新期间后台 Linux 进程会停止，失败时自动恢复旧版本。") },
-            confirmButton = { TextButton(onClick = { showRootfsUpdateConfirmation = false; viewModel?.updateRootfs() }) { Text("确认更新") } },
-            dismissButton = { TextButton(onClick = { showRootfsUpdateConfirmation = false }) { Text("取消") } },
-        )
+        RootfsUpdateDialog(viewModel) { showRootfsUpdateConfirmation = false }
     }
     if (showAgentLogDialog) {
         RuntimeAlertDialog(

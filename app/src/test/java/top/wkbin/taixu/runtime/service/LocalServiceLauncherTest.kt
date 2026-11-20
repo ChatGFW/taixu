@@ -5,6 +5,7 @@ import top.wkbin.taixu.core.model.InstalledDistro
 import top.wkbin.taixu.core.model.RuntimeState
 import top.wkbin.taixu.runtime.DownloadProgress
 import top.wkbin.taixu.runtime.LinuxRuntime
+import top.wkbin.taixu.runtime.RegistryRoute
 import top.wkbin.taixu.runtime.RootfsUpdateInfo
 import top.wkbin.taixu.runtime.RuntimeHealth
 import top.wkbin.taixu.runtime.RuntimeInstallRequest
@@ -93,8 +94,8 @@ class LocalServiceLauncherTest {
 
         override suspend fun initialize(request: RuntimeInstallRequest): AppResult<Unit> = AppResult.Success(Unit)
         override suspend fun restoreInstalledState(): Boolean = false
-        override suspend fun updateRootfs(distroId: String?): AppResult<Unit> = AppResult.Success(Unit)
-        override suspend fun checkRootfsUpdate(distroId: String?): AppResult<RootfsUpdateInfo> =
+        override suspend fun updateRootfs(distroId: String?, route: RegistryRoute): AppResult<Unit> = AppResult.Success(Unit)
+        override suspend fun checkRootfsUpdate(distroId: String?, route: RegistryRoute): AppResult<RootfsUpdateInfo> =
             error("unused")
         override suspend fun healthCheck(distroId: String?): RuntimeHealth = error("unused")
         override suspend fun execute(command: ShellCommand, distroId: String?): CommandResult = error("unused")
