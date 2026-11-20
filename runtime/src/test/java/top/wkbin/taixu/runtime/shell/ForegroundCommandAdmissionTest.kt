@@ -142,7 +142,7 @@ class ForegroundCommandAdmissionTest {
 
     @Test fun failedProcessTeardownBlocksHeavyAllocationUntilExplicitCleanupSucceeds() = runBlocking {
         withTimeout(10_000) {
-            val process = FakeSessionProcess().apply { forcedExit = false }
+            val process = FakeSessionProcess().apply { gracefulExit = false; forcedExit = false }
             var starts = 0
             val processes = ProcessShellExecutor({ emptyMap() }) { _, _, _ ->
                 starts++; if (starts == 1) process else FakeSessionProcess().also { it.exit() }
@@ -166,7 +166,7 @@ class ForegroundCommandAdmissionTest {
 
     @Test fun retainedTeardownSelfHealsOnNextHeavyCommandOnceProcessIsGone() = runBlocking {
         withTimeout(10_000) {
-            val process = FakeSessionProcess().apply { forcedExit = false }
+            val process = FakeSessionProcess().apply { gracefulExit = false; forcedExit = false }
             var starts = 0
             val processes = ProcessShellExecutor({ emptyMap() }) { _, _, _ ->
                 starts++; if (starts == 1) process else FakeSessionProcess().also { it.exit() }

@@ -95,7 +95,7 @@ class EnvironmentRepairer(
                 ),
             )
             addLog("[Step 1/5] 写入公共 DNS (114.114.114.114, 223.5.5.5, 8.8.8.8)")
-            val dnsCmd = "mkdir -p /etc && printf 'nameserver 114.114.114.114\\nnameserver 223.5.5.5\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf"
+            val dnsCmd = "mkdir -p /etc && printf 'nameserver 114.114.114.114\\nnameserver 223.5.5.5\\nnameserver 8.8.8.8\\noptions single-request-reopen\\n' > /etc/resolv.conf"
             val dnsRes = executeCommand(dnsCmd, logs)
             if (!dnsRes.isSuccess) {
                 addLog("警告: 写入 /etc/resolv.conf 失败: ${dnsRes.stderr}")

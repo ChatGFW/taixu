@@ -10,7 +10,7 @@
 | 递归清理 | 活动及释放回调不能关闭自身；父子资源循环明确失败，保留重试入口 | `ResourceDisposalTest`、`TerminalDisposalBoundaryTest` |
 | 前台命令 | 分配前登记；取消/超时确认退出，排空读任务；失败记录同时由环境与执行器持有 | `ProcessShellLifecycleTest`：正常完成、取消、超时、关闭绑定拒绝、批量重试 |
 | 后台进程 | 同名替换先清理旧实例；日志排空；旧停止请求不能误停新实例；失败可重试 | `LocalBackgroundLifecycleTest`、`ProcessRegistryLifecycleTest` |
-| 兼容子进程 | 有界终止确认、独立读任务作用域、输出完成、逐项清理、回调自关闭保护 | `ProcessLinuxSessionLifecycleTest`，假 Process 与实际阻塞线程 |
+| 兼容子进程 | 有界终止确认、SIGTERM → SIGQUIT → 强杀三级终止、独立读任务作用域、输出完成、逐项清理、回调自关闭保护 | `ProcessLinuxSessionLifecycleTest`、`ShellProcessOwnerTest`，假 Process 与实际阻塞线程；proot 信号语义已在 x86_64 Linux 实测，Android 待验 |
 | JNI PTY | 有界非阻塞读写；PID 回收与信号串行；先排空再释放描述符；分步清理可重试 | `NativePtyLifecycleTest`：15 项故障注入；Android 原生构建；真机执行待验证 |
 | 运行时交互会话 | 清理成功才撤销；已死亡但清理失败的记录仍阻止存储清理 | `InteractiveSessionRegistryTest` |
 | MCP | 创建记录先归属会话；撤销排空创建和读泵；失败回滚保留；借用环境不关闭共享环境 | `McpStartupRollbackTest`、`McpTransportAcquisitionTest`、`McpChannelCleanupTest` |
@@ -20,7 +20,7 @@
 
 统一验证命令：`./gradlew test :app:assembleDebug architectureCheck`。项目打包预编译的 `libpty_native.so`，修改 C 源码后必须先用 `tools/build-pty-native.ps1 -NdkRoot <Android NDK 路径>` 重建；`preBuild` 检查生成清单的源码/二进制哈希及 Kotlin 声明的全部 JNI 符号，即使 JNI 名称不变，也拒绝未经重编译的源码和被替换的库。具体命令见 [PTY 原生库重建](COMMANDS.md#5-pty-原生库重建与统一验收)。所有协议与链路测试使用假 Provider、假环境或假进程，无 API Key，不调用付费模型或真实 SSH 服务。
 
-单元测试验证了故障和竞态下的生命周期契约，NDK 编译及导出符号检查验证了原生 C，APK 打包检查验证了 Kotlin/JNI 接口匹配。当前没有连接的 Android 设备，实际 PRoot/JNI 读写、关闭和 Termux 渲染的设备验收尚未执行，不能据此声称真机链路已通过。
+单元测试验证了故障和竞态下的生命周期契约，NDK 编译及导出符号检查验证了原生 C，APK 打包检查验证了 Kotlin/JNI 接口匹配。当前没有连接的 Android 设备，实际 PRoot/JNI 读写、关闭和 Termux 渲染的设备验收尚未执行，不能据此声称真机链路已通过。proot 的信号语义已在 x86_64 Linux + proot 5.1.0 上实测：SIGTERM 后 tracer 与 tracee 均存活，SIGQUIT 后 tracer 逐个 `terminated with signal 9` 收掉全部 tracee（含嵌套子孙）再退出，SIGKILL 后 tracee 的 PPid 变为 1；Android 使用 Termux 补丁版 proot，同一行为仍需设备复核。
 
 2026-10-11 验收结果：新增 36 项边界回归；全量 `test`、`assembleDebug` 和 32 模块架构检查通过。NDK 重编译通过，最终 APK 内的 7 个 JNI 符号与 Kotlin 声明匹配，原生库 3 个 LOAD 段均满足至少 16 KiB 对齐。验收日志为 `.gradle/harness-lifecycle-final-packaging.log`，产物为 `app/build/outputs/apk/debug/taixu-v0.21.0-debug.apk`。
 

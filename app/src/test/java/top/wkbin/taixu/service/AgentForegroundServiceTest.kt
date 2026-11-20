@@ -122,6 +122,18 @@ class AgentForegroundServiceTest {
         assertFalse(text("one").contains("SECRET OUTPUT"))
     }
 
+    @Test fun `steady polling does not re-publish unchanged notification content`() {
+        states("one" to SessionRunState.RUNNING)
+        start()
+        val firstText = text("one")
+        val firstWhen = notice("one").`when`
+        // 已用时交给通知头部 chronometer 自走，正文不再手工拼秒数。
+        assertFalse(firstText.contains("已用时"))
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(6))
+        assertEquals(firstText, text("one"))
+        assertEquals(firstWhen, notice("one").`when`)
+    }
+
     @Test fun `summary stop cancels every active session including approval`() {
         states("one" to SessionRunState.RUNNING, "two" to SessionRunState.WAITING_APPROVAL)
         start()

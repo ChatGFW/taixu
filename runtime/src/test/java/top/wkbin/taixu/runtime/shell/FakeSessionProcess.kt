@@ -15,6 +15,7 @@ internal class FakeSessionProcess : Process() {
     var forcedExit = true
     var waitFailure: Throwable? = null
     var beforeWait: () -> Unit = {}
+    var beforeForce: () -> Unit = {}
     val destroys = AtomicInteger()
     val forces = AtomicInteger()
     val waits = AtomicInteger()
@@ -45,6 +46,7 @@ internal class FakeSessionProcess : Process() {
         if (gracefulExit) exit()
     }
     override fun destroyForcibly(): Process {
+        beforeForce()
         forces.incrementAndGet()
         if (forcedExit) exit()
         return this

@@ -23,16 +23,14 @@ This file tracks known issues and environment notes for the TaiXu Android projec
 - If the schema changes again, add a forward migration and a JVM/instrumented migration test before changing
   the database version. Never reintroduce `fallbackToDestructiveMigration()` for a released build.
 
-## 3. Dependency stack is intentionally old but stable for Phase 0
+## 3. 当前依赖栈（以 `gradle/libs.versions.toml` 为准）
 
-- Kotlin `1.9.22`, AGP `8.2.2`, Gradle `8.5`, KSP `1.9.22-1.0.17`, Room `2.6.1`.
-- These versions are sufficient for the Phase 0 skeleton and match the original project plan constraints.
-- A future modernization pass may align with the newer cached toolchain (Kotlin 2.2.x / AGP 8.7.x) if the
-  project later requires it, but that is out of scope for Phase 0.
+- Kotlin `2.4.21`, AGP `9.4.1`, Gradle `9.8.1`, Koin `4.2.2`, Room `2.8.5`, Compose BOM `2026.09.00`。
+- 早期 Phase 0 的旧工具链（Kotlin 1.9.22 / AGP 8.2.2 / Gradle 8.5 / Room 2.6.1）已完成现代化升级；离线构建仍依赖已预热的 Gradle 缓存（见第 1 节）。
 
 ## 4. Phase 1 runtime payloads are downloaded on first initialization
 
-- Linux rootfs 不内置到 APK；首次引导通过 `proot-distro 5.10.0` OCI Registry 流程拉取用户选择的 ARM64 镜像。
+- v1.12.0 起随包内置 Ubuntu 24.04 ARM64 rootfs，首装直接解包激活（体积与校验值见 release 说明）；在线 `proot-distro 5.10.0` OCI Registry 流程保留为自定义/其他发行版的拉取路径。
 - 安装器选择 `linux/arm64` manifest，逐层校验 Registry 提供的 SHA-256 digest，并按 OCI whiteout 语义合并到 staging 目录后原子激活。
 - layer 缓存位于应用私有目录，支持 gzip 与 zstd OCI layer；不存在旧版 release tarball 兼容入口。
 - 如果设备不是 ARM64，初始化会在架构检测阶段停止；PRoot 导入后还会执行 `--version` 启动校验。
@@ -40,13 +38,12 @@ This file tracks known issues and environment notes for the TaiXu Android projec
 
 ## 5. Beta 前仍需补齐的能力
 
-- 交互终端当前使用 Debian `script` + `ProcessBuilder` 创建 PTY；通过记录 `/dev/pts/*` 从属设备并执行独立 `stty -F` 命令，UTF-8、Ctrl+C、动态 Resize、ANSI SGR/光标/清屏和滚动缓冲已接通，不会把 `stty` 注入 Codex/OpenClaw/Hermes 的 stdin。真正的 JNI `forkpty` backend 仍可作为后续替换实现，当前需要在 ARM64 设备上验证更多复杂 TUI。
-- 真 PTY（JNI forkpty）后端的全部代码已就绪（`app/src/main/cpp/pty_native.c` + `NativePty.kt`/`NativePtySession.kt`，Termux 同款 setsid/控制终端语义）；当前机器未装 NDK，`build.gradle.kts` 的 `externalNativeBuild` 配置已临时注释。装上 NDK 后恢复配置即可启用，未启用时自动回退到 `script` 后端，功能不受影响。
-- Codex、OpenClaw、Hermes 的 Adapter 已隔离安装、验证、更新和卸载路径；官方脚本会先通过 HTTPS 下载到 Linux `/tmp`、设置为仅所有者可执行，再执行并由 `trap` 清理。脚本内容仍属于易变化的上游代码，正式发布前仍需按各自官方文档固定版本、复核许可，并在 ARM64 设备上逐个执行兼容性验收。
-- 工具程序统一安装到 `/opt/taixu/tools/{toolId}`，稳定命令入口位于 `/opt/taixu/bin`；Codex、OpenClaw、Hermes 的配置数据分别通过 `CODEX_HOME`、`OPENCLAW_HOME` 或 Hermes `--hermes-home` 指向 `/opt/taixu/data/{toolId}`。卸载默认保留数据，用户明确勾选后才删除对应工具数据。
-- `RemoteScriptRunner` 禁止脚本下载跨主机重定向，并支持为官方脚本配置固定 SHA-256、在执行前通过 `sha256sum -c` 校验；当前三个上游安装地址仍没有项目可长期信任的固定脚本版本哈希，因此正式 Beta 发布前必须把 URL 改为版本化地址并填入哈希，或改用固定 release archive。
+- 真 PTY（JNI forkpty）后端已启用（NDK 30 + `app/src/main/cpp/pty_native.c` + `NativePty.kt`/`NativePtySession.kt`，Termux 同款 setsid/控制终端语义；`libpty_native` 必须是 NDK/Bionic 构建，构建期有 glibc 链接检查）；`script` + `ProcessBuilder` 仅作未启用时的自动回退。仍需在 ARM64 设备上验证更多复杂 TUI。
+- Codex 的 Adapter 已隔离安装、验证、更新和卸载路径；官方脚本会先通过 HTTPS 下载到 Linux `/tmp`、设置为仅所有者可执行，执行前做 SHA-256 校验，再执行并由 `trap` 清理。OpenClaw / Hermes / claude-code 已从工具注册表移除（`ToolRegistry.REMOVED_TOOL_IDS`）。
+- 工具程序统一安装到 `/opt/taixu/tools/{toolId}`，稳定命令入口位于 `/opt/taixu/bin`；Codex 的配置数据通过 `CODEX_HOME` 指向 `/opt/taixu/data/{toolId}`。卸载默认保留数据，用户明确勾选后才删除对应工具数据。
+- `RemoteScriptRunner` 禁止脚本下载跨主机重定向，并通过 `sha256sum -c` 在执行前校验固定 SHA-256：Codex 安装脚本已钉哈希（`CodexToolInstaller.CODEX_INSTALL_SCRIPT_SHA256`，2026-11-20 校验 `https://chatgpt.com/codex/install.sh` 两次抓取同哈希；脚本内置对 releases.openai.com 下载包的 digest 校验，二进制完整性由官方元数据保证）。官方脚本更新后安装会因校验失败中止并提示人工复核——这是有意为之；升级流程：人工 diff 新旧脚本 → 更新常量 → 发版。Codex 真机端到端安装验收仍待执行。
 - 前台服务已声明并请求 Android 13+ 通知权限；若用户拒绝通知，后台 Agent 仍会受系统限制，建议从系统设置重新允许通知后使用持续运行服务。
-- 远程工具 Registry 已支持 HTTPS + Ed25519 签名校验、服务端口元数据和动态工具卡片；当前没有预置项目自己的签名 Registry 地址，默认继续使用 APK 内清单。
+- 远程工具 Registry 已支持 HTTPS + Ed25519 签名校验、服务端口元数据和动态工具卡片；当前没有预置项目自己的签名 Registry 地址，默认继续使用 APK 内清单。代码已预留内置信任锚 `ToolRegistry.PINNED_REGISTRY_KEY_BASE64`（填入项目正式 Ed25519 SPKI 后，远程清单更新将强制用该密钥校验，防"控制清单地址者同时提供公钥"的篡改）——是否启用属于发布决策，待定。
 - RuntimeManager 对 Python/Git 等继续使用 Debian apt；Node 会先尝试 apt，版本不满足工具约束时切换到带固定 SHA-256 的官方 ARM64 binary，并安装到持久化 `/opt/taixu`。正式发布前仍需在目标 ARM64 环境验证动态库兼容性。
 - 共享 Runtime 已提供引用计数和显式 `apt purge` 清理入口；默认不会随工具卸载自动删除，仍需产品发布前补充更细的磁盘占用估算。
 - 开发者页的存储统计现在按 RootFS、Runtime 基础目录、工具程序、工具数据、工作区和缓存分桶，避免把同一目录重复计入；统计仍是文件大小估算，不等同于文件系统实际占用的 block 数。
@@ -100,7 +97,7 @@ This file tracks known issues and environment notes for the TaiXu Android projec
 
 ## 已知待办
 - 终端触摸滚动 / IME 中文输入未完善：透明输入层在键盘输入时会挡 LazyColumn 触摸滚动；中文输入法组合尚未完全直通。
-- Codex / OpenClaw / Hermes 三个真实工具的整机安装、启动、健康检查验收**尚未完整跑通**（仅修了外围：apt 自愈、30s→20min 超时、git HTTP/1.1、安装器失败重试）。
+- Codex 真实工具的整机安装、启动、健康检查验收**尚未完整跑通**（OpenClaw / Hermes 已从注册表移除；仅修了外围：apt 自愈、30s→20min 超时、git HTTP/1.1、安装器失败重试；安装脚本已钉 SHA-256）。
 - `feature` 各屏缺单元测试（Compose 测试需 Robolectric，尚未接入）。
 - **产物预览仍是纯文本通道**：`ArtifactPreviewSheet` 只接收 `content: String`（来自工具 read/write/edit 输出），
   所以二进制被工具按 UTF-8 读出来后仍会在浮层里显示乱码，其“分享/另存”也按 `text/plain` 处理（会损坏文件）。

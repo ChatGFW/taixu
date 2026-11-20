@@ -53,27 +53,7 @@ class RemoteScriptRunner(
         error("unreachable")
     }
 
-    private fun buildCommand(spec: RemoteScriptSpec): String {
-        val scriptPath = "/tmp/taixu-installer-${spec.name}.sh"
-        val quotedUrl = ShellQuote.of(spec.url)
-        val quotedPath = ShellQuote.of(scriptPath)
-        val arguments = spec.arguments.joinToString(" ") { ShellQuote.of(it) }
-        return buildString {
-            append("set -eu; umask 077; ")
-            append("script_path=$quotedPath; ")
-            append("trap 'rm -f \"\$script_path\"' EXIT HUP INT TERM; ")
-            append("curl -fsSL --connect-timeout 10 --max-time 60 --max-redirs 0 --proto '=https' --tlsv1.2 $quotedUrl -o \"\$script_path\"; ")
-            append("test -s \"\$script_path\"; chmod 700 \"\$script_path\"; ")
-            spec.sha256?.let { checksum ->
-                require(SHA256.matches(checksum)) { "安装脚本 SHA-256 格式无效" }
-                append("printf '%s  %s\\n' ${ShellQuote.of(checksum)} \"\$script_path\" | sha256sum -c -; ")
-            }
-            append("bash \"\$script_path\"")
-            if (arguments.isNotBlank()) append(" $arguments")
-        }
-    }
-
-    companion object {
+    internal companion object {
         // 官方安装脚本需要 npm install / 下载二进制（OpenClaw 依赖较多，走代理
         // 可能超过 10 分钟），远超一次普通命令的 30 秒默认超时。
         private const val INSTALLER_TIMEOUT_MS = 20 * 60 * 1000L
@@ -83,6 +63,27 @@ class RemoteScriptRunner(
         private val ALLOWED_HOSTS = setOf(
             "chatgpt.com",
         )
+
+        /** 纯函数构建执行链，internal 供单元测试锁定防篡改要素。 */
+        internal fun buildCommand(spec: RemoteScriptSpec): String {
+            val scriptPath = "/tmp/taixu-installer-${spec.name}.sh"
+            val quotedUrl = ShellQuote.of(spec.url)
+            val quotedPath = ShellQuote.of(scriptPath)
+            val arguments = spec.arguments.joinToString(" ") { ShellQuote.of(it) }
+            return buildString {
+                append("set -eu; umask 077; ")
+                append("script_path=$quotedPath; ")
+                append("trap 'rm -f \"\$script_path\"' EXIT HUP INT TERM; ")
+                append("curl -fsSL --connect-timeout 10 --max-time 60 --max-redirs 0 --proto '=https' --tlsv1.2 $quotedUrl -o \"\$script_path\"; ")
+                append("test -s \"\$script_path\"; chmod 700 \"\$script_path\"; ")
+                spec.sha256?.let { checksum ->
+                    require(SHA256.matches(checksum)) { "安装脚本 SHA-256 格式无效" }
+                    append("printf '%s  %s\\n' ${ShellQuote.of(checksum)} \"\$script_path\" | sha256sum -c -; ")
+                }
+                append("bash \"\$script_path\"")
+                if (arguments.isNotBlank()) append(" $arguments")
+            }
+        }
     }
 }
 

@@ -54,6 +54,7 @@ import top.wkbin.taixu.runtime.bridge.FullAccessGrant
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpResources
 import top.wkbin.taixu.runtime.browser.tools.BrowserMcpTools
 import top.wkbin.taixu.runtime.environment.LocalDistributionSelection
+import top.wkbin.taixu.runtime.rootfs.BundledRootfsProvisioner
 import top.wkbin.taixu.runtime.virtualdisplay.PhoneTaskRegistry
 import top.wkbin.taixu.runtime.virtualdisplay.PhoneTaskState
 import top.wkbin.taixu.ui.iteration.CustomIterationViewModel
@@ -83,6 +84,7 @@ class TaiXuModulesTest {
                 definition<BrowserMcpResources>(Function0::class),
                 definition<FullAccessGrant>(kotlinx.coroutines.flow.Flow::class, kotlinx.coroutines.CoroutineScope::class, Function0::class),
                 // These callbacks/files are built by explicit provider lambdas or secondary constructors.
+                definition<BundledRootfsProvisioner>(File::class),
                 definition<SessionWorkspaceCatalog>(Function0::class, Function2::class),
                 definition<SessionExecutionTargets>(Function1::class),
                 definition<LocalDistributionSelection>(kotlinx.coroutines.flow.Flow::class, kotlinx.coroutines.flow.StateFlow::class, kotlinx.coroutines.CoroutineScope::class),
