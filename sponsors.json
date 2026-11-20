@@ -1,12 +1,40 @@
 {
   "entries": [
     {
+      "kind": "funding",
+      "name": "-",
+      "source": "wechat",
+      "identifier": "",
+      "note": "微信赞赏"
+    },
+    {
+      "kind": "funding",
+      "name": "*锕‌",
+      "source": "wechat",
+      "identifier": "",
+      "note": "微信赞赏"
+    },
+    {
+      "kind": "funding",
+      "name": "鹤*T",
+      "source": "wechat",
+      "identifier": "",
+      "note": "微信赞赏"
+    },
+    {
+      "kind": "funding",
+      "name": "**康",
+      "source": "alipay",
+      "identifier": "",
+      "note": "支付宝赞赏"
+    },
+    {
       "kind": "contribution",
       "name": "ygpking",
       "source": "github",
       "identifier": "ygpking",
       "avatar": "https://avatars.githubusercontent.com/u/30524294?s=96",
-      "note": "42 次提交"
+      "note": "50 次提交"
     },
     {
       "kind": "contribution",
@@ -14,7 +42,7 @@
       "source": "github",
       "identifier": "liulihuishe",
       "avatar": "https://avatars.githubusercontent.com/u/81918978?s=96",
-      "note": "33 次提交"
+      "note": "34 次提交"
     },
     {
       "kind": "contribution",
@@ -42,9 +70,9 @@
     },
     {
       "kind": "contribution",
-      "name": "Tunny1985",
+      "name": "TunnyCheung",
       "source": "github",
-      "identifier": "Tunny1985",
+      "identifier": "TunnyCheung",
       "avatar": "https://avatars.githubusercontent.com/u/18304273?s=96",
       "note": "4 次提交"
     },
@@ -63,6 +91,14 @@
       "identifier": "axin8880888-create",
       "avatar": "https://avatars.githubusercontent.com/u/289113275?s=96",
       "note": "2 次提交"
+    },
+    {
+      "kind": "contribution",
+      "name": "28022750a-lab",
+      "source": "github",
+      "identifier": "28022750a-lab",
+      "avatar": "https://avatars.githubusercontent.com/u/233738839?s=96",
+      "note": "1 次提交"
     },
     {
       "kind": "contribution",

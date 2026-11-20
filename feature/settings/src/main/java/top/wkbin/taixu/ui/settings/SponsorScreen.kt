@@ -407,26 +407,19 @@ private fun SponsorChip(entry: SponsorEntry) {
                     .background(RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center,
             ) {
-                SubcomposeAsyncImage(
-                    model = entry.avatarUrl,
-                    contentDescription = entry.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    error = {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(RuntimeTheme.colorScheme.surfaceContainerHighest),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            RuntimeIcon(
-                                RuntimeIconName.Sponsor,
-                                Modifier.size(14.dp),
-                                tint = RuntimeTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    },
+                RuntimeIcon(
+                    RuntimeIconName.Sponsor,
+                    Modifier.size(14.dp),
+                    tint = RuntimeTheme.colorScheme.onSurfaceVariant,
                 )
+                if (entry.avatarUrl.isNotBlank()) {
+                    SubcomposeAsyncImage(
+                        model = entry.avatarUrl,
+                        contentDescription = entry.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
             }
             Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
                 Text(

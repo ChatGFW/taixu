@@ -17,7 +17,8 @@ import okhttp3.Request
  * sponsors.json 格式（kind/source 均与下方枚举的 @SerialName 对应）：
  * {
  *   "entries": [
- *     { "kind": "funding",      "name": "阿伟",   "source": "qq",    "identifier": "10001" },
+ *     { "kind": "funding",      "name": "阿伟",   "source": "qq",     "identifier": "10001" },
+ *     { "kind": "funding",      "name": "阿*伟",  "source": "wechat", "identifier": "", "note": "微信赞赏" },
  *     { "kind": "resource",     "name": "wkbin",  "source": "github", "identifier": "wkbin", "note": "提供推理 token" },
  *     { "kind": "contribution", "name": "路人甲", "source": "github", "identifier": "lurenjia", "avatar": "https://avatars.githubusercontent.com/u/1?s=96", "note": "上报多窗口闪退" }
  *   ]
@@ -27,6 +28,8 @@ import okhttp3.Request
 enum class SponsorSource {
     @SerialName("github") GitHub,
     @SerialName("qq") Qq,
+    @SerialName("wechat") Wechat,
+    @SerialName("alipay") Alipay,
 }
 
 /** 贡献类型：资金赞助 / 资源赞助(如提供 token、测试设备) / 贡献(提 bug、PR、建议) */
@@ -47,11 +50,12 @@ data class SponsorEntry(
     val note: String? = null,
     val avatar: String? = null,
 ) {
-    /** 优先使用名单里的头像；未填写时按来源生成 GitHub / QQ 公开头像 */
+    /** 优先使用名单里的头像；未填写时按来源生成 GitHub / QQ 公开头像（微信/支付宝无公开头像，返回空串走占位图标） */
     val avatarUrl: String
         get() = avatar?.takeIf { it.isNotBlank() } ?: when (source) {
             SponsorSource.GitHub -> "https://avatars.githubusercontent.com/$identifier?s=96"
             SponsorSource.Qq -> "https://q1.qlogo.cn/g?b=qq&nk=$identifier&s=96"
+            SponsorSource.Wechat, SponsorSource.Alipay -> ""
         }
 }
 
