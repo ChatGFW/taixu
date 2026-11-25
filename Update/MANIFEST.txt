@@ -1,0 +1,62 @@
+# 改造文件清单（Update/files 下均保持仓库相对路径）
+# 基线: bbdbe151（上游 Release v1.13.0，本次改造相对此基线）
+# 基线快照: Update/base/ 存基线侧整文件（50 份）；我方新增文件见 Update/BASE-ABSENT.txt
+# 补丁: Update/docs/fork-patches/0001-dynamic-toolchain-paths.patch（57 段，与本清单 57 个文件一一对应）
+
+app/src/main/assets/bin/gradle                                                                      GRADLE_HOME 改动态探测：/opt/taixu/tools/gradle-* 优先、/opt/gradle-* 兜底，去掉不存在的 /opt/gradle-8.14.2
+app/src/main/assets/bin/taixu-build-guard                                                           构建守卫：GRADLE_HOME/CMAKE/NINJA/AAPT2 全部改为动态探测（现行 tools/ 布局优先），NDK 兜底改 tools/ndk
+app/src/main/assets/scripts/build_android.sh                                                         GRADLE/AAPT2/Build-Tools 全部按实际安装探测；aapt2 白名单改通配，移除固定版本死分支
+app/src/main/assets/scripts/build_flutter.sh                                                         Gradle 版本与 wrapper.properties 动态生成；平台/d8 检查与 aapt2 兜底改探测
+app/src/main/assets/scripts/setup_android_core.sh                                                    平台存在性按通配判定；Build-Tools 维护 0-current 稳定软链
+app/src/main/assets/scripts/setup_flutter.sh                                                         Android 平台依赖检查改通配，不再固定单一平台版本
+app/src/main/assets/scripts/setup_rust.sh                                                            工具链根统一指向 /opt/taixu/tools
+app/src/main/assets/scripts/setup_termux_ndk.sh                                                      NDK 安装根与工具链路径统一指向 tools 根
+app/src/main/assets/scripts/taixu-android-ndk.gradle                                                 NDK 路径改为 tools 根下的统一布局
+app/src/main/assets/scripts/taixu-build-analyze.sh                                                   分析脚本的版本判定改为按实际安装探测
+app/src/main/assets/scripts/taixu-build.sh                                                           GRADLE_HOME/platform/aapt2/compileSdk 上限全部动态探测
+app/src/main/assets/scripts/taixu_env_heal.sh                                                       环境自愈脚本（幂等、永不非零退出）：补 profile.d、apt 源与工具链软链
+app/src/main/assets/scripts/template_gradlew.sh                                                      新增 _tx_pick_gradle 探测函数，替换各固定版本段
+app/src/test/java/top/wkbin/taixu/runtime/FakeLinuxRuntime.kt
+app/src/test/java/top/wkbin/taixu/runtime/service/LocalServiceLauncherTest.kt
+assets/plugins/android-suite-offline/manifest.json                                                   GRADLE_HOME 与 PATH 指向稳定入口 /opt/gradle
+assets/plugins/android-suite-offline/payload/config/gradle.properties                                aapt2 覆盖走 0-current 稳定软链，升级不改配置
+assets/plugins/android-suite-offline/payload/config/taixu-android-ndk.gradle                         NDK 路径改为 tools 根下的统一布局
+assets/plugins/android-suite-offline/payload/scripts/install-android-suite.sh                        Gradle/Platform 版本按归档推导，Build-Tools 版本读 source.properties，维护稳定软链
+assets/plugins/android-suite-offline/payload/scripts/uninstall-android-suite.sh                      卸载按实际安装版本目录执行，路径统一指向 tools 根
+assets/plugins/android-suite-offline/payload/scripts/verify-android-suite.sh                         验签脚本的平台与 Build-Tools 检查改为按实际安装取最高
+core/common/src/main/java/top/wkbin/taixu/core/common/files/SafeFileTree.kt                          删除/移动失败改为重命名隔离，避免一轮清理被单个残留路径整体中断
+core/model/src/main/java/top/wkbin/taixu/core/model/AgentSkill.kt                                    技能提示文案中的 Gradle 版本号改为占位，不再固定
+core/model/src/main/java/top/wkbin/taixu/core/model/DevEnvironmentSuite.kt                           组件描述去版本号；checkCommand 与 purgePaths 改为动态判定
+core/model/src/main/java/top/wkbin/taixu/core/model/PluginBundleScripts.kt                           白名单改通配并新增 toShellPattern，清理步骤按实际版本目录生成
+core/model/src/main/java/top/wkbin/taixu/core/model/SandboxToolchain.kt                              aapt2/apksigner 候选路径改为通配，交给沙箱 shell 展开
+core/model/src/test/java/top/wkbin/taixu/core/model/PluginBundleScriptsTest.kt                       断言同步通配白名单与清理步骤的生成结果
+feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatTwinHost.kt                                  大窗底栏接入「搜索应用」入口；弹窗状态与会话选取（waiting→running→默认）
+feature/chat/src/main/java/top/wkbin/taixu/ui/chat/TwinAppSearchDialog.kt                           新增：应用搜索弹窗（名称/包名过滤）+ 右下入口按钮，选中后经 coordinator.launchApp 在虚拟屏启动
+feature/chat/src/main/java/top/wkbin/taixu/ui/chat/TwinPhoneCompanionPane.kt                        「操作手机」左、「搜索应用」右分列两端；图标 22dp 同软键、字号/颜色统一、两侧边距 19dp 对称
+feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperScreen.kt
+feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperViewModel.kt
+feature/developer/src/main/java/top/wkbin/taixu/ui/developer/RootfsUpdateDialog.kt
+feature/workspace/src/main/java/top/wkbin/taixu/ui/workspace/WorkshopSettingsViewModel.kt            工作台默认草稿不再内置固定版本路径，由沙箱探测填充
+runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntime.kt
+runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntimeImpl.kt
+runtime/src/main/java/top/wkbin/taixu/runtime/RegistryRoutePolicy.kt
+runtime/src/main/java/top/wkbin/taixu/runtime/RuntimeHealthChecker.kt                                RootFS 更新后 apt 包与 profile.d 会整体消失，启动时异步补一次自愈
+runtime/src/main/java/top/wkbin/taixu/runtime/build/BuildEnvironmentPreflight.kt                     预检脚本的平台与 Build-Tools 版本改为探测，Gradle 入口按实际安装解析
+runtime/src/main/java/top/wkbin/taixu/runtime/doctor/EnvironmentRepairer.kt                         生成的 profile.d 模板：Gradle 探测纳入 /opt/taixu/tools/gradle-*，CMake/Ninja 不再写死 android-suite-offline，aapt2/NDK 动态探测
+runtime/src/main/java/top/wkbin/taixu/runtime/doctor/ToolchainInspector.kt                           候选路径支持通配，由沙箱 shell 展开后再判定可执行性
+runtime/src/main/java/top/wkbin/taixu/runtime/proot/ProotMountLayout.kt
+runtime/src/main/java/top/wkbin/taixu/runtime/rootfs/OciRegistryClient.kt
+runtime/src/main/java/top/wkbin/taixu/runtime/rootfs/RootfsInstaller.kt
+runtime/src/main/java/top/wkbin/taixu/runtime/scripts/EnvironmentSelfHeal.kt                          自愈入口：异步调用 assets 自愈脚本并回收日志
+runtime/src/main/java/top/wkbin/taixu/runtime/virtualdisplay/TwinLauncherActivity.kt                副屏桌面去掉 80 应用上限；5 列等分、图标 48dp→56dp、左右留白对称、应用名 ellipsize
+runtime/src/test/java/top/wkbin/taixu/runtime/BuildEnvironmentPreflightTest.kt                       断言改为校验探测片段而非固定版本号
+runtime/src/test/java/top/wkbin/taixu/runtime/BuildGuardAssetTest.kt                                 构建守卫资产断言与新的动态判定对齐
+runtime/src/test/java/top/wkbin/taixu/runtime/signing/WorkshopSigningManagerTest.kt                  签名测试中的工具链路径同步为 tools 根
+scripts/test-sdk-candidates.py                                                                      SDK 候选筛选与默认/自定义 SDK 校验 shell 实测回归
+shower-server/build.sh                                                                               新增 Linux 可用的 shower-server.jar 构建脚本（javac --release 17 + d8 --min-api 26）
+shower-server/src/com/ai/assistance/shower/DisplaySession.java                                      取帧后挂回最新客户端 Surface，修复预览全黑（快照失效导致永久停在 ImageReader）
+shower-server/src/com/ai/assistance/shower/InputController.java                                      输入注入入口两级回退：InputManager.getInstance → InputManagerGlobal.getInstance，兼容 Android 13+
+showerclient/src/main/assets/shower-server.jar                                                       按新 InputController 重打的内置服务端 dex（含 InputManagerGlobal 回退）
+tools/src/main/java/top/wkbin/taixu/core/tools/AndroidSdkManager.kt                                  已装 SDK 按实际 build-tools 目录识别；验证脚本改动态软链与存在性判定
+tools/src/main/java/top/wkbin/taixu/runtime/tools/GenericRecipeInstaller.kt                          安装器中的工具链路径同步为 tools 根
+tools/src/test/java/top/wkbin/taixu/core/tools/AndroidSdkManagerTest.kt                              断言同步验证脚本的动态软链片段

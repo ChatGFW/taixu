@@ -1,0 +1,38 @@
+app/src/main/assets/bin/gradle	contain	gradle_home="${GRADLE_HOME:-}"
+app/src/main/assets/scripts/build_android.sh	contain	GRADLE_VER=$(ls -d /opt/gradle-[0-9]* 2>/dev/null \
+app/src/main/assets/scripts/build_flutter.sh	contain	GRADLE_VER=$(ls -d /opt/gradle-[0-9]* 2>/dev/null \
+app/src/main/assets/scripts/setup_rust.sh	contain	RUST_HOME="/opt/taixu/tools/rust"
+app/src/main/assets/scripts/taixu-android-ndk.gradle	contain	'/opt/taixu/tools/ndk'
+app/src/main/assets/scripts/taixu-build-analyze.sh	contain	ndk_home="${TAIXU_NDK_PATH:-${ANDROID_NDK_HOME:-/opt/taixu/tools/ndk}}"
+app/src/main/assets/scripts/taixu_env_heal.sh	new	
+app/src/test/java/top/wkbin/taixu/runtime/FakeLinuxRuntime.kt	contain	override suspend fun updateRootfs(distroId: String?, route: RegistryRoute): AppResult<Unit> = AppResult.Success(Unit)
+app/src/test/java/top/wkbin/taixu/runtime/service/LocalServiceLauncherTest.kt	contain	import top.wkbin.taixu.runtime.RegistryRoute
+assets/plugins/android-suite-offline/payload/config/taixu-android-ndk.gradle	contain	'/opt/taixu/tools/ndk'
+core/common/src/main/java/top/wkbin/taixu/core/common/files/SafeFileTree.kt	contain	import java.nio.file.AccessDeniedException
+core/model/src/main/java/top/wkbin/taixu/core/model/AgentSkill.kt	contain	- 需要更新 Gradle 时使用腾讯云镜像 https://mirrors.cloud.tencent.com/gradle/gradle-<version>-bin.zip。
+core/model/src/test/java/top/wkbin/taixu/core/model/PluginBundleScriptsTest.kt	contain	assertFalse(script.contains("/opt/taixu/tools/ndk"))
+feature/chat/src/main/java/top/wkbin/taixu/ui/chat/ChatTwinHost.kt	contain	import androidx.compose.runtime.mutableStateOf
+feature/chat/src/main/java/top/wkbin/taixu/ui/chat/TwinAppSearchDialog.kt	new	
+feature/chat/src/main/java/top/wkbin/taixu/ui/chat/TwinPhoneCompanionPane.kt	contain	import androidx.compose.foundation.layout.Spacer
+feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperScreen.kt	contain	RootfsUpdateDialog(viewModel) { showRootfsUpdateConfirmation = false }
+feature/developer/src/main/java/top/wkbin/taixu/ui/developer/DeveloperViewModel.kt	contain	import top.wkbin.taixu.runtime.RegistryRoute
+feature/developer/src/main/java/top/wkbin/taixu/ui/developer/RootfsUpdateDialog.kt	new	
+runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntime.kt	contain	route: RegistryRoute = RegistryRoute.AUTO,
+runtime/src/main/java/top/wkbin/taixu/runtime/LinuxRuntimeImpl.kt	contain	override suspend fun updateRootfs(distroId: String?, route: RegistryRoute): AppResult<Unit> = initializeMutex.withLock {
+runtime/src/main/java/top/wkbin/taixu/runtime/RegistryRoutePolicy.kt	new	
+runtime/src/main/java/top/wkbin/taixu/runtime/RuntimeHealthChecker.kt	contain	import top.wkbin.taixu.runtime.scripts.EnvironmentSelfHeal
+runtime/src/main/java/top/wkbin/taixu/runtime/proot/ProotMountLayout.kt	contain	只给 guest 路径，勿传宿主绝对路径
+runtime/src/main/java/top/wkbin/taixu/runtime/rootfs/OciRegistryClient.kt	contain	RegistryRoute.AUTO -> listOf(Endpoint.dockerHub(), Endpoint.daoCloud())
+runtime/src/main/java/top/wkbin/taixu/runtime/rootfs/RootfsInstaller.kt	contain	val broken = File(rootfs.parentFile, "rootfs.broken.${System.currentTimeMillis()}")
+runtime/src/main/java/top/wkbin/taixu/runtime/scripts/EnvironmentSelfHeal.kt	new	
+runtime/src/main/java/top/wkbin/taixu/runtime/virtualdisplay/TwinLauncherActivity.kt	contain	import android.text.TextUtils
+runtime/src/test/java/top/wkbin/taixu/runtime/BuildEnvironmentPreflightTest.kt	contain	fun sdkCandidatesAreValidatedBeforeChoosingHighestVersion() {
+runtime/src/test/java/top/wkbin/taixu/runtime/BuildGuardAssetTest.kt	contain	assertTrue(script.contains("/opt/taixu/tools/android/sdk-tools/artifacts/homu-*/android-sdk/build-tools/*/aapt2"))
+runtime/src/test/java/top/wkbin/taixu/runtime/signing/WorkshopSigningManagerTest.kt	contain	javaHome = "/opt/taixu/tools/android/jdk",
+scripts/test-sdk-candidates.py	new	
+shower-server/build.sh	new	
+shower-server/src/com/ai/assistance/shower/DisplaySession.java	contain	Surface latest = clientSurface;
+shower-server/src/com/ai/assistance/shower/InputController.java	contain	Object manager = null;
+showerclient/src/main/assets/shower-server.jar	sha	c8c774e4455a579d53c87252d2bf2fe4328eb9e5485621539a49eca58ef1712b
+tools/src/main/java/top/wkbin/taixu/runtime/tools/GenericRecipeInstaller.kt	contain	'  for candidate in /opt/taixu/tools/android/jdk/bin/jar /usr/bin/jar /usr/lib/jvm/default-java/bin/jar; do' \
+tools/src/test/java/top/wkbin/taixu/core/tools/AndroidSdkManagerTest.kt	contain	assertTrue(fixture.executedScript.contains("ln -s \"\$_tx_bt\""))

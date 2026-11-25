@@ -1,0 +1,20 @@
+#!/bin/sh
+# TaiXu-managed Gradle entry. Set TAIXU_BUILD_GUARD_BYPASS=1 only for a
+# deliberate non-Android diagnostic invocation.
+if [ "${TAIXU_BUILD_GUARD_BYPASS:-0}" = "1" ] || [ "${TAIXU_BUILD_ENGINE:-0}" = "1" ]; then
+    gradle_home="${GRADLE_HOME:-}"
+    if [ -z "$gradle_home" ]; then
+        # 动态探测：现行 /opt/taixu/tools/gradle-* 优先，兼容旧布局 /opt/gradle-*
+        for candidate in $(ls -d /opt/taixu/tools/gradle-[0-9]* /opt/gradle-[0-9]* 2>/dev/null | sort -Vr); do
+            if [ -x "$candidate/bin/gradle" ]; then
+                gradle_home="$candidate"
+                break
+            fi
+        done
+    fi
+    if [ -n "$gradle_home" ] && [ -x "$gradle_home/bin/gradle" ]; then
+        exec "$gradle_home/bin/gradle" "$@"
+    fi
+    exec /usr/bin/gradle "$@"
+fi
+exec /bin/sh /opt/taixu/bin/taixu-build-guard gradle "$@"
