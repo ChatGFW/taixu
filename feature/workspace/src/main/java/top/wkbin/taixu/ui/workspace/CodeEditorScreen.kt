@@ -1,489 +1,190 @@
 package top.wkbin.taixu.ui.workspace
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.input.OutputTransformation
-import androidx.compose.foundation.text.input.TextFieldLineLimits
-import androidx.compose.foundation.text.input.TextFieldState
-import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.PlatformTextStyle
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.withContext
+import io.github.rosemoe.sora.widget.CodeEditor
 import org.koin.compose.viewmodel.koinViewModel
 import top.wkbin.taixu.feature.workspace.R
-import top.wkbin.taixu.runtime.WorkspaceFileInspection
 import top.wkbin.taixu.ui.components.NoticeBanner
 import top.wkbin.taixu.ui.components.RuntimeAlertDialog
-import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator as CircularProgressIndicator
-import top.wkbin.taixu.ui.components.RuntimeIcon
-import top.wkbin.taixu.ui.components.RuntimeIconButton as IconButton
-import top.wkbin.taixu.ui.components.RuntimeIconName
-import top.wkbin.taixu.ui.components.RuntimeTextButton as TextButton
+import top.wkbin.taixu.ui.components.RuntimeCircularProgressIndicator
+import top.wkbin.taixu.ui.components.RuntimeTextButton
 import top.wkbin.taixu.ui.components.RuntimeTopBar
 import top.wkbin.taixu.ui.components.previewOrNull
 import top.wkbin.taixu.ui.components.previewStateOf
 import top.wkbin.taixu.ui.components.runtimeScrollViewport
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.wkbin.taixu.ui.miuix.Scaffold
-import top.wkbin.taixu.ui.miuix.Surface
-import top.wkbin.taixu.ui.miuix.minimumInteractiveComponentSize
 import top.yukonga.miuix.kmp.basic.Text
-private val EditorBackground = Color(0xFF0F1117)
-private val EditorGutterBackground = Color(0xFF181A22)
-private val EditorText = Color(0xFFE2E2E9)
-private val EditorGutterText = Color(0xFF8E9099)
-private val EditorAccent = Color(0xFFBAC3FF)
-private val EditorWarning = Color(0xFFFFB5A0)
-private const val MIN_EDITOR_FONT_SIZE_SP = 10f
-private const val MAX_EDITOR_FONT_SIZE_SP = 28f
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun CodeEditorScreen(
-    projectName: String,
-    relativePath: String,
-    onBack: () -> Unit,
-    viewModel: WorkspaceViewModel? = previewOrNull { koinViewModel() },
-) {
-    val contentRevision by viewModel?.contentRevision?.collectAsStateWithLifecycle() ?: previewStateOf(0L)
-    val isDirty by viewModel?.isDirty?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-    val isSaving by viewModel?.isSaving?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-    val loading by viewModel?.loadingFiles?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-    val message by viewModel?.message?.collectAsStateWithLifecycle() ?: previewStateOf(null)
-    val messageIsError by viewModel?.messageIsError?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-    val saveConflict by viewModel?.saveConflict?.collectAsStateWithLifecycle() ?: previewStateOf(false)
-    val binaryFile by viewModel?.binaryFile?.collectAsStateWithLifecycle()
-        ?: previewStateOf<WorkspaceFileInspection?>(null)
-    val context = LocalContext.current
-
-    var showUnsavedDialog by rememberSaveable(projectName, relativePath) { mutableStateOf(false) }
-    var showDiscardDialog by rememberSaveable(projectName, relativePath) { mutableStateOf(false) }
+fun CodeEditorScreen(projectName: String, relativePath: String, onBack: () -> Unit) {
+    val model = previewOrNull { koinViewModel<WorkspaceEditorViewModel>() }
+    val tabs by model?.state?.collectAsStateWithLifecycle() ?: previewStateOf(WorkspaceEditorState())
+    val file = tabs.active
+    val state by file?.state?.collectAsStateWithLifecycle() ?: previewStateOf(EditorFileState())
+    var editor by remember(file) { mutableStateOf<CodeEditor?>(null) }
     var wordWrap by rememberSaveable { mutableStateOf(false) }
-    var editorFontSizeSp by rememberSaveable { mutableStateOf(13f) }
-    val editorState = remember(projectName, relativePath) { TextFieldState(viewModel?.editorText(projectName, relativePath).orEmpty()) }
-    val lineCount by remember(editorState) {
-        derivedStateOf {
-            val text = editorState.text
-            var count = 1
-            for (i in 0 until text.length) {
-                if (text[i] == '\n') count++
-            }
-            count
+    var showPicker by rememberSaveable { mutableStateOf(false) }
+    var showSearch by rememberSaveable { mutableStateOf(false) }
+    var showReset by rememberSaveable(file?.path) { mutableStateOf(false) }
+    val searchVisible = showSearch && state.ready && !state.loading
+
+    LaunchedEffect(projectName, relativePath) { model?.openInitial(projectName, relativePath) }
+    LaunchedEffect(tabs.exit) { if (tabs.exit) onBack() }
+    val back: () -> Unit = {
+        when {
+            searchVisible -> showSearch = false
+            model == null -> onBack()
+            else -> model.requestClose(EditorCloseRequest.All)
         }
     }
-    val charCount by remember(editorState) {
-        derivedStateOf { editorState.text.length }
-    }
-
-    val fileName = relativePath.substringAfterLast('/')
-    val extension = relativePath.substringAfterLast('.', "")
-    var highlightedRanges by remember(extension) {
-        mutableStateOf<List<AnnotatedString.Range<androidx.compose.ui.text.SpanStyle>>>(emptyList())
-    }
-
-    LaunchedEffect(projectName, relativePath) {
-        viewModel?.openFile(projectName, relativePath)
-    }
-
-    // 仅在整文加载或重置时同步文本，避免打字期间因异步流转导致光标重置和软键盘闪烁
-    LaunchedEffect(contentRevision) {
-        if (contentRevision > 0L) {
-            val target = viewModel?.editorText(projectName, relativePath).orEmpty()
-            if (editorState.text.toString() != target) {
-                editorState.setTextAndPlaceCursorAtEnd(target)
-            }
-        }
-    }
-
-    LaunchedEffect(editorState) {
-        snapshotFlow { editorState.text.toString() }.collect { editedText ->
-            viewModel?.onContentChanged(editedText)
-        }
-    }
-
-    // 语法高亮防抖：首次载入立即高亮，打字输入期间防抖 500ms，输入停顿/完毕后再统一着色
-    var isInitialHighlight by remember(projectName, relativePath) { mutableStateOf(true) }
-    LaunchedEffect(editorState, extension) {
-        snapshotFlow { editorState.text.toString() }.collectLatest { text ->
-            if (isInitialHighlight) {
-                if (text.isNotEmpty()) {
-                    isInitialHighlight = false
-                }
-            } else {
-                delay(500)
-            }
-            highlightedRanges = withContext(Dispatchers.Default) {
-                SyntaxHighlighter.highlight(text, extension).spanStyles
-            }
-        }
-    }
-
-    val attemptBack = {
-        if (isDirty) {
-            showUnsavedDialog = true
-        } else {
-            viewModel?.closeFile()
-            onBack()
-        }
-    }
-
-    BackHandler(onBack = attemptBack)
-
-    val copyAll = {
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText(fileName, editorState.text.toString()))
-        Toast.makeText(context, context.getString(R.string.workspace_code_copied), Toast.LENGTH_SHORT).show()
-    }
+    BackHandler(onBack = back)
 
     Scaffold(
         containerColor = RuntimeTheme.colorScheme.background,
         topBar = {
             RuntimeTopBar(
-                title = fileName,
-                onBack = attemptBack,
-                statusText = "/workspace/$projectName/$relativePath",
-                actions = {
-                    IconButton(onClick = copyAll, contentDescription = stringResource(R.string.workspace_cd_copy)) {
-                        RuntimeIcon(RuntimeIconName.Copy, Modifier.size(19.dp), tint = RuntimeTheme.colorScheme.onSurfaceVariant)
-                    }
-                    if (isDirty) {
-                        IconButton(
-                            onClick = { showDiscardDialog = true },
-                            contentDescription = stringResource(R.string.workspace_cd_discard),
-                        ) {
-                            RuntimeIcon(RuntimeIconName.Refresh, Modifier.size(19.dp), tint = RuntimeTheme.colorScheme.error)
-                        }
-                    }
-                    IconButton(
-                        onClick = { viewModel?.saveFile(content = editorState.text.toString()) },
-                        enabled = isDirty && !isSaving,
-                        contentDescription = stringResource(R.string.workspace_cd_save),
-                    ) {
-                        if (isSaving) CircularProgressIndicator(Modifier.size(18.dp), color = RuntimeTheme.colorScheme.primary, strokeWidth = 2.dp)
-                        else RuntimeIcon(RuntimeIconName.Save, Modifier.size(20.dp), tint = if (isDirty) RuntimeTheme.colorScheme.onSurface else RuntimeTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
-                    }
-                },
-            )
+                title = file?.name ?: relativePath.substringAfterLast('/'),
+                statusText = file?.path ?: relativePath,
+                onBack = back,
+            ) {
+                EditorToolbar(
+                    editor = editor?.takeUnless { it.isReleased },
+                    enabled = state.ready && !state.loading && !tabs.busy,
+                    dirty = state.dirty,
+                    onFind = { showSearch = !showSearch },
+                    onSave = { file?.let { model?.save(it) } },
+                    onReset = { showReset = true },
+                )
+            }
         },
     ) { padding ->
-        val topInset = padding.calculateTopPadding()
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(runtimeScrollViewport(padding))
-                .padding(bottom = padding.calculateBottomPadding())
+            Modifier.fillMaxSize().then(runtimeScrollViewport(padding))
+                .padding(top = padding.calculateTopPadding(), bottom = padding.calculateBottomPadding())
                 .imePadding(),
         ) {
-            // 提示信息（固定在顶栏下；编辑区滚动可进磨砂后方）
-            message?.let { notice ->
-                Box(Modifier.padding(start = 12.dp, end = 12.dp, top = topInset, bottom = 4.dp)) {
-                    NoticeBanner(text = notice, isError = messageIsError)
-                }
-            }
-
-            if (loading) {
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(top = if (message == null) topInset else 0.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(Modifier.size(36.dp), color = EditorAccent)
-                }
-            } else if (binaryFile != null) {
-                Box(Modifier.padding(top = if (message == null) topInset else 0.dp)) {
-                    BinaryFileNotice(
-                        inspection = binaryFile!!,
-                        onOpen = { viewModel?.openCurrentFileExternally(share = false) },
-                        onShare = { viewModel?.openCurrentFileExternally(share = true) },
-                    )
+            EditorTabStrip(
+                tabs = tabs,
+                onAdd = { showPicker = true },
+                onSelect = { model?.select(it) },
+                onClose = { model?.requestClose(EditorCloseRequest.Tab(it)) },
+            )
+            state.notice?.let { NoticeBanner(it, isError = state.isError, modifier = Modifier.padding(horizontal = 8.dp)) }
+            if (file == null || state.loading) {
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    RuntimeCircularProgressIndicator()
                 }
             } else {
-                // 代码编辑核心区域
-                val scrollState = rememberScrollState()
-                val horizontalScrollState = rememberScrollState()
-                // 无横幅时首屏避开顶栏；该 inset 在 verticalScroll 内容内，上滑后可穿过磨砂。
-                val editorTopPad = if (message == null) topInset + 12.dp else 12.dp
-
-                // 高亮语法生成：key 仅依赖 extension，避免每次高亮区间更新都生成新的 OutputTransformation 实例
-                // 导致 BasicTextField 重置 InputConnection 和软键盘闪烁
-                val syntaxTransformation = remember(extension) {
-                    OutputTransformation {
-                        val currentLength = length
-                        val ranges = highlightedRanges
-                        for (i in ranges.indices) {
-                            val range = ranges[i]
-                            if (range.start < currentLength && range.end <= currentLength) {
-                                addStyle(range.item, range.start, range.end)
+                val binary = state.binary
+                when {
+                    binary != null -> BinaryFileNotice(
+                        inspection = binary,
+                        onOpen = { file.openExternally(share = false) },
+                        onShare = { file.openExternally(share = true) },
+                    )
+                    state.ready -> {
+                        if (searchVisible) {
+                            key(file) {
+                                WorkspaceEditorSearch(editor?.takeUnless { it.isReleased }, !tabs.busy) { showSearch = false }
                             }
                         }
-                    }
-                }
-
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .background(EditorBackground)
-                        // One vertical scroll owner keeps the gutter and editor on
-                        // exactly the same content coordinate while dragging.
-                        .verticalScroll(scrollState)
-                        .editorPinchZoom { zoom ->
-                            editorFontSizeSp = (editorFontSizeSp * zoom).coerceIn(MIN_EDITOR_FONT_SIZE_SP, MAX_EDITOR_FONT_SIZE_SP)
-                        },
-                ) {
-                    // 行号列
-                    val gutterWidth = remember(lineCount) {
-                        (lineCount.toString().length * 10 + 24).dp.coerceAtLeast(42.dp)
-                    }
-                    val lineNumbersText = remember(lineCount) {
-                        (1..lineCount).joinToString("\n")
-                    }
-                    val editorLineHeight = (editorFontSizeSp * 1.54f).sp
-                    val editorPlatformStyle = PlatformTextStyle(includeFontPadding = false)
-                    Column(
-                        modifier = Modifier
-                            .width(gutterWidth)
-                            .background(EditorGutterBackground)
-                            .padding(start = 6.dp, end = 6.dp, top = editorTopPad, bottom = 12.dp),
-                        horizontalAlignment = Alignment.End,
-                    ) {
-                        Text(
-                            text = lineNumbersText,
-                            style = TextStyle(
-                                color = EditorGutterText,
-                                fontSize = editorFontSizeSp.sp,
-                                fontFamily = FontFamily.Monospace,
-                                lineHeight = editorLineHeight,
-                                platformStyle = editorPlatformStyle,
-                            ),
-                            textAlign = TextAlign.End,
-                        )
-                    }
-
-                    // 垂直分割线
-                    Box(
-                        modifier = Modifier
-                            .width(1.dp)
-                            .fillMaxHeight()
-                            .background(Color(0xFF1E2638)),
-                    )
-
-                    // 编辑区
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .then(
-                                if (!wordWrap) Modifier.horizontalScroll(horizontalScrollState)
-                                else Modifier,
+                        key(file) {
+                            NativeWorkspaceEditor(
+                                file = file,
+                                state = state,
+                                wordWrap = wordWrap,
+                                editable = !tabs.busy,
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                onMounted = { editor = it },
                             )
-                            .padding(start = 12.dp, end = 12.dp, top = editorTopPad, bottom = 12.dp),
-                    ) {
-                        BasicTextField(
-                            state = editorState,
-                            modifier = if (wordWrap) {
-                                Modifier.fillMaxWidth()
-                            } else {
-                                // Keep logical source lines on one visual line so the
-                                // gutter remains one-to-one with the code rows.
-                                Modifier.layout { measurable, constraints ->
-                                    val placeable = measurable.measure(
-                                        constraints.copy(maxWidth = Constraints.Infinity),
-                                    )
-                                    layout(placeable.width, placeable.height) {
-                                        placeable.place(0, 0)
-                                    }
-                                }
-                            },
-                            textStyle = TextStyle(
-                                color = EditorText,
-                                fontSize = editorFontSizeSp.sp,
-                                fontFamily = FontFamily.Monospace,
-                                lineHeight = editorLineHeight,
-                                platformStyle = editorPlatformStyle,
-                            ),
-                            cursorBrush = SolidColor(EditorAccent),
-                            lineLimits = TextFieldLineLimits.MultiLine(),
-                            outputTransformation = syntaxTransformation,
-                        )
+                        }
+                        EditorStatus(file.extension, state, wordWrap) { wordWrap = !wordWrap }
                     }
+                    else -> RuntimeTextButton(onClick = file::load) { Text(stringResource(R.string.workspace_editor_retry)) }
                 }
             }
-            // 底部状态栏
-            EditorStatusBar(
-                extension = extension,
-                lineCount = lineCount,
-                charCount = charCount,
-                isDirty = isDirty,
-                wordWrap = wordWrap,
-                onToggleWrap = { wordWrap = !wordWrap },
-            )
         }
     }
-    // 未保存退出提示
-    if (showUnsavedDialog) {
-        RuntimeAlertDialog(
-            onDismissRequest = { if (!isSaving) showUnsavedDialog = false },
-            title = { Text(stringResource(R.string.workspace_unsaved_title)) },
-            text = { Text(stringResource(R.string.workspace_unsaved_message)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel?.saveFile(
-                            content = editorState.text.toString(),
-                            onSuccess = {
-                                showUnsavedDialog = false
-                                viewModel?.closeFile()
-                                onBack()
-                            },
-                        )
-                    },
-                    enabled = !isSaving && !loading,
-                ) { Text(stringResource(R.string.workspace_save_and_exit)) }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showUnsavedDialog = false
-                        viewModel?.closeFile()
-                        onBack()
-                    },
-                    enabled = !isSaving,
-                ) { Text(stringResource(R.string.workspace_discard_changes), color = RuntimeTheme.colorScheme.error) }
-            },
+    if (showPicker && model != null) {
+        WorkspaceEditorFilePicker(
+            project = projectName,
+            initialDirectory = file?.path?.substringBeforeLast('/', "").orEmpty(),
+            listFiles = model::listFiles,
+            onOpen = { path -> model.open(projectName, path).also { if (it) showPicker = false } },
+            onDismiss = { showPicker = false },
         )
     }
-    if (showDiscardDialog) {
+    val prompt = tabs.prompt
+    if (prompt != null && model != null) {
+        EditorCloseDialog(prompt, model::saveAndClose, model::discardAndClose, model::dismissClose)
+    }
+    if (showReset && file != null) {
         DiscardEditsDialog(
             onConfirm = {
-                showDiscardDialog = false
-                viewModel?.resetContent()
+                showReset = false
+                file.resetContent()
             },
-            onDismiss = { showDiscardDialog = false },
+            onDismiss = { showReset = false },
         )
     }
-    if (saveConflict) {
+    if (state.conflict && file != null && model != null) {
         SaveConflictDialog(
-            isSaving = isSaving,
-            isLoading = loading,
-            onOverwrite = { viewModel?.overwriteSaveConflict() },
-            onReload = { viewModel?.reloadSaveConflict() },
-            onDismiss = { viewModel?.dismissSaveConflict() },
+            isSaving = tabs.busy,
+            isLoading = state.loading,
+            onOverwrite = { model.overwrite(file) },
+            onReload = { model.reloadConflict(file) },
+            onDismiss = { if (!tabs.busy) model.dismissConflict(file) },
         )
     }
 }
+
 @Composable
-private fun EditorStatusBar(
-    extension: String,
-    lineCount: Int,
-    charCount: Int,
-    isDirty: Boolean,
-    wordWrap: Boolean,
-    onToggleWrap: () -> Unit,
+private fun EditorCloseDialog(
+    request: EditorCloseRequest,
+    onSave: () -> Unit,
+    onDiscard: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    Surface(
-        color = EditorGutterBackground,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 7.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            // 语言类型
-            Text(
-                text = if (extension.isNotBlank()) extension.uppercase() else "PLAIN TEXT",
-                style = RuntimeTheme.typography.labelSmall,
-                color = EditorAccent,
-                fontWeight = FontWeight.Medium,
-            )
-            Text(
-                text = "•",
-                color = EditorGutterText,
-                style = RuntimeTheme.typography.labelSmall,
-            )
-            // 行数与字数
-            Text(
-                text = stringResource(R.string.workspace_editor_stats, lineCount, charCount),
-                style = RuntimeTheme.typography.labelSmall,
-                color = EditorGutterText,
-                fontFamily = FontFamily.Monospace,
-            )
-            Spacer(Modifier.weight(1f))
-            // 自动换行切换
-            Surface(
-                shape = RuntimeTheme.shapes.tiny,
-                color = if (wordWrap) EditorAccent.copy(alpha = 0.2f) else Color.Transparent,
-                modifier = Modifier
-                    .minimumInteractiveComponentSize()
-                    .clickable(onClick = onToggleWrap),
-            ) {
-                Text(
-                    text = stringResource(if (wordWrap) R.string.workspace_word_wrap_on else R.string.workspace_word_wrap_off),
-                    style = RuntimeTheme.typography.labelSmall,
-                    color = if (wordWrap) EditorAccent else EditorGutterText,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                )
+    val wholeEditor = request == EditorCloseRequest.All
+    RuntimeAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.workspace_unsaved_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (request is EditorCloseRequest.Tab) Text(request.file.path)
+                Text(stringResource(if (wholeEditor) R.string.workspace_editor_unsaved_tabs else R.string.workspace_unsaved_message))
             }
-            // 保存状态
-            Text(
-                text = stringResource(if (isDirty) R.string.workspace_unsaved else R.string.workspace_saved),
-                style = RuntimeTheme.typography.labelSmall,
-                color = if (isDirty) EditorWarning else EditorAccent,
-            )
-        }
-    }
+        },
+        confirmButton = {
+            RuntimeTextButton(onClick = onSave) {
+                Text(stringResource(if (wholeEditor) R.string.workspace_editor_save_all_exit else R.string.workspace_editor_save_close))
+            }
+        },
+        dismissButton = {
+            RuntimeTextButton(onClick = onDiscard) {
+                Text(stringResource(R.string.workspace_discard_changes), color = RuntimeTheme.colorScheme.error)
+            }
+        },
+    )
 }

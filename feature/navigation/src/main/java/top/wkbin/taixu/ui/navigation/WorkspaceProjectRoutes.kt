@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import top.wkbin.taixu.ui.browser.BrowserPlugin
 import top.wkbin.taixu.ui.workspace.WorkspaceExplorerScreen
 import top.wkbin.taixu.ui.workspace.WorkspaceRunScreen
+import top.wkbin.taixu.ui.workspace.codex.WorkspaceCodexScreen
 
 @Composable
 internal fun WorkspaceExplorerRoute(
@@ -21,8 +22,13 @@ internal fun WorkspaceExplorerRoute(
         onOpenTerminal = { open(TerminalDestination(project = it)) },
         onOpenGit = if (projectActionsAvailable) ({ open(GitRepositoryDestination(project, openChanges = true)) }) else null,
         onOpenRun = if (projectActionsAvailable) ({ open(WorkspaceRunDestination(project)) }) else null,
+        onOpenCodex = if (projectActionsAvailable) ({ open(WorkspaceCodexDestination(project)) }) else null,
     )
 }
+
+@Composable
+internal fun WorkspaceCodexRoute(destination: WorkspaceCodexDestination, onBack: () -> Unit) =
+    WorkspaceCodexScreen(destination.projectName, onBack)
 
 @Composable
 internal fun WorkspaceRunRoute(

@@ -22,12 +22,14 @@ internal fun WorkspaceProjectMenu(
     onCreateFolder: () -> Unit,
     onOpenGit: (() -> Unit)?,
     onOpenRun: (() -> Unit)?,
+    onOpenCodex: (() -> Unit)?,
 ) {
     val label = stringResource(R.string.workspace_project_actions)
     val file = stringResource(R.string.workspace_new_file)
     val folder = stringResource(R.string.workspace_new_folder)
     val git = stringResource(R.string.workspace_project_git)
     val run = stringResource(R.string.workspace_run_title)
+    val codex = stringResource(R.string.workspace_codex_title)
     Box(Modifier.semantics { contentDescription = label }) {
         RuntimeIconMenu(
             enabled = enabled,
@@ -36,6 +38,7 @@ internal fun WorkspaceProjectMenu(
                 add(projectAction(folder, RuntimeIconName.Folder, onCreateFolder))
                 onOpenGit?.let { add(projectAction(git, RuntimeIconName.GitBranch, it)) }
                 onOpenRun?.let { add(projectAction(run, RuntimeIconName.Play, it)) }
+                onOpenCodex?.let { add(projectAction(codex, RuntimeIconName.Code, it)) }
             })),
         ) {
             RuntimeIcon(RuntimeIconName.More, Modifier.size(20.dp))

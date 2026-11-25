@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_codex_title">Codex 聊天</string>
+    <string name="workspace_codex_intro">从工具中心安装 Codex。首次使用时，可在当前发行版的终端运行下方命令登录。</string>
+    <string name="workspace_codex_retry">重新加载会话</string>
+    <string name="workspace_codex_new">新对话</string>
+    <string name="workspace_codex_new_body">下次发消息时会创建新的 Codex 会话。旧记录保留在 Codex 中。</string>
+    <string name="workspace_codex_you">你</string>
+    <string name="workspace_codex_assistant">Codex</string>
+    <string name="workspace_codex_prompt">发给 Codex</string>
+    <string name="workspace_codex_send">发送</string>
+    <string name="workspace_codex_stop">停止轮次</string>
+    <string name="workspace_codex_decline">拒绝</string>
+    <string name="workspace_codex_file_request">Codex 请求额外的文件权限</string>
+    <string name="workspace_codex_command_request">Codex 请求额外的命令权限</string>
+    <string name="workspace_codex_exit">离开 Codex 聊天？</string>
+    <string name="workspace_codex_exit_body">离开此页会关闭当前 Codex 进程并停止轮次。</string>
+    <string name="workspace_codex_exit_action">停止并离开</string>
+    <string name="workspace_codex_loading">正在读取会话…</string>
+    <string name="workspace_codex_starting">正在启动 Codex…</string>
+    <string name="workspace_codex_running">Codex 正在回复…</string>
+    <string name="workspace_codex_stopping">正在停止 Codex…</string>
+    <string name="workspace_codex_stopped">轮次已停止。</string>
+    <string name="workspace_codex_turn_failed">Codex 报告轮次失败。可在终端检查登录和沙箱。</string>
+    <string name="workspace_codex_auth">当前发行版尚未登录 Codex。请先在项目终端登录。</string>
+    <string name="workspace_codex_exited">Codex 子进程已退出。请确认该发行版安装了兼容的 Codex CLI。</string>
+    <string name="workspace_codex_sandbox">Codex 返回的沙箱或审批配置与项目要求不符，轮次未发送。</string>
+    <string name="workspace_codex_workspace">Codex 聊天需要本机工作区中的已注册项目。</string>
+    <string name="workspace_codex_runtime">当前发行版尚未安装。请先完成 Linux 环境初始化。</string>
+    <string name="workspace_codex_history">无法恢复 Codex 会话。可重新加载，或从右上角创建新对话。</string>
+    <string name="workspace_codex_storage">无法保存 Codex 会话关联。</string>
+    <string name="workspace_codex_timeout">Codex 协议响应超时。请检查 CLI 状态。</string>
+    <string name="workspace_codex_protocol">Codex 协议请求失败。请核对 CLI 版本与会话状态。</string>
+</resources>

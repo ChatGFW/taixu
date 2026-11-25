@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_codex_title">Codex chat</string>
+    <string name="workspace_codex_intro">Install Codex from Tools. For first use, sign in with the command below in this distribution’s terminal.</string>
+    <string name="workspace_codex_retry">Reload conversation</string>
+    <string name="workspace_codex_new">New conversation</string>
+    <string name="workspace_codex_new_body">The next message starts a new Codex conversation. The previous history stays in Codex.</string>
+    <string name="workspace_codex_you">You</string>
+    <string name="workspace_codex_assistant">Codex</string>
+    <string name="workspace_codex_prompt">Message Codex</string>
+    <string name="workspace_codex_send">Send</string>
+    <string name="workspace_codex_stop">Stop turn</string>
+    <string name="workspace_codex_decline">Decline</string>
+    <string name="workspace_codex_file_request">Codex requests additional file permissions</string>
+    <string name="workspace_codex_command_request">Codex requests additional command permissions</string>
+    <string name="workspace_codex_exit">Leave Codex chat?</string>
+    <string name="workspace_codex_exit_body">Leaving closes the current Codex process and stops the turn.</string>
+    <string name="workspace_codex_exit_action">Stop and leave</string>
+    <string name="workspace_codex_loading">Loading conversation…</string>
+    <string name="workspace_codex_starting">Starting Codex…</string>
+    <string name="workspace_codex_running">Codex is responding…</string>
+    <string name="workspace_codex_stopping">Stopping Codex…</string>
+    <string name="workspace_codex_stopped">Turn stopped.</string>
+    <string name="workspace_codex_turn_failed">Codex reported a failed turn. Check the login and sandbox in the terminal.</string>
+    <string name="workspace_codex_auth">Codex is signed out in this distribution. Sign in from the project terminal.</string>
+    <string name="workspace_codex_exited">The Codex process exited. Check that this distribution has a compatible Codex CLI.</string>
+    <string name="workspace_codex_sandbox">Codex returned a different sandbox or approval policy. The turn was not sent.</string>
+    <string name="workspace_codex_workspace">Codex chat requires a registered project in the local workspace.</string>
+    <string name="workspace_codex_runtime">The current distribution is missing. Set up the Linux environment first.</string>
+    <string name="workspace_codex_history">Could not restore the Codex conversation. Reload or start a new conversation.</string>
+    <string name="workspace_codex_storage">Could not save the Codex conversation link.</string>
+    <string name="workspace_codex_timeout">Codex did not respond in time. Check the CLI status.</string>
+    <string name="workspace_codex_protocol">The Codex request failed. Check the CLI version and conversation state.</string>
+</resources>

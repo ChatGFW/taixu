@@ -276,14 +276,13 @@ fun TaiXuNavHost(
                 }
             }
             entry<WorkspaceExplorerDestination> { destination ->
-                GuardedEntry(destination) {
-                    WorkspaceExplorerRoute(destination, ::popBack) { activeStack.push(destination, it) }
-                }
+                GuardedEntry(destination) { WorkspaceExplorerRoute(destination, ::popBack) { activeStack.push(destination, it) } }
             }
             entry<WorkspaceRunDestination> { destination ->
-                GuardedEntry(destination) {
-                    WorkspaceRunRoute(destination, ::popBack) { activeStack.push(destination, it) }
-                }
+                GuardedEntry(destination) { WorkspaceRunRoute(destination, ::popBack) { activeStack.push(destination, it) } }
+            }
+            entry<WorkspaceCodexDestination> { destination ->
+                GuardedEntry(destination) { WorkspaceCodexRoute(destination, ::popBack) }
             }
             entry<CodeEditorDestination> { destination ->
                 GuardedEntry(destination) {

@@ -34,7 +34,6 @@ import top.wkbin.taixu.runtime.LinuxRuntime
 import top.wkbin.taixu.runtime.ProjectArchiveSource
 import top.wkbin.taixu.runtime.ProjectTemplate
 import top.wkbin.taixu.runtime.ProjectType
-import top.wkbin.taixu.runtime.WorkspaceFileInspection
 import top.wkbin.taixu.runtime.WorkspaceFileItem
 import top.wkbin.taixu.runtime.WorkspaceManager
 import top.wkbin.taixu.runtime.WorkspaceProject
@@ -310,24 +309,6 @@ class WorkspaceViewModel(
      */
     private val _sharedStorageAccessLimited = MutableStateFlow(false)
     val sharedStorageAccessLimited: StateFlow<Boolean> = _sharedStorageAccessLimited.asStateFlow()
-
-    // ==================== 代码编辑器状态 ====================
-    private val editor = EditorSessionController(
-        scope = viewModelScope,
-        workspaceManager = workspaceManager,
-        context = context,
-        notify = ::notify,
-        selectedProject = _selectedProject,
-        loadingFiles = _loadingFiles,
-    )
-    val openedFilePath: StateFlow<String?> = editor.openedFilePath
-    val fileContent: StateFlow<String> = editor.fileContent
-    val contentRevision: StateFlow<Long> = editor.contentRevision
-    val isDirty: StateFlow<Boolean> = editor.isDirty
-    val isSaving: StateFlow<Boolean> = editor.isSaving
-    val saveConflict: StateFlow<Boolean> = editor.saveConflict
-    /** 非空表示当前文件是二进制：编辑器不载入，改由系统应用打开/分享。 */
-    val binaryFile: StateFlow<WorkspaceFileInspection?> = editor.binaryFile
 
     init {
         refresh()
@@ -620,23 +601,4 @@ class WorkspaceViewModel(
             fallbackError = R.string.workspace_delete_failed,
         ) { workspaceManager.deleteItem(proj, relativePath) }
     }
-
-    // ==================== 编辑器操作 ====================
-
-    fun editorText(project: String, path: String): String = editor.editorText(project, path)
-
-    fun openFile(projectName: String, relativePath: String) = editor.openFile(projectName, relativePath)
-
-    fun onContentChanged(newText: String) = editor.onContentChanged(newText)
-
-    fun resetContent() = editor.resetContent()
-
-    fun saveFile(content: String? = null, onSuccess: (() -> Unit)? = null) = editor.saveFile(content, onSuccess)
-
-    fun overwriteSaveConflict() = editor.overwriteSaveConflict()
-    fun reloadSaveConflict() = editor.reloadSaveConflict()
-    fun dismissSaveConflict() = editor.dismissSaveConflict()
-    fun closeFile() = editor.closeFile()
-    /** 用系统应用打开/分享当前二进制文件（APK、图片、压缩包等）。 */
-    fun openCurrentFileExternally(share: Boolean) = editor.openExternally(share)
 }

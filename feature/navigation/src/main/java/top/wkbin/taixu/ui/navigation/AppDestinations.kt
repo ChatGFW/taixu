@@ -16,6 +16,7 @@ sealed interface AppDestination : NavKey
 @Serializable data class WorkshopScriptEditorDestination(val type: String) : AppDestination
 @Serializable data class WorkspaceExplorerDestination(val projectName: String, val initialPath: String = "") : AppDestination
 @Serializable data class WorkspaceRunDestination(val projectName: String) : AppDestination
+@Serializable data class WorkspaceCodexDestination(val projectName: String) : AppDestination
 @Serializable data class CodeEditorDestination(val projectName: String, val relativePath: String) : AppDestination
 @Serializable data object SettingsDestination : AppDestination
 @Serializable data object SettingsSearchDestination : AppDestination

@@ -82,7 +82,7 @@ fun WorkspaceExplorerScreen(
     onOpenFile: (String) -> Unit,
     onOpenTerminal: (String) -> Unit,
     onOpenGit: (() -> Unit)? = null,
-    onOpenRun: (() -> Unit)? = null,
+    onOpenRun: (() -> Unit)? = null, onOpenCodex: (() -> Unit)? = null,
     viewModel: WorkspaceViewModel? = previewOrNull { koinViewModel() },
 ) {
     val fileItems by viewModel?.fileItems?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
@@ -169,7 +169,7 @@ fun WorkspaceExplorerScreen(
                             showCreateFolderDialog = true
                         },
                         onOpenGit = onOpenGit,
-                        onOpenRun = onOpenRun,
+                        onOpenRun = onOpenRun, onOpenCodex = onOpenCodex,
                     )
 
                     // 终端入口

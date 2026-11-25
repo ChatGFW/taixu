@@ -63,6 +63,12 @@ private val bundledLicenses = listOf(
         assetPath = "licenses/rtk-LICENSE",
     ),
     BundledLicense(
+        id = "sora_editor",
+        titleRes = R.string.settings_oss_sora_title,
+        subtitleRes = R.string.settings_oss_sora_subtitle,
+        assetPath = "licenses/sora-editor-LICENSE",
+    ),
+    BundledLicense(
         id = "agency_agents",
         titleRes = R.string.settings_oss_agency_agents_title,
         subtitleRes = R.string.settings_oss_mit_subtitle,

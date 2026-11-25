@@ -21,6 +21,7 @@
 | Ktor Client | HTTP 客户端（Agent 流式）与下载 | Maven Central，版本见 `gradle/libs.versions.toml` | Apache License 2.0 |
 | Kotlin / Kotlinx Serialization / Coroutines | 应用基础运行库 | Maven Central，版本见 `gradle/libs.versions.toml` | 按各组件上游许可证与 NOTICE 要求分发 |
 | Koin | 依赖注入 | Maven Central，版本见 `gradle/libs.versions.toml` | Apache-2.0 |
+| Sora Editor | Android 代码编辑器、撤销重做和搜索 | Maven Central `io.github.rosemoe:editor:0.24.7`，[对应源码](https://github.com/Rosemoe/sora-editor/tree/ab9f2cb23aeb30ae42f0ad9e32b281c6bdbcbfc9) | Copyright 2020–2026 Rosemoe，LGPL-2.1-or-later。完整许可证位于 APK 的 `assets/licenses/sora-editor-LICENSE`。本仓库按源码构建时，可通过版本目录替换该编辑器依赖。 |
 | AndroidX ExifInterface | 附件图片 EXIF 方向归一（压缩前校正相机旋转/镜像） | Maven Central，`androidx.exifinterface:exifinterface:1.3.7`（版本见 `gradle/libs.versions.toml`） | Apache License 2.0；随 AndroidX 清单分发 |
 | Room | 本地数据库 | Google Maven，版本见 `gradle/libs.versions.toml` | 按上游许可证与 NOTICE 要求分发 |
 | Agency Agents（软件研发精选目录） | 内置子智能体人格与专业工作流；按 9 个研发部门提供 136 个角色 | `msitarzewski/agency-agents`，固定提交 `3c9588880b7cafaec325a104899fd8bbe27e7d72` | MIT；原始 Markdown 与完整许可证随 APK 置于 `agency_agents/` assets，应用仅精选软件研发相关角色 |

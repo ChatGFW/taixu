@@ -11,11 +11,12 @@ class RemoteScriptRunnerTest {
         val command = RemoteScriptRunner.buildCommand(
             RemoteScriptSpec(
                 name = "codex",
-                url = "https://chatgpt.com/codex/install.sh",
+                url = CodexToolInstaller.CODEX_INSTALL_SCRIPT_URL,
                 sha256 = CodexToolInstaller.CODEX_INSTALL_SCRIPT_SHA256,
             ),
         )
         assertTrue(command.contains("sha256sum -c -"))
+        assertTrue(command.contains(CodexToolInstaller.CODEX_INSTALL_SCRIPT_URL))
         assertTrue(command.contains(CodexToolInstaller.CODEX_INSTALL_SCRIPT_SHA256))
         assertTrue(command.contains("--max-redirs 0"))
         assertTrue(command.contains("--proto '=https'"))
