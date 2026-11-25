@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_project_actions">项目操作</string>
+    <string name="workspace_project_git">Git 改动</string>
+    <string name="workspace_run_title">运行与预览</string>
+    <string name="workspace_run_config_help">每项配置指定 name、command 和相对工作目录 cwd。Web 服务可填写 previewPort，并在命令里监听 127.0.0.1。</string>
+    <string name="workspace_run_create">创建示例配置</string>
+    <string name="workspace_run_edit">编辑配置</string>
+    <string name="workspace_run_empty">配置文件里还没有运行命令。</string>
+    <string name="workspace_run_cwd">工作目录 %1$s</string>
+    <string name="workspace_run_start">运行</string>
+    <string name="workspace_run_stop">停止</string>
+    <string name="workspace_run_preview">打开预览</string>
+    <string name="workspace_run_running">运行中 · %1$s</string>
+    <string name="workspace_run_finished">已结束 · %1$s</string>
+    <string name="workspace_run_logs">最近日志</string>
+    <string name="workspace_run_no_logs">暂无输出</string>
+</resources>

@@ -117,27 +117,11 @@ class GitManager(
 
     /** 工作区全部改动（暂存区 + 未暂存 + 未跟踪），按路径排序 */
     suspend fun listChanges(hostPath: String): List<GitFileChange> = withContext(Dispatchers.IO) {
-        withGit(hostPath) { git ->
-            val status = git.status().call()
-            val merged = mutableListOf<GitFileChange>()
-            fun put(paths: Set<String>, type: ChangeType, staged: Boolean) {
-                paths.forEach { filePath ->
-                    // 同一文件可能同时出现在多个集合（如 staged modified + 又有改动），
-                    // 后加的覆盖先加的：保持"最新状态"一条
-                    merged.removeAll { it.path == filePath }
-                    merged.add(GitFileChange(filePath, type, staged))
-                }
-            }
-            put(status.conflicting.toSet(), ChangeType.CONFLICT, staged = true)
-            put(status.added.toSet(), ChangeType.ADDED, staged = true)
-            put(status.changed.toSet(), ChangeType.MODIFIED, staged = true)
-            put(status.removed.toSet(), ChangeType.DELETED, staged = true)
-            put(status.modified.toSet(), ChangeType.MODIFIED, staged = false)
-            put(status.missing.toSet(), ChangeType.DELETED, staged = false)
-            put(status.untracked.toSet(), ChangeType.UNTRACKED, staged = false)
-            merged.sortedBy { it.path }
-        }
+        withGit(hostPath) { git -> git.status().call().toFileChanges() }
     }
+
+    internal suspend fun readChangeDiff(hostPath: String, change: GitFileChange): GitChangeDiff =
+        withContext(Dispatchers.IO) { withGit(hostPath) { it.repository.readChangeDiff(change) } }
 
     /** 暂存 / 取消暂存单个文件 */
     suspend fun stageFile(hostPath: String, path: String, stage: Boolean): GitOpResult =
@@ -158,7 +142,8 @@ class GitManager(
     suspend fun stageAll(hostPath: String): GitOpResult = withContext(Dispatchers.IO) {
         runCatching {
             withGit(hostPath) { git ->
-                git.add().addFilepattern(".").call()
+                val files = git.status().call().toFileChanges().filter { !it.staged && it.changeType != ChangeType.CONFLICT }
+                if (files.isNotEmpty()) git.add().apply { files.forEach { addFilepattern(it.path) } }.call()
                 GitOpResult.Ok("")
             }
         }.getOrElse { GitOpResult.Failed(friendlyError(it)) }
@@ -283,18 +268,18 @@ class GitManager(
 
     /**
      * 丢弃单个文件的改动（危险操作）：
-     * - 已跟踪文件：checkout 恢复到 HEAD 版本；
+     * - 已跟踪文件：checkout 恢复到暂存区版本；
      * - 未跟踪文件：直接删除。
      */
     suspend fun discardFile(hostPath: String, path: String): GitOpResult = withContext(Dispatchers.IO) {
         runCatching {
             withGit(hostPath) { git ->
                 val changes = listChanges(hostPath)
-                val change = changes.firstOrNull { it.path == path }
+                val change = changes.firstOrNull { it.path == path && !it.staged && it.changeType != ChangeType.CONFLICT }
                     ?: return@withGit GitOpResult.Failed("文件不在改动列表：$path")
                 if (change.changeType == ChangeType.UNTRACKED) {
                     val target = File(File(hostPath).canonicalFile, path)
-                    if (target.exists()) target.delete()
+                    java.nio.file.Files.deleteIfExists(target.toPath())
                     GitOpResult.Ok("已删除未跟踪文件 $path")
                 } else {
                     git.checkout().addPath(path).call()

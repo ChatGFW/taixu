@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_project_actions">Project actions</string>
+    <string name="workspace_project_git">Git changes</string>
+    <string name="workspace_run_title">Run and preview</string>
+    <string name="workspace_run_config_help">Each configuration can set a name, command, and project-relative cwd. For a web server, set previewPort and have the command listen on 127.0.0.1.</string>
+    <string name="workspace_run_create">Create sample configuration</string>
+    <string name="workspace_run_edit">Edit configuration</string>
+    <string name="workspace_run_empty">The configuration file contains no commands yet.</string>
+    <string name="workspace_run_cwd">Working directory %1$s</string>
+    <string name="workspace_run_start">Run</string>
+    <string name="workspace_run_stop">Stop</string>
+    <string name="workspace_run_preview">Open preview</string>
+    <string name="workspace_run_running">Running · %1$s</string>
+    <string name="workspace_run_finished">Ended · %1$s</string>
+    <string name="workspace_run_logs">Recent logs</string>
+    <string name="workspace_run_no_logs">No output yet</string>
+</resources>

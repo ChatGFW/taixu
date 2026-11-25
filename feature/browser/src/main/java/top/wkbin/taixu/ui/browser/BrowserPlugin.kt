@@ -2,6 +2,7 @@ package top.wkbin.taixu.ui.browser
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.res.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -27,6 +28,7 @@ fun BrowserPluginOwner(viewModel: BrowserViewModel, content: @Composable () -> U
 object BrowserPlugin {
     val page = PluginExtensionRef("taixu.browser", "main")
     const val SHOW_EXIT_ARGUMENT = "showExit"
+    const val PREVIEW_PORT_ARGUMENT = "previewPort"
 
     fun create() = NativePagePlugin(
         descriptor = PluginDescriptor(
@@ -41,6 +43,8 @@ object BrowserPlugin {
         ),
         pages = listOf(NativePluginPage(page.extensionId) { request ->
             val viewModel = LocalBrowserPluginOwner.current ?: koinViewModel<BrowserViewModel>()
+            val port = request.arguments[PREVIEW_PORT_ARGUMENT]?.toIntOrNull()?.takeIf { it in 1..65_535 }
+            LaunchedEffect(port) { port?.let(viewModel::openLocalPreview) }
             if (request.embedded) BrowserPane(viewModel = viewModel, onExit = request.onBack.takeIf { request.arguments[SHOW_EXIT_ARGUMENT] != "false" })
             else BrowserScreen(viewModel = viewModel, onBack = request.onBack)
         }),

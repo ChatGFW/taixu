@@ -15,6 +15,7 @@ sealed interface AppDestination : NavKey
 @Serializable data object WorkshopSigningSettingsDestination : AppDestination
 @Serializable data class WorkshopScriptEditorDestination(val type: String) : AppDestination
 @Serializable data class WorkspaceExplorerDestination(val projectName: String, val initialPath: String = "") : AppDestination
+@Serializable data class WorkspaceRunDestination(val projectName: String) : AppDestination
 @Serializable data class CodeEditorDestination(val projectName: String, val relativePath: String) : AppDestination
 @Serializable data object SettingsDestination : AppDestination
 @Serializable data object SettingsSearchDestination : AppDestination
@@ -52,7 +53,7 @@ sealed interface AppDestination : NavKey
 @Serializable data object CustomIterationDestination : AppDestination
 @Serializable data class TerminalDestination(val toolId: String = "", val project: String = "") : AppDestination
 @Serializable data object BrowserDestination : AppDestination
-@Serializable data class GitRepositoryDestination(val projectName: String) : AppDestination
+@Serializable data class GitRepositoryDestination(val projectName: String, val openChanges: Boolean = false) : AppDestination
 @Serializable data object BotsDestination : AppDestination
 @Serializable data class BotDetailDestination(val botId: String) : AppDestination
 @Serializable data class GroupChatDestination(val groupId: String) : AppDestination

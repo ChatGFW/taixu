@@ -5,6 +5,8 @@ import top.wkbin.taixu.ui.workspace.WorkshopSettingsViewModel
 import top.wkbin.taixu.ui.workspace.WorkshopSigningViewModel
 import top.wkbin.taixu.ui.workspace.WorkshopSdkViewModel
 import top.wkbin.taixu.ui.workspace.WorkspaceBuildTaskCoordinator
+import top.wkbin.taixu.ui.workspace.WorkspaceRunController
+import top.wkbin.taixu.ui.workspace.WorkspaceRunViewModel
 import top.wkbin.taixu.ui.workspace.WorkspaceViewModel
 import org.koin.core.module.dsl.viewModel
 
@@ -24,6 +26,8 @@ val featureWorkspaceModule = module {
     }
 
     viewModel<WorkshopSigningViewModel> { WorkshopSigningViewModel(signingManager = get()) }
+    single { WorkspaceRunController(get(), get()) }
+    viewModel { WorkspaceRunViewModel(get(), get()) }
 
     single<WorkspaceBuildTaskCoordinator> {
         WorkspaceBuildTaskCoordinator(
