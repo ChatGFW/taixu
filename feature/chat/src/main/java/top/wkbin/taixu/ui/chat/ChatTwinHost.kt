@@ -7,7 +7,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -46,6 +49,7 @@ internal fun ChatTwinHost(
     val showMini = phoneTaskActive || miniPinned
     TwinPhonePresence.previewVisible = phonePage || showMini
     val context = LocalContext.current
+    var showAppSearch by remember { mutableStateOf(false) }
     val takeoverNudgeText = stringResource(R.string.chat_twin_takeover_nudge)
     LaunchedEffect(takeOverNudge) {
         if (takeOverNudge <= 0L) return@LaunchedEffect
@@ -118,6 +122,7 @@ internal fun ChatTwinHost(
                         onCancel = { twinCoordinator.cancelPhoneTask(it) },
                         compact = true,
                         modifier = Modifier.weight(1f),
+                        onSearchApps = { showAppSearch = true },
                     )
                 }
             }
@@ -131,5 +136,19 @@ internal fun ChatTwinHost(
         ) {
             twin()
         }
+    }
+    if (showAppSearch) {
+        TwinAppSearchDialog(
+            onDismiss = { showAppSearch = false },
+            onPick = { packageName ->
+                showAppSearch = false
+                val session = twinWaiting?.sessionId
+                    ?: twinRunning
+                    ?: VirtualDisplayCoordinator.DEFAULT_SESSION_ID
+                scope.launch {
+                    twinCoordinator.launchApp(sessionId = session, packageName = packageName)
+                }
+            },
+        )
     }
 }

@@ -415,9 +415,10 @@ class LinuxRuntimeImpl(
         }
     }
 
-    override suspend fun updateRootfs(distroId: String?): AppResult<Unit> = initializeMutex.withLock {
+    override suspend fun updateRootfs(distroId: String?, route: RegistryRoute): AppResult<Unit> = initializeMutex.withLock {
         withRuntimeMaintenance {
-            if (_state.value !is RuntimeState.Ready) {
+            val usableState = _state.value
+            if (usableState !is RuntimeState.Ready && usableState !is RuntimeState.Error) {
                 return@withRuntimeMaintenance AppResult.Failure(
                     AppError(ErrorCode.INSTALLATION_FAILED, "只有已就绪的 Linux Runtime 才能更新"),
                 )
@@ -429,10 +430,9 @@ class LinuxRuntimeImpl(
                 val distribution = DistributionCatalog.require(targetDistro)
                 val result = rootfsInstaller.updateOci(
                     distribution,
-                    RegistryRoute.AUTO,
+                    route,
                 ) { progress -> updateDownloadProgress("更新 ${distribution.displayName}", 0.1f, 0.65f, progress) }
                 result.errorOrNull()?.let { error ->
-                    _state.value = RuntimeState.Error(error.cause ?: IllegalStateException(error.message))
                     return@withRuntimeMaintenance AppResult.Failure(error)
                 }
 
@@ -460,14 +460,14 @@ class LinuxRuntimeImpl(
                 AppResult.Success(Unit)
             } catch (cancellation: CancellationException) {
                 val targetDistro = distroId?.lowercase()?.trim() ?: _activeDistroId.value
-                rootfsInstaller.rollbackPendingUpdate(targetDistro)
-                _state.value = RuntimeState.Error(IllegalStateException("RootFS 更新已取消，旧版本已恢复"))
+                runCatching { rootfsInstaller.rollbackPendingUpdate(targetDistro) }
+                _state.value = RuntimeState.Ready
                 throw cancellation
             } catch (throwable: Throwable) {
                 val targetDistro = distroId?.lowercase()?.trim() ?: _activeDistroId.value
-                rootfsInstaller.rollbackPendingUpdate(targetDistro)
+                runCatching { rootfsInstaller.rollbackPendingUpdate(targetDistro) }
                 logger.e("Linux runtime update failed", throwable)
-                _state.value = RuntimeState.Error(throwable)
+                _state.value = RuntimeState.Ready
                 AppResult.Failure(
                     AppError(ErrorCode.INSTALLATION_FAILED, throwable.message ?: "RootFS 更新失败", throwable),
                 )
@@ -475,7 +475,7 @@ class LinuxRuntimeImpl(
         }
     }
 
-    override suspend fun checkRootfsUpdate(distroId: String?): AppResult<RootfsUpdateInfo> =
+    override suspend fun checkRootfsUpdate(distroId: String?, route: RegistryRoute): AppResult<RootfsUpdateInfo> =
         withContext(Dispatchers.IO) {
             if (_state.value !is RuntimeState.Ready) {
                 return@withContext AppResult.Failure(
@@ -484,7 +484,7 @@ class LinuxRuntimeImpl(
             }
             val targetDistro = distroId?.lowercase()?.trim() ?: _activeDistroId.value
             val distribution = DistributionCatalog.require(targetDistro)
-            runCatching { rootfsInstaller.checkForUpdate(distribution, RegistryRoute.AUTO) }.fold(
+            runCatching { rootfsInstaller.checkForUpdate(distribution, route) }.fold(
                 onSuccess = { AppResult.Success(it) },
                 onFailure = {
                     logger.e("Linux runtime RootFS update check failed", it)

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -240,6 +241,7 @@ internal fun TwinPhoneExpandedChrome(
     onCancel: (String) -> Unit,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
+    onSearchApps: (() -> Unit)? = null,
 ) {
     when {
         waiting != null -> TwinPhoneWaitBar(
@@ -255,20 +257,35 @@ internal fun TwinPhoneExpandedChrome(
             modifier = modifier,
             compact = compact,
         )
-        else -> TwinPhoneOperateHint(modifier = modifier, compact = compact)
+        else -> TwinPhoneOperateHint(
+            modifier = modifier,
+            compact = compact,
+            onSearchApps = onSearchApps,
+        )
     }
 }
 
 @Composable
-private fun TwinPhoneOperateHint(modifier: Modifier = Modifier, compact: Boolean = false) {
+private fun TwinPhoneOperateHint(
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+    onSearchApps: (() -> Unit)? = null,
+) {
     if (compact) {
-        Text(
-            "操作手机",
-            modifier = modifier.padding(horizontal = 8.dp),
-            color = RuntimeTheme.colorScheme.onSurface,
-            style = RuntimeTheme.typography.titleSmall,
-            maxLines = 1,
-        )
+        Row(
+            modifier = modifier,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "操作手机",
+                modifier = Modifier.padding(start = 8.dp),
+                color = RuntimeTheme.colorScheme.onSurface,
+                style = RuntimeTheme.typography.titleSmall,
+                maxLines = 1,
+            )
+            Spacer(Modifier.weight(1f))
+            if (onSearchApps != null) TwinSearchAppsButton(onClick = onSearchApps)
+        }
     } else {
         Row(
             modifier = modifier
@@ -286,6 +303,7 @@ private fun TwinPhoneOperateHint(modifier: Modifier = Modifier, compact: Boolean
                 color = RuntimeTheme.colorScheme.onSurface,
                 style = RuntimeTheme.typography.titleSmall,
             )
+            if (onSearchApps != null) TwinSearchAppsButton(onClick = onSearchApps)
         }
     }
 }

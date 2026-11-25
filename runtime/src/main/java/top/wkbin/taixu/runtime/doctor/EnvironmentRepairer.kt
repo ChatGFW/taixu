@@ -211,23 +211,28 @@ class EnvironmentRepairer(
                 mkdir -p ${'$'}HOME/.pip
                 printf '[global]\nindex-url = https://pypi.tuna.tsinghua.edu.cn/simple\n' > ${'$'}HOME/.pip/pip.conf 2>/dev/null || true
                 echo "运行时就绪状态: Node ${'$'}(node -v 2>/dev/null || echo '未就绪'), NPM ${'$'}(npm -v 2>/dev/null || echo '未就绪')"
-                if [ -d /opt/android-sdk ] || [ -d /opt/taixu/toolchains/android ]; then
+                if [ -d /opt/android-sdk ] || [ -d /opt/taixu/tools/android ]; then
                     if [ ! -f /etc/profile.d/taixu-android.sh ]; then
                         mkdir -p /etc/profile.d
                         cat << 'EOF' > /etc/profile.d/taixu-android.sh
 # TaiXu Android development environment (self-healed by EnvironmentRepairer)
-export JAVA_HOME="${'$'}{JAVA_HOME:-/opt/taixu/toolchains/android/jdk}"
+export JAVA_HOME="${'$'}{JAVA_HOME:-/opt/taixu/tools/android/jdk}"
 export ANDROID_HOME="/opt/android-sdk"
 export ANDROID_SDK_ROOT="/opt/android-sdk"
-export GRADLE_HOME="/opt/gradle-8.14.2"
-export TAIXU_AAPT2_PATH="/opt/android-sdk/build-tools/35.0.0/aapt2"
-export TAIXU_NDK_PATH="/opt/taixu/toolchains/android/ndk"
-export TAIXU_NDK_VERSION="r29"
-export ANDROID_NDK_HOME="/opt/taixu/toolchains/android/ndk"
-export ANDROID_NDK_ROOT="/opt/taixu/toolchains/android/ndk"
-export TAIXU_CMAKE_HOME="/opt/taixu/tools/android-suite-offline/cmake"
-export TAIXU_NINJA_HOME="/opt/taixu/tools/android-suite-offline/bin"
-export PATH="/opt/taixu/bin:/opt/taixu/tools/android-suite-offline/bin:/opt/taixu/tools/android-suite-offline/cmake/bin:${'$'}JAVA_HOME/bin:${'$'}GRADLE_HOME/bin:/opt/flutter/bin:${'$'}PATH"
+_tx_gd=${'$'}(ls -d /opt/taixu/tools/gradle-[0-9]* /opt/gradle-[0-9]* 2>/dev/null | grep -E '/gradle-[0-9]+(\.[0-9]+)+${'$'}' | sort -V | tail -n 1)
+export GRADLE_HOME="${'$'}{GRADLE_HOME:-${'$'}_tx_gd}"
+_tx_bt=${'$'}(for _tx_candidate in /opt/android-sdk/build-tools/[0-9]*; do [ -f "${'$'}_tx_candidate/source.properties" ] && [ -f "${'$'}_tx_candidate/lib/d8.jar" ] && { [ -n "${'$'}{TAIXU_AAPT2_PATH:-}" ] || [ -x "${'$'}_tx_candidate/aapt2" ]; } && printf '%s\n' "${'$'}_tx_candidate"; done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)
+export TAIXU_AAPT2_PATH="${'$'}{TAIXU_AAPT2_PATH:-${'$'}{_tx_bt:-/opt/android-sdk/build-tools}/aapt2}"
+export TAIXU_NDK_PATH="/opt/taixu/tools/ndk"
+_tx_ndk_ver=${'$'}(sed -n 's/^Pkg\.Revision[[:space:]]*=[[:space:]]*//p' "${'$'}TAIXU_NDK_PATH/source.properties" 2>/dev/null | head -n 1)
+export TAIXU_NDK_VERSION="${'$'}{_tx_ndk_ver:-unknown}"
+export ANDROID_NDK_HOME="/opt/taixu/tools/ndk"
+export ANDROID_NDK_ROOT="/opt/taixu/tools/ndk"
+_tx_cm=${'$'}(ls -d /opt/taixu/tools/cmake-* 2>/dev/null | sort -V | tail -n 1)
+export TAIXU_CMAKE_HOME="${'$'}{TAIXU_CMAKE_HOME:-${'$'}_tx_cm}"
+_tx_nj=${'$'}(command -v ninja 2>/dev/null | head -n 1)
+export TAIXU_NINJA_HOME="${'$'}{TAIXU_NINJA_HOME:-${'$'}{_tx_nj%/*}}"
+export PATH="/opt/taixu/bin:/opt/taixu/tools/bin:${'$'}{TAIXU_CMAKE_HOME:+${'$'}TAIXU_CMAKE_HOME/bin:}${'$'}JAVA_HOME/bin:${'$'}GRADLE_HOME/bin:/opt/flutter/bin:${'$'}PATH"
 export _JAVA_OPTIONS="-Djava.security.egd=file:/dev/urandom"
 EOF
                         chmod 644 /etc/profile.d/taixu-android.sh 2>/dev/null || true

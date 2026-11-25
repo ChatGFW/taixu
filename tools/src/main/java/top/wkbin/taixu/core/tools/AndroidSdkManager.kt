@@ -60,8 +60,21 @@ class AndroidSdkManager(
         local.requireLocal()
         buildList {
             val base = File(paths.distroOptDir(distroId), "android-sdk")
-            if (File(base, "build-tools/35.0.0/aapt2").isFile) {
-                add(InstalledAndroidSdk("本地套件 · 35.0.0", "/opt/android-sdk", "/opt/android-sdk/build-tools/35.0.0/aapt2"))
+            // 版本号按实际安装的 build-tools 目录取最高，不写死
+            val buildToolsDir = File(base, "build-tools").listFiles()
+                ?.filter { it.isDirectory && it.name.matches(Regex("[0-9]+(?:\\.[0-9]+)+")) }
+                ?.sortedByDescending { dir ->
+                    dir.name.split('.').fold(0L) { acc, part -> acc * 1000L + (part.toIntOrNull() ?: 0) }
+                }
+                ?.firstOrNull { File(it, "aapt2").isFile }
+            if (buildToolsDir != null) {
+                add(
+                    InstalledAndroidSdk(
+                        "本地套件 · ${buildToolsDir.name}",
+                        "/opt/android-sdk",
+                        "/opt/android-sdk/build-tools/${buildToolsDir.name}/aapt2",
+                    ),
+                )
             }
             artifacts(distroId).listFiles().orEmpty().filter { it.isDirectory && it.name.startsWith("homu-") }.forEach { dir ->
                 val revision = File(dir, "ready").takeIf { it.isFile }?.readText()?.trim() ?: return@forEach
@@ -151,18 +164,24 @@ class AndroidSdkManager(
             val script = """
                 set -eu
                 sdk=$root
+                _tx_bt=$(for dir in /opt/android-sdk/build-tools/[0-9]*; do
+                    if [ -f "${'$'}dir/aapt2" ] && [ -f "${'$'}dir/lib/d8.jar" ]; then printf '%s\n' "${'$'}dir"; fi
+                done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)
+                _tx_plat=$(for dir in /opt/android-sdk/platforms/android-[0-9]*; do
+                    if [ -f "${'$'}dir/android.jar" ]; then printf '%s\n' "${'$'}dir"; fi
+                done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)
                 if [ "${'$'}sdk" != /opt/android-sdk ]; then
                     for name in platforms platform-tools; do
                         if [ ! -e "${'$'}sdk/${'$'}name" ] && [ -d "/opt/android-sdk/${'$'}name" ]; then
                             ln -s "/opt/android-sdk/${'$'}name" "${'$'}sdk/${'$'}name"
                         fi
                     done
-                    if [ ! -e "${'$'}sdk/build-tools/35.0.0" ] && [ -d /opt/android-sdk/build-tools/35.0.0 ]; then
-                        ln -s /opt/android-sdk/build-tools/35.0.0 "${'$'}sdk/build-tools/35.0.0"
+                    if [ -n "${'$'}_tx_bt" ] && [ ! -e "${'$'}sdk/build-tools/${'$'}{_tx_bt##*/}" ]; then
+                        ln -s "${'$'}_tx_bt" "${'$'}sdk/build-tools/${'$'}{_tx_bt##*/}"
                     fi
                 fi
-                test -f "${'$'}sdk/platforms/android-34/android.jar" || { echo '请先安装 Android Platform 34 基础环境'; exit 2; }
-                test -f "${'$'}sdk/build-tools/35.0.0/lib/d8.jar" || { echo '请先安装 Build-Tools 35 基础环境'; exit 2; }
+                test -n "${'$'}_tx_plat" && test -f "${'$'}sdk/platforms/${'$'}{_tx_plat##*/}/android.jar" || { echo '请先安装 Android Platform 基础环境'; exit 2; }
+                test -n "${'$'}_tx_bt" && test -f "${'$'}sdk/build-tools/${'$'}{_tx_bt##*/}/lib/d8.jar" || { echo '请先安装 Build-Tools 基础环境'; exit 2; }
                 test "${'$'}(od -An -t x1 -j 18 -N 2 $aapt2 | tr -d '[:space:]')" = b700
                 timeout 10 $aapt2 version
             """.trimIndent()
@@ -202,6 +221,6 @@ class AndroidSdkManager(
     }
 
     companion object {
-        private const val ARTIFACTS = "/opt/taixu/toolchains/android/sdk-tools/artifacts"
+        private const val ARTIFACTS = "/opt/taixu/tools/android/sdk-tools/artifacts"
     }
 }

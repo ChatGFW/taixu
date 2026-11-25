@@ -6,8 +6,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
+import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.ViewGroup
 import android.widget.GridLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -33,6 +35,10 @@ class TwinLauncherActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(0xFF12141A.toInt())
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
         }
         root.addView(
             TextView(this).apply {
@@ -50,13 +56,19 @@ class TwinLauncherActivity : Activity() {
                 setPadding(0, 0, 0, dp(16))
             },
         )
+        // 5 列等分：列宽 = (屏宽 - 左右各 16dp padding) / 5，图标在列内居中，左右留白天然相同
+        val cellW = (resources.displayMetrics.widthPixels - pad * 2) / 5
         val grid = GridLayout(this).apply {
-            columnCount = 4
-            useDefaultMargins = true
+            columnCount = 5
+            useDefaultMargins = false
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
         }
         val apps = launchableApps()
         for (app in apps) {
-            grid.addView(appTile(app))
+            grid.addView(appTile(app, cellW))
         }
         if (apps.isEmpty()) {
             root.addView(
@@ -94,16 +106,19 @@ class TwinLauncherActivity : Activity() {
             }
             .distinctBy { it.packageName }
             .sortedBy { it.label.toString() }
-            .take(80)
             .toList()
     }
 
-    private fun appTile(app: LaunchApp): LinearLayout {
-        val iconSize = dp(48)
+    private fun appTile(app: LaunchApp, cellWidth: Int): LinearLayout {
+        val iconSize = dp(56)
         val tile = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(4), dp(8), dp(4), dp(8))
+            layoutParams = GridLayout.LayoutParams().apply {
+                width = cellWidth
+                height = GridLayout.LayoutParams.WRAP_CONTENT
+            }
+            setPadding(0, dp(10), 0, dp(10))
             setOnClickListener { launchOnThisDisplay(app) }
         }
         val icon = ImageView(this).apply {
@@ -118,6 +133,11 @@ class TwinLauncherActivity : Activity() {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             gravity = Gravity.CENTER_HORIZONTAL
             maxLines = 2
+            ellipsize = TextUtils.TruncateAt.END
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
             setPadding(0, dp(6), 0, 0)
         }
         tile.addView(icon)

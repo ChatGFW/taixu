@@ -107,7 +107,13 @@ class ToolchainInspector(
             val resolve = StringBuilder()
             resolve.append("res=\"\"; ")
             probe.candidatePaths.forEach { p ->
-                resolve.append("if [ -z \"\$res\" ] && { [ -x \"$p\" ] || [ -f \"$p\" ]; }; then res=\"$p\"; fi; ")
+                if (p.contains('*')) {
+                    // 含通配的候选（如 build-tools/*/aapt2）交给沙箱 shell 展开后再判定，
+                    // 避免把版本号写死在候选清单里。
+                    resolve.append("if [ -z \"\$res\" ]; then _tx_candidate=\$(for _c in $p; do { [ -x \"\$_c\" ] || [ -f \"\$_c\" ]; } && printf '%s\\n' \"\$_c\"; done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1); [ -n \"\$_tx_candidate\" ] && res=\"\$_tx_candidate\"; fi; ")
+                } else {
+                    resolve.append("if [ -z \"\$res\" ] && { [ -x \"$p\" ] || [ -f \"$p\" ]; }; then res=\"$p\"; fi; ")
+                }
             }
             probe.commands.forEach { cmd ->
                 resolve.append("if [ -z \"\$res\" ]; then c=\$(command -v $cmd 2>/dev/null || true); [ -n \"\$c\" ] && res=\"\$c\"; fi; ")

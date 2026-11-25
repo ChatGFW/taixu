@@ -48,9 +48,9 @@ class FakeLinuxRuntime : LinuxRuntime {
 
     override suspend fun initialize(request: RuntimeInstallRequest): AppResult<Unit> = AppResult.Success(Unit)
     override suspend fun restoreInstalledState(): Boolean = false
-    override suspend fun updateRootfs(distroId: String?): AppResult<Unit> = AppResult.Success(Unit)
+    override suspend fun updateRootfs(distroId: String?, route: RegistryRoute): AppResult<Unit> = AppResult.Success(Unit)
 
-    override suspend fun checkRootfsUpdate(distroId: String?): AppResult<RootfsUpdateInfo> =
+    override suspend fun checkRootfsUpdate(distroId: String?, route: RegistryRoute): AppResult<RootfsUpdateInfo> =
         AppResult.Success(
             RootfsUpdateInfo(
                 distroId = distroId ?: "ubuntu",

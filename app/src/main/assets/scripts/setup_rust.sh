@@ -7,7 +7,7 @@ set -e
 
 echo "==> [TaiXu] 正在初始化 Rust & Android JNI 交叉编译开发环境..."
 
-RUST_HOME="/opt/taixu/toolchains/rust"
+RUST_HOME="/opt/taixu/tools/rust"
 mkdir -p "$RUST_HOME" /usr/local/bin /usr/bin /tmp /root/.cargo 2>/dev/null || true
 
 RUST_VERSION="1.85.0"
@@ -76,8 +76,8 @@ fi
 # 配置 Cargo 镜像源与 Android NDK Linker
 cat << 'EOF' > /root/.cargo/config.toml
 [target.aarch64-linux-android]
-linker = "/opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
-ar = "/opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
+linker = "/opt/taixu/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"
+ar = "/opt/taixu/tools/ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
 
 [source.crates-io]
 replace-with = 'tuna'
@@ -100,9 +100,9 @@ done
 mkdir -p /etc/profile.d
 cat << 'EOF' > /etc/profile.d/taixu-rust.sh
 # TaiXu Rust development environment
-export RUSTUP_HOME="/opt/taixu/toolchains/rust"
+export RUSTUP_HOME="/opt/taixu/tools/rust"
 export CARGO_HOME="/root/.cargo"
-export PATH="/opt/taixu/toolchains/rust/bin:/opt/taixu/bin:$PATH"
+export PATH="/opt/taixu/tools/rust/bin:/opt/taixu/bin:$PATH"
 EOF
 chmod 644 /etc/profile.d/taixu-rust.sh 2>/dev/null || true
 

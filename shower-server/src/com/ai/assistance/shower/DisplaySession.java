@@ -297,9 +297,18 @@ final class DisplaySession {
             ServerLog.d("captureJpeg failed: " + t.getMessage(), t);
             return null;
         } finally {
-            if (switched && restore != null && restore.isValid()) {
+            if (switched) {
+                // 必须挂回「最新」的客户端 Surface：取帧期间客户端可能已换 Surface（切页、TextureView 重建），
+                // 进入时的快照 restore 这时已失效；旧代码拿 restore.isValid() 当开关，快照一失效就跳过还原，
+                // VD 从此永久停在 ImageReader 上 —— 现象就是截图一直正常、预览永远全黑。
+                Surface latest = clientSurface;
+                boolean clientUsable = latest != null && latest.isValid();
+                Surface target = clientUsable ? latest : imageReader.getSurface();
+                if (target != restore) {
+                    ServerLog.d("captureJpeg 还原目标改为最新 client surface, clientUsable=" + clientUsable, null);
+                }
                 try {
-                    virtualDisplay.setSurface(restore);
+                    virtualDisplay.setSurface(target);
                 } catch (Throwable t) {
                     ServerLog.d("captureJpeg restore surface failed: " + t.getMessage(), t);
                 }

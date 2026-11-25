@@ -4,7 +4,15 @@
 set -u
 command_name="${1:-help}"
 [ "$#" -gt 0 ] && shift
-GRADLE_HOME="${GRADLE_HOME:-/opt/gradle-8.14.2}"
+if [ -z "${GRADLE_HOME:-}" ]; then
+    # 动态探测：现行 /opt/taixu/tools/gradle-* 优先，兼容旧布局 /opt/gradle-*
+    for candidate in $(ls -d /opt/taixu/tools/gradle-[0-9]* /opt/gradle-[0-9]* 2>/dev/null | sort -Vr); do
+        if [ -x "$candidate/bin/gradle" ]; then
+            GRADLE_HOME="$candidate"
+            break
+        fi
+    done
+fi
 BUILD_ENGINE=/opt/taixu/scripts/taixu-build.sh
 fail() { printf '%s\n' "==> [TaiXu Guard] ❌ $*" >&2; exit "${2:-125}"; }
 load_android_environment() {
@@ -37,14 +45,17 @@ load_android_environment() {
     [ -z "$requested_tool_dir" ] || TAIXU_TOOL_DIR="$requested_tool_dir"
     export ANDROID_HOME="${ANDROID_HOME:-/opt/android-sdk}"
     export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-    export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-${TAIXU_NDK_PATH:-/opt/taixu/toolchains/android/ndk}}"
+    export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-${TAIXU_NDK_PATH:-/opt/taixu/tools/ndk}}"
     export ANDROID_NDK_ROOT="${ANDROID_NDK_ROOT:-$ANDROID_NDK_HOME}"
     export TAIXU_NDK_PATH="${TAIXU_NDK_PATH:-$ANDROID_NDK_HOME}"
     export FLUTTER_HOME="${FLUTTER_HOME:-/opt/flutter}"
-    export TAIXU_CMAKE_HOME="${TAIXU_CMAKE_HOME:-/opt/taixu/tools/android-suite-offline/cmake}"
-    export TAIXU_NINJA_HOME="${TAIXU_NINJA_HOME:-/opt/taixu/tools/android-suite-offline/bin}"
+    _tx_cm=$(ls -d /opt/taixu/tools/cmake-* 2>/dev/null | sort -V | tail -n 1)
+    export TAIXU_CMAKE_HOME="${TAIXU_CMAKE_HOME:-${_tx_cm:-/opt/taixu/tools/cmake}}"
+    _tx_nj=$(readlink -f "$(command -v ninja 2>/dev/null)" 2>/dev/null)
+    export TAIXU_NINJA_HOME="${TAIXU_NINJA_HOME:-${_tx_nj%/*}}"
     export TAIXU_TOOL_DIR="${TAIXU_TOOL_DIR:-/opt/taixu/tools}"
-    export TAIXU_AAPT2_PATH="${TAIXU_AAPT2_PATH:-$ANDROID_HOME/build-tools/35.0.0/aapt2}"
+    _tx_bt=$(ls -d "${ANDROID_HOME:-/opt/android-sdk}"/build-tools/[0-9]* 2>/dev/null | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)
+    export TAIXU_AAPT2_PATH="${TAIXU_AAPT2_PATH:-${_tx_bt:-/opt/taixu/tools/aapt2-dl}/aapt2}"
 }
 is_android_project() {
     [ -f pubspec.yaml ] && [ -d android ] && return 0

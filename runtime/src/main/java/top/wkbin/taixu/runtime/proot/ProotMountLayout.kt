@@ -57,9 +57,8 @@ internal object ProotMountLayout {
         val guestPaths = hostSystemPaths + listOf(
             "/dev", "/proc", "/sys", "/tmp", "/workspace", "/root", "/opt/taixu", "/attachments",
             "/sdcard", "/sdcard/Download", "/sdcard/Documents",
-            // Guest alias for link2symlink backing store, NOT the real rootfs/.l2s store.
-            File(rootfs, ".l2s").absolutePath.replace('\\', '/'),
-            File(rootfs.canonicalFile, ".l2s").absolutePath.replace('\\', '/'),
+            // link2symlink backing store：只给 guest 路径，勿传宿主绝对路径
+            "/.l2s",
         )
         return guestPaths.map { physicalRoot.resolve(it.trimStart('/')).normalize() }
             .filter { it != physicalRoot && it.startsWith(physicalRoot) }.toSet()

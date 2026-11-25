@@ -21,23 +21,42 @@ final class InputController {
     private long gestureDownTime;
 
     InputController() {
+        Object manager = null;
+        Method inject = null;
+        // Android 12 及以前：InputManager.getInstance()
         try {
             Class<?> cls = Class.forName("android.hardware.input.InputManager");
             Method getInstance = cls.getDeclaredMethod("getInstance");
             getInstance.setAccessible(true);
-            inputManager = getInstance.invoke(null);
-            injectInputEvent = cls.getDeclaredMethod("injectInputEvent", InputEvent.class, int.class);
-            injectInputEvent.setAccessible(true);
-            Method setDisplayId;
-            try {
-                setDisplayId = InputEvent.class.getMethod("setDisplayId", int.class);
-            } catch (NoSuchMethodException e) {
-                setDisplayId = null;
-            }
-            setDisplayIdMethod = setDisplayId;
-        } catch (Exception e) {
-            throw new RuntimeException("Init InputController failed", e);
+            manager = getInstance.invoke(null);
+            inject = cls.getDeclaredMethod("injectInputEvent", InputEvent.class, int.class);
+        } catch (Throwable ignored) {
+            // Android 13 起 AOSP 移除了 InputManager.getInstance()，回退到 InputManagerGlobal
         }
+        if (manager == null || inject == null) {
+            try {
+                Class<?> global = Class.forName("android.hardware.input.InputManagerGlobal");
+                Method getInstance = global.getDeclaredMethod("getInstance");
+                getInstance.setAccessible(true);
+                manager = getInstance.invoke(null);
+                inject = global.getDeclaredMethod("injectInputEvent", InputEvent.class, int.class);
+            } catch (Throwable e) {
+                ServerLog.d("InputController degraded: no injectInputEvent available", e);
+            }
+        }
+        try {
+            inject.setAccessible(true);
+        } catch (Throwable ignored) {
+        }
+        inputManager = manager;
+        injectInputEvent = inject;
+        Method setDisplayId;
+        try {
+            setDisplayId = InputEvent.class.getMethod("setDisplayId", int.class);
+        } catch (NoSuchMethodException e) {
+            setDisplayId = null;
+        }
+        setDisplayIdMethod = setDisplayId;
     }
 
     void setDisplayId(int id) {
@@ -50,6 +69,7 @@ final class InputController {
     }
 
     void inject(InputEvent event, int mode) {
+        if (injectInputEvent == null || inputManager == null) return;
         try {
             if (setDisplayIdMethod != null && displayId != 0) {
                 setDisplayIdMethod.invoke(event, displayId);

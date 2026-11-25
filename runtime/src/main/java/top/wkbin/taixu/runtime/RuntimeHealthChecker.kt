@@ -4,13 +4,24 @@ import top.wkbin.taixu.runtime.backend.BackendSelector
 import top.wkbin.taixu.runtime.shell.CommandResult
 import top.wkbin.taixu.runtime.shell.ShellCommand
 import top.wkbin.taixu.runtime.shell.ShellExecutor
+import top.wkbin.taixu.runtime.scripts.EnvironmentSelfHeal
 import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class RuntimeHealthChecker(
     private val pathManager: RuntimePathManager,
     private val backendSelector: BackendSelector,
     private val shellExecutor: ShellExecutor,
 ) {
+    private val environmentSelfHeal = EnvironmentSelfHeal(
+        pathManager,
+        backendSelector,
+        shellExecutor,
+    )
+    private val healScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     suspend fun check(): RuntimeHealth {
         if (!pathManager.isProotInstalled()) {
             return RuntimeHealth(
@@ -24,6 +35,9 @@ class RuntimeHealthChecker(
                 detail = "Linux RootFS 校验失败：Bash、/bin/sh 或其 ARM64 ELF 解释器不完整",
             )
         }
+        // RootFS 更新会整体替换发行版，旧环境里 apt 装的包与 profile.d 会一起消失：
+        // 启动时异步补一次（幂等、缺什么补什么），不阻塞健康检查与冷启动。
+        healScope.launch { environmentSelfHeal.heal() }
 
         val healthMarker = ".taixu-health"
         // 三条 PRoot 命令合并为单次探针：每次冷启动都要完整拉起 proot 进程，

@@ -2,7 +2,7 @@
 // the standard local offline-suite path.
 def taixuNdkPath = System.getenv('TAIXU_NDK_PATH') ?:
     System.getenv('ANDROID_NDK_HOME') ?:
-    '/opt/taixu/toolchains/android/ndk'
+    '/opt/taixu/tools/ndk'
 def taixuNdkProperties = new Properties()
 def taixuNdkSourceProperties = new File(taixuNdkPath, 'source.properties')
 if (taixuNdkSourceProperties.isFile()) {

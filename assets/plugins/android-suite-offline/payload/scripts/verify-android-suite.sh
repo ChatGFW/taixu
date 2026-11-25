@@ -34,11 +34,16 @@ require_executable /opt/taixu/bin/ninja
 # od 会跟随软链，符号链接链最终必须落在 JDK 的 AArch64 ELF 上。
 require_aarch64 /opt/taixu/bin/java
 require_aarch64 /opt/taixu/bin/javac
-require_file /opt/android-sdk/platforms/android-34/android.jar
-require_file /opt/android-sdk/build-tools/35.0.0/lib/d8.jar
-require_executable /opt/android-sdk/build-tools/35.0.0/aapt2
-require_aarch64 /opt/android-sdk/build-tools/35.0.0/aapt2
-NDK_STRIP=$(find /opt/taixu/toolchains/android/ndk/toolchains/llvm/prebuilt \( -type f -o -type l \) -name llvm-strip -print -quit)
+# 平台与 Build-Tools 版本按实际安装取最高，不写死版本号
+_TX_PLAT=$(for _tx_candidate in /opt/android-sdk/platforms/android-[0-9]*; do [ -f "$_tx_candidate/android.jar" ] && printf '%s\n' "$_tx_candidate"; done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)
+test -n "$_TX_PLAT" || fail "missing Android platform"
+require_file "$_TX_PLAT/android.jar"
+_TX_BT=$(for _tx_candidate in /opt/android-sdk/build-tools/[0-9]*; do [ -f "$_tx_candidate/source.properties" ] && [ -f "$_tx_candidate/lib/d8.jar" ] && [ -x "$_tx_candidate/aapt2" ] && printf '%s\n' "$_tx_candidate"; done | grep -Eiv 'rc|beta|alpha|preview|snapshot' | sort -V | tail -n 1)
+test -n "$_TX_BT" || fail "missing Android build-tools"
+require_file "$_TX_BT/lib/d8.jar"
+require_executable "$_TX_BT/aapt2"
+require_aarch64 "$_TX_BT/aapt2"
+NDK_STRIP=$(find /opt/taixu/tools/ndk/toolchains/llvm/prebuilt \( -type f -o -type l \) -name llvm-strip -print -quit)
 test -n "$NDK_STRIP" || fail "missing NDK llvm-strip"
 require_executable "$NDK_STRIP"
 require_aarch64 "$NDK_STRIP"
