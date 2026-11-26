@@ -3,6 +3,7 @@ package top.wkbin.taixu.ui.chat
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -29,7 +30,8 @@ internal fun ProviderModelPickerDialog(
     onRefresh: () -> Unit,
     onSelect: (String) -> Unit,
 ) {
-    var query by rememberSaveable(profile.id) { mutableStateOf("") }
+    val searchState = key(profile.id) { rememberTextFieldState() }
+    val query = searchState.text.toString()
     var manual by rememberSaveable(profile.id) { mutableStateOf(false) }
     var manualId by rememberSaveable(profile.id, selectedModelVariant) {
         mutableStateOf(selectedModelVariant ?: profile.model.substringBefore(',').trim())
@@ -72,8 +74,11 @@ internal fun ProviderModelPickerDialog(
                 }
             }
         } else {
-            RuntimeSearchBar(query, { query = it }, Modifier.fillMaxWidth(),
-                placeholder = stringResource(R.string.chat_search_models))
+            RuntimeSheetSearchBar(
+                state = searchState,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = stringResource(R.string.chat_search_models),
+            )
             if (discovering) Row(Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 RuntimeCircularProgressIndicator(Modifier.size(24.dp))

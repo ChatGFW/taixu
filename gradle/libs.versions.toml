@@ -12,7 +12,7 @@ activityCompose = "1.13.0"
 leakcanaryAndroid = "2.14"
 lifecycle = "2.11.0"
 navigation3 = "1.2.1"
-miuix = "0.9.5-beta01"
+miuix = "0.9.5-rc01"
 # 0.9.3 是最后一个提供 AndroidX Navigation3 NavDisplay 适配模块的版本。
 miuixNavigation3Ui = "0.9.3"
 room = "2.8.5"

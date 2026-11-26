@@ -1,6 +1,7 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -14,6 +15,7 @@ import top.wkbin.taixu.core.datastore.AppearancePreferences
 import top.wkbin.taixu.core.model.ChatTopToolbarAction
 import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.feature.chat.R
+import top.wkbin.taixu.feature.components.R as ComponentsR
 import top.wkbin.taixu.harness.events.HarnessEvent
 import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.ui.chat.floating.rememberFloatingChatLauncher
@@ -127,10 +129,28 @@ internal fun ChatTopBar(
     }
     if (expanded) {
         val closeThen: (() -> Unit) -> () -> Unit = { action -> { expanded = false; action() } }
-        PlainBackdropModalBottomSheet(onDismissRequest = { expanded = false }) {
+        val companionAction = companion?.let { toggle ->
+            @Composable {
+                RuntimeIconButton(
+                    onClick = closeThen(toggle.onToggle),
+                    modifier = Modifier.padding(end = 12.dp).size(40.dp),
+                    contentDescription = stringResource(
+                        if (toggle.open) ComponentsR.string.components_companion_collapse
+                        else ComponentsR.string.components_companion_open,
+                    ),
+                ) {
+                    RuntimeIcon(RuntimeIconName.PanelRightOpen, Modifier.size(22.dp))
+                }
+            }
+        }
+        PlainBackdropModalBottomSheet(
+            onDismissRequest = { expanded = false },
+            title = stringResource(R.string.chat_workbench_controls),
+            endAction = companionAction,
+            scrollState = rememberScrollState(),
+        ) {
             ChatWorkbenchSheetBody(
                 pinned = pinnedSet,
-                companion = companion,
                 speech = speech,
                 browserHighlight = browserHighlight,
                 repositoryHighlight = repositoryHighlight,

@@ -1,5 +1,6 @@
 package top.wkbin.taixu.ui.chat
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -18,6 +19,9 @@ internal fun PlainBackdropModalBottomSheet(
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     containerColor: androidx.compose.ui.graphics.Color = RuntimeTheme.colorScheme.surfaceContainerLow,
+    title: String? = null,
+    endAction: (@Composable () -> Unit)? = null,
+    scrollState: ScrollState? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     ModalBottomSheet(
@@ -25,6 +29,9 @@ internal fun PlainBackdropModalBottomSheet(
         modifier = modifier,
         sheetState = sheetState,
         containerColor = containerColor,
+        title = title,
+        endAction = endAction,
+        scrollState = scrollState,
         content = content,
     )
 }
