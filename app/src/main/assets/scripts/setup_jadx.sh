@@ -5,6 +5,26 @@
 # ==============================================================================
 set -e
 
+# 发行 tag 带前缀 v（v1.5.0），zip 资源名不带 v（jadx-1.5.0.zip）。
+# 不能把 tag 原样拼进文件名：资源名必须是 jadx-<版本>.zip，版本号不含 tag 前缀。
+# 离线清单 assets/plugins/android-suite-offline/DOWNLOADS.md 使用同一资源名。
+JADX_RELEASE_TAG="v1.5.0"
+JADX_VERSION="${JADX_RELEASE_TAG#v}"
+JADX_ASSET="jadx-${JADX_VERSION}.zip"
+JADX_URLS="
+https://mirror.ghproxy.com/https://github.com/skylot/jadx/releases/download/${JADX_RELEASE_TAG}/${JADX_ASSET}
+https://gh-proxy.com/https://github.com/skylot/jadx/releases/download/${JADX_RELEASE_TAG}/${JADX_ASSET}
+https://github.com/skylot/jadx/releases/download/${JADX_RELEASE_TAG}/${JADX_ASSET}
+"
+
+# 无网络回归入口：打印下载循环实际使用的 URL 后退出，不建目录、不下载。
+if [ "${1:-}" = "--print-urls" ]; then
+    for url in $JADX_URLS; do
+        printf '%s\n' "$url"
+    done
+    exit 0
+fi
+
 echo "==> [TaiXu] 正在初始化 JADX-CLI 逆向审计工具包..."
 
 mkdir -p /opt/jadx /usr/local/bin /usr/bin /tmp 2>/dev/null || true
@@ -15,13 +35,6 @@ if ! command -v unzip >/dev/null 2>&1 && [ -x "${TAIXU_TOOL_DIR:-/opt/taixu/tool
     ln -sf "${TAIXU_TOOL_DIR:-/opt/taixu/tools}/unzip" /usr/local/bin/unzip 2>/dev/null || true
     export PATH="/usr/local/bin:/usr/bin:$PATH"
 fi
-
-JADX_VERSION="v1.5.0"
-JADX_URLS="
-https://mirror.ghproxy.com/https://github.com/skylot/jadx/releases/download/${JADX_VERSION}/jadx-${JADX_VERSION}.zip
-https://gh-proxy.com/https://github.com/skylot/jadx/releases/download/${JADX_VERSION}/jadx-${JADX_VERSION}.zip
-https://github.com/skylot/jadx/releases/download/${JADX_VERSION}/jadx-${JADX_VERSION}.zip
-"
 
 # Java 运行时预检（jadx 是 Java 程序，无 JVM 时给出明确指引而非静默失败）
 JAVA_OK=0
