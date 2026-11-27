@@ -1,232 +1,160 @@
 package top.wkbin.taixu.ui.workspace
 
 import android.content.Context
-import java.util.concurrent.atomic.AtomicInteger
+import io.github.rosemoe.sora.text.Content
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import top.wkbin.taixu.core.common.result.ErrorCode
 import top.wkbin.taixu.feature.workspace.R
 import top.wkbin.taixu.runtime.HostFileActions
-import top.wkbin.taixu.runtime.WorkspaceManager
 import top.wkbin.taixu.runtime.WorkspaceFileInspection
+import top.wkbin.taixu.runtime.WorkspaceManager
 import top.wkbin.taixu.runtime.hostFile
 import top.wkbin.taixu.runtime.inspectFile
 
-/**
- * 代码编辑器会话：持有草稿与其状态（脏标记/版本号/保存冲突），负责打开、编辑、保存与冲突处理。
- * 项目选择与目录加载状态由宿主 ViewModel 共享（文件浏览器也用），因此以引用方式传入。
- * 独立成文件仅为控制宿主的单文件行数（架构棘轮），行为与原内联实现保持一致。
- */
+internal data class EditorFileState(
+    val loading: Boolean = false,
+    val ready: Boolean = false,
+    val binary: WorkspaceFileInspection? = null,
+    val revision: Long = 0,
+    val dirty: Boolean = false,
+    val conflict: Boolean = false,
+    val notice: String? = null,
+    val isError: Boolean = false,
+    val lines: Int = 1,
+    val characters: Int = 0,
+)
+
+/** One buffer and one disk baseline per tab. The native view is owned by the composition. */
 internal class EditorSessionController(
     private val scope: CoroutineScope,
-    private val workspaceManager: WorkspaceManager,
+    private val workspace: WorkspaceManager,
     private val context: Context,
-    private val notify: (String, Boolean) -> Unit,
-    private val selectedProject: MutableStateFlow<String?>,
-    private val loadingFiles: MutableStateFlow<Boolean>,
+    val project: String,
+    val path: String,
 ) {
     private val draft = EditorDraft()
+    private val mutableState = MutableStateFlow(EditorFileState())
+    val state = mutableState.asStateFlow()
+    private var loadJob: Job? = null
+    var content = Content()
+        private set
+    var scrollX = 0
+    var scrollY = 0
+    var textSizeSp = 13f
+    val name = path.substringAfterLast('/')
+    val extension = name.substringAfterLast('.', "")
 
-    private val _openedFilePath = MutableStateFlow<String?>(null)
-    val openedFilePath: StateFlow<String?> = _openedFilePath.asStateFlow()
-
-    private val _fileContent = MutableStateFlow("")
-    val fileContent: StateFlow<String> = _fileContent.asStateFlow()
-
-    private val _contentRevision = MutableStateFlow(0L)
-    /** 文件内容整文加载/重置版本号：仅在 openFile 或 resetContent 时递增，打字过程中不变化 */
-    val contentRevision: StateFlow<Long> = _contentRevision.asStateFlow()
-
-    private val _isDirty = MutableStateFlow(false)
-    val isDirty: StateFlow<Boolean> = _isDirty.asStateFlow()
-
-    private val _isSaving = MutableStateFlow(false)
-    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
-
-    private val _saveConflict = MutableStateFlow(false)
-    /** 保存时检测到磁盘版本与编辑器基线不一致：置真后由 UI 提示「覆盖 / 重新加载」。 */
-    val saveConflict: StateFlow<Boolean> = _saveConflict.asStateFlow()
-
-    /** 冲突前待执行的保存回调（如「保存并退出」），覆盖保存成功后继续执行。 */
-    private var pendingConflictOnSuccess: (() -> Unit)? = null
-
-    /**
-     * 在途读文件计数：关闭编辑器/快速切换文件会让旧请求提前 return，
-     * 若由它无条件复位 loading，加载态要么卡死要么被后发请求的收尾误清。
-     */
-    private val activeFileLoads = AtomicInteger()
-
-    private fun beginFileLoad() {
-        activeFileLoads.incrementAndGet()
-        loadingFiles.value = true
-    }
-
-    private fun endFileLoad() {
-        if (activeFileLoads.decrementAndGet() <= 0) loadingFiles.value = false
-    }
-
-    private val _binaryFile = MutableStateFlow<WorkspaceFileInspection?>(null)
-
-    /** 非空表示当前文件是二进制（APK/图片/压缩包）：编辑器拒绝载入，改由系统应用打开。 */
-    val binaryFile: StateFlow<WorkspaceFileInspection?> = _binaryFile.asStateFlow()
-
-    fun editorText(project: String, path: String): String =
-        if (draft.matches(project, path)) draft.text else ""
-
-    fun openFile(projectName: String, relativePath: String) {
-        selectedProject.value = projectName
-        _openedFilePath.value = relativePath
-        _saveConflict.value = false
-        _binaryFile.value = null
-        pendingConflictOnSuccess = null
-        if (draft.matches(projectName, relativePath)) return
-        scope.launch {
-            beginFileLoad()
+    fun load() {
+        if (mutableState.value.loading) return
+        mutableState.update { it.copy(loading = true, conflict = false, notice = null) }
+        loadJob = scope.launch {
             try {
-                // 二进制文件先拦：按 UTF-8 读进来只会得到乱码，保存还会把原文件写坏。
-                val inspection = workspaceManager.inspectFile(projectName, relativePath).getOrNull()
-                if (selectedProject.value != projectName || _openedFilePath.value != relativePath) return@launch
-                if (inspection?.binary == true) {
-                    _binaryFile.value = inspection
-                    _fileContent.value = ""
-                    _isDirty.value = false
+                val info = workspace.inspectFile(project, path)
+                val inspection = info.getOrNull()
+                if (inspection == null) {
+                    showError(info.errorOrNull()?.message, R.string.workspace_open_file_failed)
                     return@launch
                 }
-                val result = workspaceManager.readFile(projectName, relativePath)
-                if (selectedProject.value != projectName || _openedFilePath.value != relativePath) return@launch
-                if (result.isSuccess) {
-                    val content = result.getOrNull().orEmpty()
-                    draft.load(projectName, relativePath, content)
-                    _fileContent.value = content
-                    _isDirty.value = false
-                    _contentRevision.value++
-                } else {
-                    notify(result.errorOrNull()?.message ?: context.getString(R.string.workspace_open_file_failed), true)
+                if (inspection.binary) {
+                    draft.clear()
+                    content = Content()
+                    mutableState.update {
+                        it.copy(ready = false, binary = inspection, dirty = false, lines = 1, characters = 0)
+                    }
+                    return@launch
                 }
+                val read = workspace.readFile(project, path)
+                val value = read.getOrNull()
+                if (value == null) {
+                    showError(read.errorOrNull()?.message, R.string.workspace_open_file_failed)
+                    return@launch
+                }
+                val newContent = withContext(Dispatchers.Default) { Content(value) }
+                draft.load(project, path, value)
+                replaceContent(newContent)
             } finally {
-                endFileLoad()
+                mutableState.update { it.copy(loading = false) }
             }
         }
     }
 
-    /** 交给系统应用：APK/图片/压缩包等二进制产物走这里，不走编辑器。 */
-    fun openExternally(share: Boolean) {
-        val proj = selectedProject.value ?: return
-        val path = _openedFilePath.value ?: return
-        scope.launch {
-            val file = workspaceManager.hostFile(proj, path).getOrNull()
-            val launched = file != null &&
-                if (share) HostFileActions.share(context, file, subject = file.name) else HostFileActions.open(context, file)
-            if (!launched) notify(context.getString(R.string.workspace_open_external_failed), true)
-        }
+    fun onContentChanged(buffer: Content) {
+        if (!mutableState.value.ready || mutableState.value.loading) return
+        content = buffer
+        updateTextState()
     }
 
-    fun onContentChanged(newText: String) {
-        if (loadingFiles.value || !draft.matches(selectedProject.value, _openedFilePath.value)) return
-        draft.edit(newText)
-        _isDirty.value = draft.isDirty
+    private fun updateTextState() {
+        val saved = draft.savedContent
+        val dirty = content.length != saved.length || content.toString() != saved
+        mutableState.update { it.copy(dirty = dirty, lines = content.lineCount, characters = content.length) }
     }
 
     fun resetContent() {
         draft.reset()
-        _fileContent.value = draft.text
-        _isDirty.value = false
-        _contentRevision.value++
+        replaceContent(Content(draft.savedContent))
     }
 
-    fun saveFile(content: String? = null, onSuccess: (() -> Unit)? = null) {
-        val proj = selectedProject.value ?: return
-        val path = _openedFilePath.value ?: return
-        if (_binaryFile.value != null) return
-        if (_isSaving.value || loadingFiles.value || !draft.matches(proj, path)) return
-        content?.let(draft::edit)
-        // 以编辑器最后已知的磁盘内容作为版本基线：磁盘已被外部（如 AI 工具）改动时拒绝覆盖。
-        writeDraft(proj, path, draft.snapshot(), draft.savedContent, onSuccess)
-    }
-
-    /** 用户选择「覆盖」：忽略磁盘版本差异，强制写入当前草稿。 */
-    fun overwriteSaveConflict() {
-        val proj = selectedProject.value ?: return
-        val path = _openedFilePath.value ?: return
-        val onSuccess = pendingConflictOnSuccess
-        pendingConflictOnSuccess = null
-        _saveConflict.value = false
-        if (_isSaving.value || !draft.matches(proj, path)) return
-        writeDraft(proj, path, draft.snapshot(), expectedContent = null, onSuccess = onSuccess)
-    }
-
-    /** 用户选择「重新加载」：用磁盘上的最新内容替换草稿，放弃本地未保存修改。 */
-    fun reloadSaveConflict() {
-        val proj = selectedProject.value ?: return
-        val path = _openedFilePath.value ?: return
-        pendingConflictOnSuccess = null
-        _saveConflict.value = false
-        if (!draft.matches(proj, path)) return
-        scope.launch {
-            beginFileLoad()
-            try {
-                val result = workspaceManager.readFile(proj, path)
-                if (selectedProject.value != proj || _openedFilePath.value != path) return@launch
-                if (result.isSuccess) {
-                    val fresh = result.getOrNull().orEmpty()
-                    draft.load(proj, path, fresh)
-                    _fileContent.value = fresh
-                    _isDirty.value = false
-                    _contentRevision.value++
-                } else {
-                    notify(result.errorOrNull()?.message ?: context.getString(R.string.workspace_open_file_failed), true)
-                }
-            } finally {
-                endFileLoad()
-            }
+    private fun replaceContent(buffer: Content) {
+        content = buffer
+        scrollX = 0
+        scrollY = 0
+        mutableState.update {
+            it.copy(
+                ready = true, binary = null, revision = it.revision + 1,
+                dirty = false, conflict = false, lines = buffer.lineCount, characters = buffer.length,
+            )
         }
     }
 
-    /** 关闭冲突提示并保留草稿（用户继续手工对比）。 */
-    fun dismissSaveConflict() {
-        pendingConflictOnSuccess = null
-        _saveConflict.value = false
+    suspend fun save(overwrite: Boolean = false): Boolean {
+        val file = mutableState.value
+        if (!file.ready || file.loading) return false
+        if (!file.dirty && !file.conflict) return true
+        draft.edit(content.toString())
+        val snapshot = draft.snapshot()
+        val expected = if (overwrite) null else draft.savedContent
+        val write = workspace.writeFile(project, path, snapshot.text, expected)
+        if (write.isSuccess) {
+            draft.markSaved(snapshot)
+            updateTextState()
+            mutableState.update {
+                it.copy(conflict = false, notice = context.getString(R.string.workspace_file_saved), isError = false)
+            }
+            return !mutableState.value.dirty
+        }
+        if (write.errorOrNull()?.code == ErrorCode.CONFLICT) {
+            mutableState.update { it.copy(conflict = true) }
+        } else {
+            mutableState.update { it.copy(conflict = false) }
+            showError(write.errorOrNull()?.message, R.string.workspace_save_failed)
+        }
+        return false
     }
 
-    private fun writeDraft(
-        proj: String,
-        path: String,
-        snapshot: EditorDraft.SaveSnapshot,
-        expectedContent: String?,
-        onSuccess: (() -> Unit)?,
-    ) {
-        _isSaving.value = true
+    fun dismissConflict() {
+        mutableState.update { it.copy(conflict = false) }
+    }
+
+    fun openExternally(share: Boolean) {
         scope.launch {
-            val result = workspaceManager.writeFile(proj, path, snapshot.text, expectedContent)
-            if (result.isSuccess) {
-                _saveConflict.value = false
-                val stillOpen = draft.markSaved(snapshot)
-                if (stillOpen) {
-                    _fileContent.value = snapshot.text
-                    _isDirty.value = draft.isDirty
-                }
-                notify(context.getString(R.string.workspace_file_saved), false)
-                if (stillOpen && !draft.isDirty) onSuccess?.invoke()
-            } else if (result.errorOrNull()?.code == ErrorCode.CONFLICT) {
-                pendingConflictOnSuccess = onSuccess
-                _saveConflict.value = true
-            } else {
-                notify(result.errorOrNull()?.message ?: context.getString(R.string.workspace_save_failed), true)
-            }
-            _isSaving.value = false
+            val file = workspace.hostFile(project, path).getOrNull()
+            val launched = file != null &&
+                if (share) HostFileActions.share(context, file, subject = file.name) else HostFileActions.open(context, file)
+            if (!launched) showError(null, R.string.workspace_open_external_failed)
         }
     }
 
-    fun closeFile() {
-        _openedFilePath.value = null
-        _fileContent.value = ""
-        _binaryFile.value = null
-        draft.clear()
-        _isDirty.value = false
-        _saveConflict.value = false
-        pendingConflictOnSuccess = null
+    fun close() { loadJob?.cancel() }
+
+    private fun showError(detail: String?, fallback: Int) {
+        mutableState.update { it.copy(notice = detail ?: context.getString(fallback), isError = true) }
     }
 }

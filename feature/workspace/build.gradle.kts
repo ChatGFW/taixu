@@ -16,6 +16,8 @@ dependencies {
     implementation(project(":feature:theme"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.sora.editor)
     implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.4.0")
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

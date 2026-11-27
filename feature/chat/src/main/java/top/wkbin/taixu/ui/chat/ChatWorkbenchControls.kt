@@ -1,8 +1,6 @@
 package top.wkbin.taixu.ui.chat
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -13,7 +11,6 @@ import androidx.compose.ui.unit.dp
 import top.wkbin.taixu.core.model.ChatTopToolbarAction
 import top.wkbin.taixu.core.model.RunMode
 import top.wkbin.taixu.feature.chat.R
-import top.wkbin.taixu.feature.components.R as ComponentsR
 import top.wkbin.taixu.harness.events.HarnessEvent
 import top.wkbin.taixu.harness.session.ConversationBranch
 import top.wkbin.taixu.ui.components.*
@@ -27,7 +24,6 @@ import top.yukonga.miuix.kmp.basic.Text
 @Composable
 internal fun ChatWorkbenchSheetBody(
     pinned: Set<ChatTopToolbarAction>,
-    companion: ChatCompanionToggle?,
     speech: ChatSpeechToggle?,
     browserHighlight: Boolean,
     repositoryHighlight: Boolean,
@@ -52,31 +48,9 @@ internal fun ChatWorkbenchSheetBody(
     closeThen: (() -> Unit) -> () -> Unit,
 ) {
     Column(
-        Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp).padding(bottom = 8.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                stringResource(R.string.chat_workbench_controls),
-                modifier = Modifier.weight(1f),
-                style = RuntimeTheme.typography.titleLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            companion?.let { toggle ->
-                RuntimeIconButton(
-                    onClick = closeThen(toggle.onToggle),
-                    modifier = Modifier.size(40.dp),
-                    contentDescription = stringResource(
-                        if (toggle.open) ComponentsR.string.components_companion_collapse
-                        else ComponentsR.string.components_companion_open,
-                    ),
-                ) {
-                    RuntimeIcon(RuntimeIconName.PanelRightOpen, Modifier.size(22.dp))
-                }
-            }
-        }
         ChatWorkspaceBar(
             onOpenBrowser = onOpenBrowser.takeUnless { ChatTopToolbarAction.BROWSER in pinned }?.let(closeThen),
             browserHighlight = browserHighlight,
@@ -140,7 +114,7 @@ private fun SessionActions(
     if (rows.isEmpty()) return
     Column {
         RuntimeSectionTitle(stringResource(R.string.chat_workbench_session))
-        RuntimeCard(containerColor = RuntimeTheme.colorScheme.surfaceContainerHigh, contentPadding = PaddingValues(0.dp)) {
+        RuntimeSheetCard {
             rows.forEach { row -> WorkbenchRow(row.icon, row.label, row.onClick) }
         }
     }

@@ -5,7 +5,7 @@
 | 组件 | 用途 | 来源/版本 | 许可证与分发备注 |
 |---|---|---|---|
 | Material Symbols Rounded | 保留的矢量资源与品牌图标回退，SVG 转 Android VectorDrawable | [Google 官方仓库](https://github.com/google/material-design-icons)，固定修订 `49d4db35df873165d6bd6ba09b063c7dafbac2f4`；映射与转换见 `tools/sync-material-symbols.py` | Apache-2.0；许可证随 APK 置于 `feature/components/src/main/assets/licenses/material-symbols-LICENSE`，每个矢量资源保留来源与转换说明 |
-| Miuix | 应用主题、基础控件、Preference、导航、OS4 玻璃材质和图标 | [上游仓库](https://github.com/compose-miuix-ui/miuix)，`0.9.5-beta01`，Navigation3 适配器为 `0.9.3` | Apache-2.0，完整许可证随 APK 置于 `assets/licenses/miuix-LICENSE` |
+| Miuix | 应用主题、基础控件、Preference、导航、OS4 玻璃材质和图标 | [上游仓库](https://github.com/compose-miuix-ui/miuix)，`0.9.5-rc01`，Navigation3 适配器为 `0.9.3` | Apache-2.0，完整许可证随 APK 置于 `assets/licenses/miuix-LICENSE` |
 | AndroidX A2UI 目录适配源码 | 保留官方组件状态投影、无障碍、动作转发和 SVG 解析，将展示实现适配到 Miuix | Google Maven `material3-a2ui:1.0.0-alpha02` source JAR，源码位于 `feature/a2uipoc/.../miuix` | Copyright 2026 The Android Open Source Project，Apache-2.0。保留各文件版权头，并标明适配修改，完整许可证随 APK 置于 `assets/licenses/a2ui-LICENSE` |
 | Debian / Ubuntu ARM64 rootfs | Android Linux 用户态系统 | Kotlin 安装流程对齐 `proot-distro 5.10.0` OCI 机制从 Docker/OCI Registry 拉取；`tools/bundled-rootfs/` 可产出可选内置包 | 各发行版及其中的软件包分别遵循各自许可证；内置包归档默认不入库，随包分发前必须在此登记该归档内全部软件包的版权与许可证获取地址 |
 | `ccch1mneyyy/dsh-go` 运行时构建模式 | `tools/bundled-rootfs/` 的输入 pin、GPG 校验、固定 `SOURCE_DATE_EPOCH`、归一化打包与可复现比对思路 | [上游仓库](https://github.com/ccch1mneyyy/dsh-go)，参考 `runtime/build-runtime.sh` | AGPL-3.0；脚本为独立重写，未复制上游源码。本仓库为 GPL-3.0，若将来与 AGPL-3.0 代码组合分发，按 GPLv3 §13 处理并保留上游来源与许可证地址 |
@@ -21,6 +21,7 @@
 | Ktor Client | HTTP 客户端（Agent 流式）与下载 | Maven Central，版本见 `gradle/libs.versions.toml` | Apache License 2.0 |
 | Kotlin / Kotlinx Serialization / Coroutines | 应用基础运行库 | Maven Central，版本见 `gradle/libs.versions.toml` | 按各组件上游许可证与 NOTICE 要求分发 |
 | Koin | 依赖注入 | Maven Central，版本见 `gradle/libs.versions.toml` | Apache-2.0 |
+| Sora Editor | Android 代码编辑器、撤销重做和搜索 | Maven Central `io.github.rosemoe:editor:0.24.7`，[对应源码](https://github.com/Rosemoe/sora-editor/tree/ab9f2cb23aeb30ae42f0ad9e32b281c6bdbcbfc9) | Copyright 2020–2026 Rosemoe，LGPL-2.1-or-later。完整许可证位于 APK 的 `assets/licenses/sora-editor-LICENSE`。本仓库按源码构建时，可通过版本目录替换该编辑器依赖。 |
 | AndroidX ExifInterface | 附件图片 EXIF 方向归一（压缩前校正相机旋转/镜像） | Maven Central，`androidx.exifinterface:exifinterface:1.3.7`（版本见 `gradle/libs.versions.toml`） | Apache License 2.0；随 AndroidX 清单分发 |
 | Room | 本地数据库 | Google Maven，版本见 `gradle/libs.versions.toml` | 按上游许可证与 NOTICE 要求分发 |
 | Agency Agents（软件研发精选目录） | 内置子智能体人格与专业工作流；按 9 个研发部门提供 136 个角色 | `msitarzewski/agency-agents`，固定提交 `3c9588880b7cafaec325a104899fd8bbe27e7d72` | MIT；原始 Markdown 与完整许可证随 APK 置于 `agency_agents/` assets，应用仅精选软件研发相关角色 |

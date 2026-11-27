@@ -91,7 +91,6 @@ class WorkbenchSheetDensityTest {
     private fun sheet(onRunMode: () -> Unit) {
         ChatWorkbenchSheetBody(
             pinned = ChatTopToolbarAction.DEFAULT_PINNED.toSet(),
-            companion = ChatCompanionToggle(open = false, onToggle = {}),
             speech = ChatSpeechToggle(enabled = false, onToggle = {}),
             browserHighlight = false,
             repositoryHighlight = false,
@@ -136,7 +135,7 @@ class WorkbenchSheetDensityTest {
                 }
             }
             val root = activity.window.decorView
-            // 给 verticalScroll 一个有限上限；外层 Column 仍按内容收缩，onSizeChanged 才是正文高度。
+            // 外层 Column 按内容收缩，以 onSizeChanged 读取正文高度。
             val viewport = 2400
             fun layout() {
                 root.measure(

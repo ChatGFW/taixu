@@ -13,7 +13,7 @@
     <string name="workspace_new_file">New file</string>
     <string name="workspace_new_folder">New folder</string>
     <string name="workspace_empty_directory">This directory is empty</string>
-    <string name="workspace_empty_directory_hint">Use ➕ in the top-right to create a file or subdirectory</string>
+    <string name="workspace_empty_directory_hint">Use the project menu to create a file or subdirectory</string>
     <string name="workspace_file_name">File name</string>
     <string name="workspace_folder_name">Folder name</string>
     <string name="workspace_create">Create</string>

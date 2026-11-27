@@ -70,6 +70,27 @@ class RemoteScriptRunnerTest {
     }
 
     @Test
+    fun rawGithubAcceptsOnlyThePinnedCodexScriptAndDigest() = runBlocking {
+        val runtime = FakeLinuxRuntime()
+        val runner = RemoteScriptRunner(runtime)
+        val spec = RemoteScriptSpec(
+            name = "codex",
+            url = "https://raw.githubusercontent.com/openai/codex/" +
+                "53cd1894aa94185668d76e212e793e7950294f24/scripts/install/install.sh",
+            sha256 = "b698d8eb50c0fbe0214ea57b5bf2af439054108404c6d2b872989db02f4bd574",
+        )
+        runner.run(spec)
+        for (untrusted in listOf(
+            spec.copy(sha256 = null),
+            spec.copy(name = "other"),
+            spec.copy(url = spec.url.replace("53cd1894aa94185668d76e212e793e7950294f24", "main")),
+        )) {
+            assertTrue(runCatching { runner.run(untrusted) }.exceptionOrNull() is IllegalArgumentException)
+        }
+        assertTrue(runtime.executedCommands.single().contains("sha256sum -c -"))
+    }
+
+    @Test
     fun rejectsNonHttpsScript() = runBlocking {
         val runner = RemoteScriptRunner(FakeLinuxRuntime())
 

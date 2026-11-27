@@ -198,8 +198,12 @@ class BrowserViewModel(
 
     fun onUrlInputChanged(value: String) { _urlInput.value = value }
 
-    fun onNavigate() {
-        val raw = _urlInput.value.trim()
+    fun onNavigate() = navigate(_urlInput.value, separateTab = false)
+
+    fun openLocalPreview(port: Int) = navigate("http://127.0.0.1:$port/", separateTab = true)
+
+    private fun navigate(url: String, separateTab: Boolean) {
+        val raw = url.trim()
         if (raw.isBlank()) return
         val target = normalizeUrl(raw) ?: run {
             _toolMessage.value = "不支持的链接：仅允许 http/https（或 about:blank）"
@@ -209,7 +213,8 @@ class BrowserViewModel(
             runCatching {
                 val engine = registry.getDefault()
                 val active = engine.activeTab()
-                if (active == null) engine.openTab(target, activate = true)
+                if (separateTab && active?.url == target) engine.navigate(active, target)
+                else if (separateTab || active == null) engine.openTab(target, activate = true)
                 else engine.navigate(active, target)
                 _urlInput.value = target
                 _toolMessage.value = "已打开 $target"

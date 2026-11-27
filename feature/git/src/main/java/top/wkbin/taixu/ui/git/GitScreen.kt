@@ -70,6 +70,7 @@ import top.yukonga.miuix.kmp.basic.Text
 fun GitScreen(
     projectName: String,
     onBack: () -> Unit,
+    openChanges: Boolean = false,
     viewModel: GitViewModel? = previewOrNull { koinViewModel() },
 ) {
     val state by viewModel?.uiState?.collectAsStateWithLifecycle() ?: previewStateOf(GitUiState())
@@ -84,7 +85,7 @@ fun GitScreen(
         }
     }
 
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable(openChanges) { mutableIntStateOf(if (openChanges) 2 else 0) }
     var showCreateBranch by remember { mutableStateOf(false) }
     var showCredentials by remember { mutableStateOf(false) }
     var showCreateTag by remember { mutableStateOf(false) }
@@ -222,6 +223,7 @@ fun GitScreen(
                         onStageAll = { viewModel?.stageAll() },
                         onUnstageAll = { viewModel?.unstageAll() },
                         onDiscard = { discardTarget = it },
+                        loadDiff = { change -> viewModel?.readChangeDiff(change) ?: GitChangeDiff("", false) },
                         onCommit = { arg0 -> viewModel?.commit(arg0) },
                         onCommitAndPush = { arg0 -> viewModel?.commitAndPush(arg0) },
                         onGenerateMessage = { viewModel?.generateCommitMessage() },
@@ -372,23 +374,23 @@ fun GitScreen(
 // ----------------------------------------------------------------------
 
 @Composable
-private fun gitSuccessColor(): Color {
+internal fun gitSuccessColor(): Color {
     val isDark = RuntimeTheme.colorScheme.surface.luminance() < 0.5f
     return if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32)
 }
 @Composable
-private fun gitInfoColor(): Color {
+internal fun gitInfoColor(): Color {
     val isDark = RuntimeTheme.colorScheme.surface.luminance() < 0.5f
     return if (isDark) Color(0xFF90CAF9) else Color(0xFF1976D2)
 }
 @Composable
-private fun gitWarningColor(): Color {
+internal fun gitWarningColor(): Color {
     val isDark = RuntimeTheme.colorScheme.surface.luminance() < 0.5f
     return if (isDark) Color(0xFFFFB74D) else Color(0xFFE65100)
 }
 
 @Composable
-private fun gitAiColor(): Color = RuntimeTheme.colorScheme.tertiary
+internal fun gitAiColor(): Color = RuntimeTheme.colorScheme.tertiary
 
 // ----------------------------------------------------------------------
 // 仓库概览卡片：分支 + 领先落后 + 远程地址 + 推送/拉取
@@ -905,265 +907,6 @@ private fun TagsTab(
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-// ----------------------------------------------------------------------
-// 改动页签：选文件暂存 → AI/手写 message → 提交
-// ----------------------------------------------------------------------
-
-@Composable
-private fun ChangesTab(
-    state: GitUiState,
-    onToggleStage: (GitManager.GitFileChange) -> Unit,
-    onStageAll: () -> Unit,
-    onUnstageAll: () -> Unit,
-    onDiscard: (GitManager.GitFileChange) -> Unit,
-    onCommit: (String) -> Unit,
-    onCommitAndPush: (String) -> Unit,
-    onGenerateMessage: () -> Unit,
-    onMessageChange: (String) -> Unit,
-) {
-    // message 草稿来自 ViewModel：返回聊天页后 AI 生成的结果不丢
-    val message = state.commitMessageDraft
-    val stagedCount = state.changes.count { it.staged }
-    val canCommit = !state.busy && stagedCount > 0 && message.isNotBlank()
-
-    Column(Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            if (state.changes.isEmpty()) {
-                item {
-                    EmptyHint(stringResource(R.string.fgit_no_changes))
-                }
-            } else {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            stringResource(R.string.fgit_staged_count, stagedCount, state.changes.size),
-                            style = RuntimeTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.weight(1f),
-                        )
-                        if (stagedCount < state.changes.size) {
-                            Surface(
-                                onClick = onStageAll,
-                                enabled = !state.busy,
-                                color = RuntimeTheme.colorScheme.primary.copy(alpha = 0.12f),
-                                shape = RuntimeTheme.shapes.chip,
-                            ) {
-                                Text(
-                                    stringResource(R.string.fgit_stage_all),
-                                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                                    color = RuntimeTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                )
-                            }
-                        }
-                        if (stagedCount > 0) {
-                            Surface(
-                                onClick = onUnstageAll,
-                                enabled = !state.busy,
-                                color = RuntimeTheme.colorScheme.surfaceContainerHigh,
-                                shape = RuntimeTheme.shapes.chip,
-                            ) {
-                                Text(
-                                    stringResource(R.string.fgit_unstage_all),
-                                    style = RuntimeTheme.typography.labelMedium,
-                                    color = RuntimeTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                )
-                            }
-                        }
-                    }
-                }
-                items(state.changes, key = { it.path }) { change ->
-                    ChangeRow(
-                        change = change,
-                        enabled = !state.busy,
-                        onToggle = { onToggleStage(change) },
-                        onDiscard = { onDiscard(change) },
-                    )
-                }
-            }
-        }
-
-        // 底部提交栏：message 输入 + AI 生成 + 提交按钮
-        Surface(
-            color = RuntimeTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RuntimeFilledTextField(
-                        value = message,
-                        onValueChange = onMessageChange,
-                        placeholder = { Text(stringResource(R.string.fgit_message_placeholder), style = RuntimeTheme.typography.bodySmall) },
-                        textStyle = RuntimeTheme.typography.bodySmall,
-                        minLines = 1,
-                        maxLines = 4,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (state.operation == GitOperation.AI_MESSAGE) {
-                        RuntimeCircularProgressIndicator(Modifier.size(22.dp))
-                    } else {
-                        val aiColor = gitAiColor()
-                        Surface(
-                            onClick = onGenerateMessage,
-                            enabled = !state.busy && state.changes.isNotEmpty(),
-                            color = aiColor.copy(alpha = 0.12f),
-                            shape = RuntimeTheme.shapes.small,
-                            modifier = Modifier.minimumInteractiveComponentSize(),
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                RuntimeIcon(RuntimeIconName.Sparkles, Modifier.size(15.dp), aiColor)
-                                Text(
-                                    stringResource(R.string.fgit_ai_message),
-                                    style = RuntimeTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                                    color = aiColor,
-                                )
-                            }
-                        }
-                    }
-                }
-                val commitColor = gitSuccessColor()
-                val pushColor = gitInfoColor()
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Surface(
-                        onClick = { onCommit(message) },
-                        enabled = canCommit,
-                        shape = RuntimeTheme.shapes.small,
-                        color = if (canCommit) commitColor.copy(alpha = 0.16f) else RuntimeTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.weight(1f).minimumInteractiveComponentSize(),
-                    ) {
-                        Text(
-                            text = if (state.operation == GitOperation.COMMIT) {
-                                stringResource(R.string.fgit_committing)
-                            } else {
-                                stringResource(
-                                    if (stagedCount > 0) R.string.fgit_commit_n else R.string.fgit_commit_no_staged,
-                                    stagedCount,
-                                )
-                            },
-                            style = RuntimeTheme.typography.labelLarge,
-                            color = if (canCommit) commitColor else RuntimeTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.padding(vertical = 10.dp),
-                        )
-                    }
-                    // 提交并推送：commit 成功后立即 push（省一次点击）
-                    Surface(
-                        onClick = { onCommitAndPush(message) },
-                        enabled = canCommit,
-                        shape = RuntimeTheme.shapes.small,
-                        color = if (canCommit) pushColor.copy(alpha = 0.14f) else RuntimeTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.minimumInteractiveComponentSize(),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            RuntimeIcon(RuntimeIconName.ArrowUp, Modifier.size(15.dp), if (canCommit) pushColor else RuntimeTheme.colorScheme.onSurfaceVariant)
-                            Text(
-                                stringResource(R.string.fgit_commit_push),
-                                style = RuntimeTheme.typography.labelLarge,
-                                color = if (canCommit) pushColor else RuntimeTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ChangeRow(
-    change: GitManager.GitFileChange,
-    enabled: Boolean,
-    onToggle: () -> Unit,
-    onDiscard: () -> Unit,
-) {
-    val (typeLabel, typeTint) = when (change.changeType) {
-        GitManager.ChangeType.ADDED -> "新增" to gitSuccessColor()
-        GitManager.ChangeType.MODIFIED -> "修改" to gitInfoColor()
-        GitManager.ChangeType.DELETED -> "删除" to RuntimeTheme.colorScheme.error
-        GitManager.ChangeType.UNTRACKED -> "未跟踪" to gitWarningColor()
-        GitManager.ChangeType.CONFLICT -> "冲突" to RuntimeTheme.colorScheme.error
-    }
-    RuntimeCard(
-        containerColor = if (change.staged) RuntimeTheme.colorScheme.primary.copy(alpha = 0.08f) else RuntimeTheme.colorScheme.surfaceContainerLow,
-        borderColor = if (change.staged) RuntimeTheme.colorScheme.primary.copy(alpha = 0.4f) else Color.Transparent,
-        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-        onClick = if (enabled) onToggle else null,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            // 勾选框：已暂存 ✓，未暂存空框
-            Box(
-                modifier = Modifier
-                    .size(18.dp)
-                    .background(
-                        if (change.staged) RuntimeTheme.colorScheme.primary else Color.Transparent,
-                        RuntimeTheme.shapes.tiny,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (change.staged) {
-                    RuntimeIcon(RuntimeIconName.Check, Modifier.size(12.dp), RuntimeTheme.colorScheme.onPrimary)
-                } else {
-                    Box(
-                        Modifier
-                            .size(17.dp)
-                            .background(Color.Transparent, RuntimeTheme.shapes.tiny)
-                            .border(1.2.dp, RuntimeTheme.colorScheme.outlineVariant, RuntimeTheme.shapes.tiny),
-                    )
-                }
-            }
-            StatusBadge(typeLabel, typeTint)
-            Text(
-                text = change.path,
-                style = RuntimeTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                color = RuntimeTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            // 丢弃：未跟踪=删除文件，已跟踪=还原到 HEAD（危险操作，外层有确认对话框）
-            if (enabled) {
-                RuntimeIconButton(onClick = onDiscard, modifier = Modifier.size(30.dp)) {
-                    RuntimeIcon(RuntimeIconName.Reverse, Modifier.size(15.dp), RuntimeTheme.colorScheme.error)
-                }
-            }
-            if (change.staged) {
-                Text(
-                    stringResource(R.string.fgit_staged),
-                    style = RuntimeTheme.typography.labelSmall,
-                    color = RuntimeTheme.colorScheme.primary,
-                )
             }
         }
     }

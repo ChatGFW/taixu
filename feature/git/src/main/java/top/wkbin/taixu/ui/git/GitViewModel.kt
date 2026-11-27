@@ -202,9 +202,8 @@ class GitViewModel(
         }
     }
 
-    // ------------------------------------------------------------------
-    // 提交流程：暂存 → （可选 AI 拟写 message）→ commit
-    // ------------------------------------------------------------------
+    internal suspend fun readChangeDiff(change: GitManager.GitFileChange): GitChangeDiff =
+        gitManager.readChangeDiff(_uiState.value.projectPath, change)
 
     fun stageFile(change: GitManager.GitFileChange) {
         val path = _uiState.value.projectPath

@@ -81,6 +81,8 @@ fun WorkspaceExplorerScreen(
     onBack: () -> Unit,
     onOpenFile: (String) -> Unit,
     onOpenTerminal: (String) -> Unit,
+    onOpenGit: (() -> Unit)? = null,
+    onOpenRun: (() -> Unit)? = null, onOpenCodex: (() -> Unit)? = null,
     viewModel: WorkspaceViewModel? = previewOrNull { koinViewModel() },
 ) {
     val fileItems by viewModel?.fileItems?.collectAsStateWithLifecycle() ?: previewStateOf(emptyList())
@@ -154,39 +156,21 @@ fun WorkspaceExplorerScreen(
                     }
                 },
                 actions = {
-                    val newLabel = stringResource(R.string.workspace_cd_new)
-                    Box(Modifier.semantics { contentDescription = newLabel }) {
-                        top.wkbin.taixu.ui.components.RuntimeIconMenu(
-                            entries = listOf(
-                                top.yukonga.miuix.kmp.basic.DropdownEntry(
-                                    items = listOf(
-                                        top.yukonga.miuix.kmp.basic.DropdownItem(
-                                            text = stringResource(R.string.workspace_new_file),
-                                            icon = { mod -> RuntimeIcon(RuntimeIconName.File, mod.size(18.dp)) },
-                                            onClick = {
-                                                viewModel?.clearMessage()
-                                                newFileName = ""
-                                                showCreateFileDialog = true
-                                            },
-                                        ),
-                                        top.yukonga.miuix.kmp.basic.DropdownItem(
-                                            text = stringResource(R.string.workspace_new_folder),
-                                            icon = { mod -> RuntimeIcon(RuntimeIconName.Folder, mod.size(18.dp)) },
-                                            onClick = {
-                                                viewModel?.clearMessage()
-                                                newFolderName = ""
-                                                showCreateFolderDialog = true
-                                            },
-                                        ),
-                                    ),
-                                ),
-                            ),
-                            enabled = !busy,
-                            content = {
-                                RuntimeIcon(RuntimeIconName.Plus, Modifier.size(20.dp), tint = RuntimeTheme.colorScheme.onSurface)
-                            },
-                        )
-                    }
+                    WorkspaceProjectMenu(
+                        enabled = !busy,
+                        onCreateFile = {
+                            viewModel?.clearMessage()
+                            newFileName = ""
+                            showCreateFileDialog = true
+                        },
+                        onCreateFolder = {
+                            viewModel?.clearMessage()
+                            newFolderName = ""
+                            showCreateFolderDialog = true
+                        },
+                        onOpenGit = onOpenGit,
+                        onOpenRun = onOpenRun, onOpenCodex = onOpenCodex,
+                    )
 
                     // 终端入口
                     IconButton(

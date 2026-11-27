@@ -1,6 +1,8 @@
 package top.wkbin.taixu.ui.miuix
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +39,7 @@ internal val LocalDialogAction = staticCompositionLocalOf { false }
  * swap to the miuix inset fill instead of vanishing white-on-white.
  */
 internal val LocalRaisedSurface = staticCompositionLocalOf { false }
+internal val LocalGlassSheet = staticCompositionLocalOf { false }
 
 @Composable
 fun AlertDialog(
@@ -161,6 +164,9 @@ fun ModalBottomSheet(
         // 只垫底：systemBars 已含 captionBar；不含 ime（外层另 imePadding）；不含水平（sheet 底对齐限宽居中）。
         WindowInsets.systemBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Bottom)
     },
+    title: String? = null,
+    endAction: (@Composable () -> Unit)? = null,
+    scrollState: ScrollState? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     LaunchedEffect(sheetState) { sheetState.show() }
@@ -169,17 +175,20 @@ fun ModalBottomSheet(
     // Compose WindowInsets 在 Scaffold 消费后常为 0；独立 sheet 窗口里同样不可靠。
     // 用 Activity 根窗口原始 inset 兜底，保证「新增自定义技能」等高表单不贴导航栏。
     val bottomInset = rememberSheetBottomInset(contentWindowInsets)
-    val body: @Composable () -> Unit = {
+    val body: @Composable (PaddingValues, Boolean) -> Unit = { headerPadding, glass ->
         CompositionLocalProvider(
             LocalContentColor provides contentColor,
             LocalRaisedSurface provides true,
+            LocalGlassSheet provides glass,
             LocalRuntimeBackdrop provides null,
         ) {
             Column(
                 Modifier
                     .fillMaxWidth()
                     .padding(bottom = bottomInset)
-                    .imePadding(),
+                    .imePadding()
+                    .then(if (scrollState != null) Modifier.verticalScroll(scrollState) else Modifier)
+                    .padding(headerPadding),
                 content = content,
             )
         }
@@ -196,22 +205,28 @@ fun ModalBottomSheet(
             renderInRootScaffold = false,
             modifier = modifier,
             allowDismiss = sheetState.canDismiss(),
+            title = title,
+            endAction = endAction,
+            progressiveBlur = scrollState != null,
+            scrollOffset = scrollState?.let { state -> { state.value.toFloat() } },
             onDismissRequest = dismiss,
             onDismissFinished = dismissFinished,
             insideMargin = insideMargin,
             containerColor = containerColor,
             dimColor = scrimColor,
-            content = body,
+            content = { body(it, true) },
         )
     } else {
         WindowBottomSheet(
             show = show,
             modifier = modifier,
             allowDismiss = sheetState.canDismiss(),
+            title = title,
+            endAction = endAction,
             onDismissRequest = dismiss,
             onDismissFinished = dismissFinished,
             insideMargin = insideMargin,
-            content = body,
+            content = { body(PaddingValues(0.dp), false) },
         )
     }
 }

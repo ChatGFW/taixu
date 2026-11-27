@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import top.wkbin.taixu.ui.miuix.RuntimeTheme
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.*
@@ -36,7 +37,8 @@ internal fun ModelDialog(
     onCreate: () -> Unit,
     onDelete: (String) -> Unit,
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
+    val searchState = rememberTextFieldState()
+    val query = searchState.text.toString()
     var deleteTargetId by rememberSaveable { mutableStateOf<String?>(null) }
     val pickingProfile = models.firstOrNull { it.id == modelPickerProfileId }
     if (pickingProfile != null) {
@@ -64,8 +66,11 @@ internal fun ModelDialog(
             }
         },
     ) {
-        RuntimeSearchBar(query, { query = it }, Modifier.fillMaxWidth(),
-            placeholder = stringResource(R.string.chat_search_provider))
+        RuntimeSheetSearchBar(
+            state = searchState,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = stringResource(R.string.chat_search_provider),
+        )
         LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (filtered.isEmpty()) item {
                 Text(stringResource(if (models.isEmpty()) R.string.chat_no_models else R.string.chat_no_matching_models),

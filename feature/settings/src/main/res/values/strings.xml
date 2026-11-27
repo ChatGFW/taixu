@@ -106,6 +106,8 @@
     <string name="settings_oss_miuix_title">Miuix</string>
     <string name="settings_oss_material_symbols_title">Material Symbols Rounded</string>
     <string name="settings_oss_a2ui_title">AndroidX A2UI（适配源码）</string>
+    <string name="settings_oss_sora_title">Sora Editor</string>
+    <string name="settings_oss_sora_subtitle">Copyright © 2020–2026 Rosemoe · LGPL 2.1 或更新版本</string>
     <string name="settings_oss_rtk_title">RTK</string>
     <string name="settings_oss_agency_agents_title">Agency Agents</string>
     <string name="settings_oss_apache_subtitle">Apache License 2.0</string>

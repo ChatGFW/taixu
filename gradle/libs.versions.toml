@@ -12,7 +12,7 @@ activityCompose = "1.13.0"
 leakcanaryAndroid = "2.14"
 lifecycle = "2.11.0"
 navigation3 = "1.2.1"
-miuix = "0.9.5-beta01"
+miuix = "0.9.5-rc01"
 # 0.9.3 是最后一个提供 AndroidX Navigation3 NavDisplay 适配模块的版本。
 miuixNavigation3Ui = "0.9.3"
 room = "2.8.5"
@@ -44,6 +44,7 @@ exifinterface = "1.4.2"
 uiautomator = "2.4.1"
 # JGit（MGit 同源技术栈）：宿主侧直接管理工作区 Git 仓库，无需沙箱 git
 jgit = "6.10.1.202505221210-r"
+soraEditor = "0.24.7"
 # A2UI（Agent-to-UI）：智能体以 JSON Lines 描述界面、客户端渲染原生 Compose 组件的官方协议实现
 a2ui = "1.0.0-alpha02"
 # Media3：A2UI Video / AudioPlayer 的原生播放器（控件与拖动进度）
@@ -57,6 +58,7 @@ asm = "9.11.1"
 rhino = "1.9.2"
 
 [libraries]
+sora-editor = { module = "io.github.rosemoe:editor", version.ref = "soraEditor" }
 groovy-json = { module = "org.apache.groovy:groovy-json", version.ref = "groovyJson" }
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 androidx-work-testing = { module = "androidx.work:work-testing", version.ref = "work" }

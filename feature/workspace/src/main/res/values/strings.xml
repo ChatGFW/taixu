@@ -13,7 +13,7 @@
     <string name="workspace_new_file">新建文件</string>
     <string name="workspace_new_folder">新建文件夹</string>
     <string name="workspace_empty_directory">目录为空</string>
-    <string name="workspace_empty_directory_hint">点击右上角 ➕ 新建文件或子目录</string>
+    <string name="workspace_empty_directory_hint">从右上角的项目菜单新建文件或子目录</string>
     <string name="workspace_file_name">文件名</string>
     <string name="workspace_folder_name">文件夹名称</string>
     <string name="workspace_create">确认创建</string>

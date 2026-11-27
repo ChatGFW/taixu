@@ -31,7 +31,10 @@ class RemoteScriptRunner(
         require(uri.userInfo == null && uri.fragment == null && (uri.port == -1 || uri.port == 443)) {
             "官方安装脚本 URL 不允许用户信息、片段或非标准端口"
         }
-        require(uri.host.orEmpty().lowercase() in ALLOWED_HOSTS) {
+        val pinnedCodexSource = spec.name == "codex" &&
+            spec.url == CodexToolInstaller.CODEX_INSTALL_SCRIPT_URL &&
+            spec.sha256 == CodexToolInstaller.CODEX_INSTALL_SCRIPT_SHA256
+        require(pinnedCodexSource || uri.host.orEmpty().lowercase() in ALLOWED_HOSTS) {
             "不允许执行未登记的安装脚本来源：${uri.host.orEmpty()}"
         }
         require(SAFE_NAME.matches(spec.name)) { "安装脚本名称无效" }

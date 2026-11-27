@@ -38,7 +38,6 @@ import top.wkbin.taixu.plugin.ui.PluginPages
 import top.wkbin.taixu.plugin.runtime.PluginController
 import org.koin.compose.koinInject
 import top.wkbin.taixu.ui.workspace.CodeEditorScreen
-import top.wkbin.taixu.ui.workspace.WorkspaceExplorerScreen
 import top.wkbin.taixu.ui.workspace.WorkspaceScreen
 import top.wkbin.taixu.core.common.navigation.AppNavigationTarget
 import top.wkbin.taixu.core.common.navigation.GlobalNavigationBus
@@ -277,19 +276,13 @@ fun TaiXuNavHost(
                 }
             }
             entry<WorkspaceExplorerDestination> { destination ->
-                GuardedEntry(destination) {
-                    WorkspaceExplorerScreen(
-                        projectName = destination.projectName,
-                        initialPath = destination.initialPath,
-                        onBack = ::popBack,
-                        onOpenFile = { relativePath ->
-                            activeStack.push(destination, CodeEditorDestination(destination.projectName, relativePath))
-                        },
-                        onOpenTerminal = { project ->
-                            activeStack.push(destination, TerminalDestination(project = project))
-                        },
-                    )
-                }
+                GuardedEntry(destination) { WorkspaceExplorerRoute(destination, ::popBack) { activeStack.push(destination, it) } }
+            }
+            entry<WorkspaceRunDestination> { destination ->
+                GuardedEntry(destination) { WorkspaceRunRoute(destination, ::popBack) { activeStack.push(destination, it) } }
+            }
+            entry<WorkspaceCodexDestination> { destination ->
+                GuardedEntry(destination) { WorkspaceCodexRoute(destination, ::popBack) }
             }
             entry<CodeEditorDestination> { destination ->
                 GuardedEntry(destination) {
@@ -633,7 +626,7 @@ fun TaiXuNavHost(
             }
             entry<GitRepositoryDestination> { destination ->
                 GuardedEntry(destination) {
-                    GitScreen(projectName = destination.projectName, onBack = ::popBack)
+                    GitScreen(projectName = destination.projectName, onBack = ::popBack, openChanges = destination.openChanges)
                 }
             }
             entry<BotDetailDestination> { destination -> GuardedEntry(destination) { BotDetailScreen(botId = destination.botId, onBack = ::popBack, onOpenSession = { sessionId -> chatViewModel.switchSession(sessionId); navigateMain(MainDestination.Agent) }) } }
